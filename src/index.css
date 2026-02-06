@@ -1,0 +1,358 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  /* Stake-inspired Palette */
+  --color-bg-main: #0f212e;       /* Deepest background */
+  --color-bg-secondary: #1a2c38;  /* Sidebar / Header */
+  --color-bg-card: #213743;       /* Cards / Game containers */
+  --color-bg-input: #0f212e;      /* Inputs / Inner containers */
+  --color-bg-hover: #2f4553;      /* Hover states */
+
+  --color-primary: #00e701;       /* Stake Green */
+  --color-primary-hover: #1fff20;
+  
+  --color-text-main: #ffffff;
+  --color-text-secondary: #b1bad3;
+  --color-text-disabled: #55657e;
+
+  --color-danger: #ea3e3e;        /* Red for losses/errors */
+  --color-success: #00e701;       /* Green for wins */
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  /* Typography */
+  --font-main: 'Inter', sans-serif;
+  
+  /* Borders */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+  
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: var(--color-bg-main);
+  color: var(--color-text-main);
+  font-family: var(--font-main);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  width: 100%;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* Base Elements */
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  font-weight: 700;
+  color: var(--color-text-main);
+}
+
+p {
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+button {
+  border: none;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Layout Utilities */
+.app-layout {
+  display: flex;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 240px;
+  background-color: var(--color-bg-secondary);
+  padding: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(0,0,0,0.2);
+}
+
+.main-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Centering specifically for the game view */
+}
+
+/* Specific Stake-like Components */
+.stake-card {
+  background-color: var(--color-bg-card);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  width: 100%;
+  max-width: 800px;
+  box-shadow: var(--shadow-card);
+}
+
+.game-container {
+  background-color: var(--color-bg-main);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  border: 1px solid var(--color-bg-secondary);
+}
+
+/* Buttons */
+.btn-primary {
+  background-color: var(--color-primary);
+  color: #011e01; /* Dark green text for contrast on neon green */
+  padding: 12px 24px;
+  font-size: 1rem;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  padding: 10px 20px;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--color-bg-hover);
+  color: var(--color-text-main);
+}
+
+.btn-bet-safe {
+  background-color: var(--color-bg-input);
+  border: 1px solid var(--color-bg-hover);
+  color: var(--color-text-secondary);
+  padding: 16px;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.btn-bet-risk {
+  background-color: var(--color-bg-input);
+  border: 1px solid var(--color-bg-hover);
+  color: var(--color-text-secondary);
+  padding: 16px;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.btn-bet-safe:hover, .btn-bet-risk:hover {
+  border-color: var(--color-primary);
+  background-color: var(--color-bg-hover);
+}
+
+.selected-bet {
+  border-color: var(--color-primary);
+  background-color: rgba(0, 231, 1, 0.1);
+  color: var(--color-text-main);
+}
+
+/* Text Colors */
+.text-green { color: var(--color-success); }
+.text-red { color: var(--color-danger); }
+.text-white { color: var(--color-text-main); }
+.text-grey { color: var(--color-text-secondary); }
+
+/* Input Styles */
+.input-group {
+  background-color: var(--color-bg-input);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  transition: border-color 0.2s;
+}
+
+.input-group:focus-within {
+  border-color: var(--color-bg-hover);
+}
+
+/* Mobile Responsive Design */
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 200px;
+  }
+
+  .stake-card {
+    padding: var(--spacing-md);
+  }
+}
+
+@media (max-width: 768px) {
+  #root {
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .app-layout {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid rgba(0,0,0,0.2);
+    padding: var(--spacing-sm);
+  }
+
+  .main-content {
+    padding: var(--spacing-md);
+  }
+
+  .stake-card {
+    max-width: 100%;
+    padding: var(--spacing-md);
+  }
+
+  .game-container {
+    padding: var(--spacing-md);
+    min-height: 300px;
+  }
+
+  /* Button adjustments */
+  .btn-primary {
+    padding: 14px 20px;
+    font-size: 0.95rem;
+  }
+
+  .btn-secondary {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+  }
+
+  /* Hide sidebar on mobile game screen */
+  .app-layout.game-active .sidebar {
+    display: none;
+  }
+
+  .app-layout.game-active .main-content {
+    padding: var(--spacing-sm);
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    font-size: 14px;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+  }
+
+  .sidebar {
+    padding: var(--spacing-xs);
+  }
+
+  .main-content {
+    padding: var(--spacing-sm);
+  }
+
+  .stake-card {
+    padding: var(--spacing-sm);
+  }
+
+  .game-container {
+    padding: var(--spacing-sm);
+    min-height: 250px;
+  }
+
+  .btn-primary {
+    padding: 12px 16px;
+    font-size: 0.9rem;
+  }
+}
+
+/* Touch-friendly adjustments */
+@media (hover: none) and (pointer: coarse) {
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  input[type="range"] {
+    height: 44px;
+  }
+
+  .btn-primary {
+    padding: 16px 24px;
+  }
+}
+
+/* Landscape mobile */
+@media (max-width: 896px) and (orientation: landscape) {
+  .game-container {
+    min-height: 200px;
+  }
+
+  .main-content {
+    padding: var(--spacing-sm);
+  }
+}
+
+/* Animation performance for mobile */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* PWA Support */
+@media (display-mode: standalone) {
+  body {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+}
+

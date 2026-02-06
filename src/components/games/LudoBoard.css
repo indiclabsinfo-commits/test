@@ -1,0 +1,324 @@
+.ludo-board {
+    display: grid;
+    grid-template-columns: repeat(15, 1fr);
+    grid-template-rows: repeat(15, 1fr);
+    width: 100%;
+    aspect-ratio: 1;
+    background: #fef9e7;
+    border: 6px solid #8b4513;
+    border-radius: 4px;
+    max-width: 600px;
+    margin: 0 auto;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    overflow: visible;
+}
+
+.cell {
+    border: 0.5px solid rgba(139, 69, 19, 0.1);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+}
+
+
+/* Bases */
+/* Bases */
+.base {
+    border: 4px solid;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    border-radius: 4px;
+    z-index: 5;
+}
+
+/* 
+  Ludo King Standard Layout:
+  Green: Top-Left
+  Yellow: Top-Right
+  Red: Bottom-Left
+  Blue: Bottom-Right
+*/
+
+.base.green {
+    grid-row: 1 / span 6;
+    grid-column: 1 / span 6;
+    background: #fff;
+    border-color: #009900;
+}
+
+.base.yellow {
+    grid-row: 1 / span 6;
+    grid-column: 10 / span 6;
+    background: #fff;
+    border-color: #ccaa00;
+}
+
+.base.red {
+    grid-row: 10 / span 6;
+    grid-column: 1 / span 6;
+    background: #fff;
+    border-color: #cc0000;
+}
+
+.base.blue {
+    grid-row: 10 / span 6;
+    grid-column: 10 / span 6;
+    background: #fff;
+    border-color: #0066cc;
+}
+
+/* The colored box inside the base */
+.base-inner {
+    width: 65%;
+    height: 65%;
+    background: inherit;
+    /* Fallback */
+    border-radius: 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 15px;
+    padding: 15px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.base.green .base-inner {
+    background: #00cc00;
+}
+
+.base.yellow .base-inner {
+    background: #ffdd00;
+}
+
+.base.red .base-inner {
+    background: #ff3333;
+}
+
+.base.blue .base-inner {
+    background: #3399ff;
+}
+
+.piece-spot {
+    width: 100%;
+    height: 100%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    border: none;
+}
+
+/* Safe Zones */
+.safe {
+    background: #fff !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.safe::before {
+    content: '★';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.5rem;
+    color: #888;
+    opacity: 0.5;
+    z-index: 0;
+    line-height: 1;
+}
+
+/* Home Paths */
+.path-red {
+    background: #ff3333 !important;
+    border-color: #cc0000 !important;
+}
+
+.path-green {
+    background: #00cc00 !important;
+    border-color: #009900 !important;
+}
+
+.path-yellow {
+    background: #ffdd00 !important;
+    border-color: #ccaa00 !important;
+}
+
+.path-blue {
+    background: #3399ff !important;
+    border-color: #0066cc !important;
+}
+
+/* Home Center - 4 Triangular Sections */
+.home-center {
+    grid-column: 7 / span 3;
+    grid-row: 7 / span 3;
+    background: #fff;
+    border: 3px solid #8b4513;
+    z-index: 1;
+    position: relative;
+    overflow: hidden;
+    background:
+        conic-gradient(from 45deg,
+            #00cc00 0deg 90deg,
+            /* Right (actually Left in Ludo logic? No, check rotation) */
+            #ffdd00 90deg 180deg,
+            /* Bottom */
+            #3399ff 180deg 270deg,
+            /* Left */
+            #ff3333 270deg 360deg
+            /* Top */
+        );
+}
+
+/* Ludo Center Rotation Fix:
+   Green comes from Left (Row 7, Col 2..6) -> Enters center from Left
+   Red from Bottom
+   Blue from Top
+   Yellow from Right? 
+   No, standard Ludo:
+   Green Home: Left
+   Red Home: Bottom
+   Blue Home: Top (? usually Yellow/Blue vary)
+   
+   Let's check code constants:
+   HOME_PATHS:
+   GREEN: row 8, col 2-6 (Horizontal, entering from left) -> Center Left Triangle should be Green
+   YELLOW: row 2-6, col 8 (Vertical, entering from top) -> Center Top Triangle should be Yellow
+   BLUE: row 8, col 10-14 (Horizontal, entering from right) -> Center Right Triangle should be Blue
+   RED: row 10-14, col 8 (Vertical, entering from bottom) -> Center Bottom Triangle should be Red
+*/
+
+.home-center {
+    border: none;
+    /* Let triangles handle it */
+    background: none;
+}
+
+/* Using borders for sharp triangles */
+.home-tri-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.home-tri {
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-style: solid;
+}
+
+/* Top - Yellow matches code (row 2-6) */
+.home-tri.top {
+    top: 0;
+    left: 0;
+    border-width: 0 60px 60px 60px;
+    /* Adjust based on container size approx 120px */
+    /* Wait, absolute borders are tricky with responsive. 
+       Use conic-gradient for robust responsive background */
+
+}
+
+/* Reverting to Conic Gradient for responsiveness, strictly mapped to paths */
+.home-center {
+    background:
+        conic-gradient(from -45deg,
+            #ffdd00 0deg 90deg,
+            /* Top: Yellow */
+            #3399ff 90deg 180deg,
+            /* Right: Blue */
+            #ff3333 180deg 270deg,
+            /* Bottom: Red */
+            #00cc00 270deg 360deg
+            /* Left: Green */
+        );
+    border: 3px solid #8b4513;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.home-center::after {
+    content: '';
+    /* White center block optional or trophy */
+    width: 0;
+    height: 0;
+}
+
+/* Pieces */
+.piece {
+    width: 70%;
+    height: 70%;
+    border-radius: 50%;
+    border: 3px solid rgba(0, 0, 0, 0.2);
+    box-shadow:
+        inset 2px 2px 5px rgba(255, 255, 255, 0.7),
+        inset -2px -2px 5px rgba(0, 0, 0, 0.3),
+        3px 3px 5px rgba(0, 0, 0, 0.3);
+    z-index: 10;
+    cursor: pointer;
+    position: relative;
+    display: grid;
+    place-items: center;
+    margin: auto;
+    transition: transform 0.2s ease;
+}
+
+/* Enhance pieces to look like Ludo King pawns */
+.piece::before {
+    content: '';
+    position: absolute;
+    top: -20%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 30%;
+    height: 30%;
+    border-radius: 50%;
+    background: inherit;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 0.8);
+    display: none;
+    /* Keeping it simple circle for now to avoid layout issues */
+}
+
+.piece.red {
+    background: #d90000;
+    border-color: #8a0000;
+}
+
+.piece.green {
+    background: #00a800;
+    border-color: #007000;
+}
+
+.piece.yellow {
+    background: #ffd700;
+    border-color: #bfa100;
+}
+
+.piece.blue {
+    background: #0066cc;
+    border-color: #004080;
+}
+
+.piece.glow {
+    box-shadow: 0 0 15px #ffd700;
+    transform: scale(1.15);
+    z-index: 20;
+    animation: piece-bounce 0.8s infinite alternate;
+}
+
+@keyframes piece-bounce {
+    from {
+        transform: scale(1.15);
+    }
+
+    to {
+        transform: scale(1.25);
+    }
+}
