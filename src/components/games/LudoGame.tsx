@@ -1,54 +1,65 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useGame } from '../../contexts/GameContext';
-import { playDiceShake, playClick } from '../../utils/sound';
+import { wsService } from '../../services/websocket';
+import { playDiceShake, playPieceMove, playCapture, playHomeEntry, playWinSound } from '../../utils/sound';
 import { formatIndianNumber } from '../../utils/format';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import './LudoBoard.css';
 
-// --- Constants & Types ---
-type PlayerColor = 'RED' | 'GREEN' | 'YELLOW' | 'BLUE';
+// ─── Constants & Types ─────────────────────────────────────────────────
 
-interface Piece {
+type PlayerColor = 'RED' | 'GREEN' | 'YELLOW' | 'BLUE';
+type MatchState = 'MENU' | 'QUEUING' | 'WAITING_ROOM' | 'PLAYING' | 'FINISHED';
+
+interface ServerPiece {
     id: number;
-    color: PlayerColor;
-    position: number; // -1 = Home, 0-51 = Main Path
-    travelled: number; // Total steps taken (to track home stretch entry)
+    position: number;
+    travelled: number;
+    finished: boolean;
 }
 
-interface Player {
+interface ServerPlayer {
+    id: string | null;
+    username: string;
     color: PlayerColor;
     isBot: boolean;
-    name: string;
-    pieces: Piece[];
-    hasFinished: boolean; // Reached center
+    pieces: ServerPiece[];
+    finishedCount: number;
 }
 
-// 1-indexed for CSS Grid.
+interface ServerGameState {
+    gameId: string;
+    code: string | null;
+    status: 'WAITING' | 'PLAYING' | 'FINISHED';
+    players: ServerPlayer[];
+    currentPlayerIndex: number;
+    currentPlayerColor: PlayerColor;
+    lastRoll: number;
+    waitingForMove: boolean;
+    movablePieces: number[];
+    winner: string | null;
+    finishOrder: string[];
+    betAmount: number;
+    maxPlayers: 2 | 3 | 4;
+    isPrivate: boolean;
+}
+
 const PATH_COORDS = [
-    // 0: Green Start Point (safe) is usually (7, 2) in grid terms (row, col)
     { r: 7, c: 2 }, { r: 7, c: 3 }, { r: 7, c: 4 }, { r: 7, c: 5 }, { r: 7, c: 6 },
-    { r: 6, c: 7 }, { r: 5, c: 7 }, { r: 4, c: 7 }, { r: 3, c: 7 }, { r: 2, c: 7 }, { r: 1, c: 7 }, // 5-10
-    { r: 1, c: 8 }, { r: 1, c: 9 }, // 11, 12 top middle
-    { r: 2, c: 9 }, { r: 3, c: 9 }, { r: 4, c: 9 }, { r: 5, c: 9 }, { r: 6, c: 9 }, // 13-17 down
-    { r: 7, c: 10 }, { r: 7, c: 11 }, { r: 7, c: 12 }, { r: 7, c: 13 }, { r: 7, c: 14 }, { r: 7, c: 15 }, // 18-23 right
-    { r: 8, c: 15 }, { r: 9, c: 15 }, // 24, 25 right middle
-    { r: 9, c: 14 }, { r: 9, c: 13 }, { r: 9, c: 12 }, { r: 9, c: 11 }, { r: 9, c: 10 }, // 26-30 left
-    { r: 10, c: 9 }, { r: 11, c: 9 }, { r: 12, c: 9 }, { r: 13, c: 9 }, { r: 14, c: 9 }, { r: 15, c: 9 }, // 31-36 down
-    { r: 15, c: 8 }, { r: 15, c: 7 }, // 37, 38 bottom middle
-    { r: 14, c: 7 }, { r: 13, c: 7 }, { r: 12, c: 7 }, { r: 11, c: 7 }, { r: 10, c: 7 }, // 39-43 up
-    { r: 9, c: 6 }, { r: 9, c: 5 }, { r: 9, c: 4 }, { r: 9, c: 3 }, { r: 9, c: 2 }, { r: 9, c: 1 }, // 44-49 left
-    { r: 8, c: 1 }, { r: 7, c: 1 } // 50, 51 left middle
+    { r: 6, c: 7 }, { r: 5, c: 7 }, { r: 4, c: 7 }, { r: 3, c: 7 }, { r: 2, c: 7 }, { r: 1, c: 7 },
+    { r: 1, c: 8 }, { r: 1, c: 9 },
+    { r: 2, c: 9 }, { r: 3, c: 9 }, { r: 4, c: 9 }, { r: 5, c: 9 }, { r: 6, c: 9 },
+    { r: 7, c: 10 }, { r: 7, c: 11 }, { r: 7, c: 12 }, { r: 7, c: 13 }, { r: 7, c: 14 }, { r: 7, c: 15 },
+    { r: 8, c: 15 }, { r: 9, c: 15 },
+    { r: 9, c: 14 }, { r: 9, c: 13 }, { r: 9, c: 12 }, { r: 9, c: 11 }, { r: 9, c: 10 },
+    { r: 10, c: 9 }, { r: 11, c: 9 }, { r: 12, c: 9 }, { r: 13, c: 9 }, { r: 14, c: 9 }, { r: 15, c: 9 },
+    { r: 15, c: 8 }, { r: 15, c: 7 },
+    { r: 14, c: 7 }, { r: 13, c: 7 }, { r: 12, c: 7 }, { r: 11, c: 7 }, { r: 10, c: 7 },
+    { r: 9, c: 6 }, { r: 9, c: 5 }, { r: 9, c: 4 }, { r: 9, c: 3 }, { r: 9, c: 2 }, { r: 9, c: 1 },
+    { r: 8, c: 1 }, { r: 7, c: 1 }
 ];
-// Total 52 elements exactly.
 
-const START_OFFSETS = {
-    GREEN: 0,
-    YELLOW: 13,
-    BLUE: 26,
-    RED: 39
-};
-
-const HOME_PATHS = {
+const HOME_PATHS: Record<PlayerColor, { r: number; c: number }[]> = {
     GREEN: [{ r: 8, c: 2 }, { r: 8, c: 3 }, { r: 8, c: 4 }, { r: 8, c: 5 }, { r: 8, c: 6 }],
     YELLOW: [{ r: 2, c: 8 }, { r: 3, c: 8 }, { r: 4, c: 8 }, { r: 5, c: 8 }, { r: 6, c: 8 }],
     BLUE: [{ r: 8, c: 14 }, { r: 8, c: 13 }, { r: 8, c: 12 }, { r: 8, c: 11 }, { r: 8, c: 10 }],
@@ -56,641 +67,1098 @@ const HOME_PATHS = {
 };
 
 const SAFE_SPOTS = [0, 8, 13, 21, 26, 34, 39, 47];
+const START_OFFSETS: Record<PlayerColor, number> = { GREEN: 0, YELLOW: 13, BLUE: 26, RED: 39 };
+const LOCAL_COLOR_SLOTS: Record<2 | 3 | 4, PlayerColor[]> = {
+    2: ['GREEN', 'BLUE'],
+    3: ['GREEN', 'YELLOW', 'RED'],
+    4: ['GREEN', 'YELLOW', 'BLUE', 'RED'],
+};
+
+const COLOR_MAP: Record<PlayerColor, { main: string; gradient: string; glow: string }> = {
+    GREEN: { main: '#2ecc40', gradient: 'linear-gradient(135deg, #2ecc40, #1a9c2a)', glow: 'rgba(46, 204, 64, 0.4)' },
+    YELLOW: { main: '#f5d000', gradient: 'linear-gradient(135deg, #ffe066, #e6b800)', glow: 'rgba(230, 184, 0, 0.4)' },
+    BLUE: { main: '#3498db', gradient: 'linear-gradient(135deg, #5dade2, #2471a3)', glow: 'rgba(52, 152, 219, 0.4)' },
+    RED: { main: '#e74c3c', gradient: 'linear-gradient(135deg, #ff4d4d, #cc0000)', glow: 'rgba(231, 76, 60, 0.4)' },
+};
+
+const BET_PRESETS = [50, 100, 500, 1000];
+const INTERNAL_MULTIPLIER = 100000;
+
+// ─── Sub-Components ────────────────────────────────────────────────────
+
+const TimerRing: React.FC<{ timeLeft: number; maxTime: number; color: string }> = ({ timeLeft, maxTime, color }) => {
+    const radius = 11;
+    const circumference = 2 * Math.PI * radius;
+    const progress = (timeLeft / maxTime) * circumference;
+
+    return (
+        <svg className="ludo-timer-ring" viewBox="0 0 28 28">
+            <circle className="timer-bg" cx="14" cy="14" r={radius} />
+            <circle
+                className="timer-progress"
+                cx="14" cy="14" r={radius}
+                stroke={timeLeft <= 10 ? '#ff4d4d' : color}
+                strokeDasharray={circumference}
+                strokeDashoffset={circumference - progress}
+                transform="rotate(-90 14 14)"
+            />
+            <text x="14" y="15" textAnchor="middle" dominantBaseline="middle"
+                fill={timeLeft <= 10 ? '#ff4d4d' : '#fff'} fontSize="8" fontWeight="700">
+                {timeLeft}
+            </text>
+        </svg>
+    );
+};
+
+const DiceFace: React.FC<{ value: number }> = ({ value }) => {
+    const dot = (key: number, red = false) => (
+        <div key={key} className={`dice-dot${red ? ' red-dot' : ''}`} />
+    );
+    const empty = (key: number) => <div key={key} />;
+
+    const layouts: Record<number, (number | 'e' | 'r')[]> = {
+        1: ['e', 'e', 'e', 'e', 'r', 'e', 'e', 'e', 'e'],
+        2: [1, 'e', 'e', 'e', 'e', 'e', 'e', 'e', 2],
+        3: [1, 'e', 'e', 'e', 2, 'e', 'e', 'e', 3],
+        4: [1, 'e', 2, 'e', 'e', 'e', 3, 'e', 4],
+        5: [1, 'e', 2, 'e', 3, 'e', 4, 'e', 5],
+        6: [1, 'e', 2, 3, 'e', 4, 5, 'e', 6],
+    };
+
+    const layout = layouts[value] || layouts[1];
+
+    return (
+        <div className="dice-face">
+            {layout.map((cell, i) =>
+                cell === 'e' ? empty(i) : cell === 'r' ? dot(i, true) : dot(i)
+            )}
+        </div>
+    );
+};
+
+const Confetti: React.FC = () => {
+    const particles = useMemo(() => (
+        Array.from({ length: 50 }, (_, i) => ({
+            id: i,
+            x: Math.random() * 100,
+            delay: Math.random() * 0.3,
+            duration: 1.5 + Math.random() * 1,
+            color: ['#FFD700', '#FF4500', '#00FF00', '#00CED1', '#FF1493'][Math.floor(Math.random() * 5)],
+        }))
+    ), []);
+
+    return (
+        <div className="confetti-container">
+            {particles.map(p => (
+                <div
+                    key={p.id}
+                    className="confetti-particle"
+                    style={{
+                        left: `${p.x}%`,
+                        animationDelay: `${p.delay}s`,
+                        animationDuration: `${p.duration}s`,
+                        background: p.color,
+                    }}
+                />
+            ))}
+        </div>
+    );
+};
+
+// ─── Main Component ────────────────────────────────────────────────────
 
 export const LudoGame: React.FC = () => {
-    const { placeBet } = useGame();
+    const { user, isAuthenticated, wsStatus } = useGame();
 
-    // --- State ---
-    const [players, setPlayers] = useState<Player[]>([
-        { color: 'GREEN', isBot: false, name: 'Green', hasFinished: false, pieces: [0, 1, 2, 3].map(id => ({ id, color: 'GREEN', position: -1, travelled: 0 })) },
-        { color: 'YELLOW', isBot: false, name: 'Yellow', hasFinished: false, pieces: [0, 1, 2, 3].map(id => ({ id, color: 'YELLOW', position: -1, travelled: 0 })) },
-        { color: 'BLUE', isBot: false, name: 'Blue', hasFinished: false, pieces: [0, 1, 2, 3].map(id => ({ id, color: 'BLUE', position: -1, travelled: 0 })) },
-        { color: 'RED', isBot: false, name: 'Red', hasFinished: false, pieces: [0, 1, 2, 3].map(id => ({ id, color: 'RED', position: -1, travelled: 0 })) },
-    ]);
-    const [turnIndex, setTurnIndex] = useState(0); // 0=Green, 1=Yellow...
-    const [diceValue, setDiceValue] = useState<number | null>(null);
-    const [canRoll, setCanRoll] = useState(true);
-    const [gameState, setGameState] = useState<'BETTING' | 'PLAYING' | 'FINISHED'>('BETTING');
-    const [consecutive6s, setConsecutive6s] = useState(0); // Track consecutive 6s
-    const [turnTimeLeft, setTurnTimeLeft] = useState(30); // 30-second timer
+    const [matchState, setMatchState] = useState<MatchState>('MENU');
+    const [serverState, setServerState] = useState<ServerGameState | null>(null);
+    const [myColor, setMyColor] = useState<PlayerColor | null>(null);
 
     const [betAmount, setBetAmount] = useState(100);
-    const [log, setLog] = useState<string[]>([]);
+    const [maxPlayers, setMaxPlayers] = useState<2 | 3 | 4>(4);
+    const [menuMode, setMenuMode] = useState<'quick' | 'private' | 'local'>('quick');
+    const [joinCode, setJoinCode] = useState('');
+    const [queueTimer, setQueueTimer] = useState(0);
+    const [menuError, setMenuError] = useState('');
 
-    const currentPlayer = players[turnIndex];
+    const [diceValue, setDiceValue] = useState<number | null>(null);
+    const [isRolling, setIsRolling] = useState(false);
+    const [showSixEffect, setShowSixEffect] = useState(false);
+    const [turnTimeLeft, setTurnTimeLeft] = useState(30);
+    const [log, setLog] = useState<{ text: string; type: 'normal' | 'kill' | 'finish' }[]>([]);
 
-    // --- Economics ---
-    const getPayouts = () => {
-        const totalPot = betAmount * 4;
-        const houseFee = totalPot * 0.10;
-        const prizePool = totalPot - houseFee;
+    const [finishData, setFinishData] = useState<any>(null);
 
-        return {
-            totalPot,
-            prizePool,
-            split: {
-                first: prizePool * 0.55,
-                second: prizePool * 0.30,
-                third: prizePool * 0.15,
-                fourth: 0
+    // Animation states
+    const [showConfetti, setShowConfetti] = useState(false);
+    const [capturingPiece, setCapturingPiece] = useState<{color: PlayerColor, pieceId: number} | null>(null);
+    const [sparklingPiece, setSparklingPiece] = useState<{color: PlayerColor, pieceId: number} | null>(null);
+    const [isLocalMatch, setIsLocalMatch] = useState(false);
+
+    const queueTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const turnTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const diceAnimRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const localConsecutiveSixesRef = useRef(0);
+    const isLocalMatchRef = useRef(false);
+
+    useEffect(() => {
+        isLocalMatchRef.current = isLocalMatch;
+    }, [isLocalMatch]);
+
+    useEffect(() => {
+        if (isAuthenticated && wsStatus === 'DISCONNECTED') {
+            wsService.connect();
+        }
+    }, [isAuthenticated, wsStatus]);
+
+    const addToLog = useCallback((text: string, type: 'normal' | 'kill' | 'finish') => {
+        setLog(prev => [{ text, type }, ...prev].slice(0, 10));
+    }, []);
+
+    // Haptic feedback helper
+    const triggerHaptic = useCallback((type: 'light' | 'medium' | 'heavy' = 'light') => {
+        if ('vibrate' in navigator) {
+            const patterns = { light: 10, medium: 20, heavy: 30 };
+            navigator.vibrate(patterns[type]);
+        }
+    }, []);
+
+    // ─── WebSocket Message Handler ─────────────────────────────────────
+
+    useEffect(() => {
+        const unsub = wsService.onMessage((msg: any) => {
+            if (isLocalMatchRef.current) return;
+            if (msg.game !== 'ludo') return;
+
+            switch (msg.type) {
+                case 'game_state':
+                    handleGameState(msg.data);
+                    break;
+                case 'queue_joined':
+                    setMatchState('QUEUING');
+                    startQueueTimer();
+                    break;
+                case 'queue_left':
+                    setMatchState('MENU');
+                    stopQueueTimer();
+                    break;
+                case 'match_found':
+                    setMatchState('PLAYING');
+                    stopQueueTimer();
+                    addToLog('Match found!', 'finish');
+                    break;
+                case 'dice_result':
+                    handleDiceResult(msg.data);
+                    break;
+                case 'piece_moved':
+                    handlePieceMoved(msg.data);
+                    break;
+                case 'piece_captured':
+                    handlePieceCaptured(msg.data);
+                    break;
+                case 'piece_home':
+                    handlePieceHome(msg.data);
+                    break;
+                case 'turn_start':
+                    handleTurnStart(msg.data);
+                    break;
+                case 'game_finished':
+                    handleGameFinished(msg.data);
+                    break;
+                case 'error':
+                    console.error('Ludo error:', msg.data?.message);
+                    setMenuError(msg.data?.message || 'Something went wrong');
+                    setTimeout(() => setMenuError(''), 5000);
+                    break;
+            }
+        });
+
+        return () => {
+            unsub();
+            stopQueueTimer();
+            stopTurnTimer();
+            if (diceAnimRef.current) {
+                clearInterval(diceAnimRef.current);
+                diceAnimRef.current = null;
             }
         };
-    };
+    }, []);
 
-    // --- Timer Effect ---
-    const timerExpiredRef = React.useRef(false);
-
-    React.useEffect(() => {
-        if (gameState !== 'PLAYING' || !canRoll) return;
-
-        const timer = setInterval(() => {
-            setTurnTimeLeft(prev => {
-                if (prev <= 1) {
-                    // Mark that timer expired
-                    timerExpiredRef.current = true;
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-
-        return () => clearInterval(timer);
-    }, [gameState, canRoll, turnIndex]);
-
-    // Handle timer expiration
-    React.useEffect(() => {
-        if (timerExpiredRef.current && turnTimeLeft === 0 && gameState === 'PLAYING') {
-            timerExpiredRef.current = false;
-            addToLog(`${currentPlayer.name}'s time expired!`);
-            setTurnTimeLeft(30);
-            setTimeout(() => {
-                setTurnIndex(prev => {
-                    let next = (prev + 1) % 4;
-                    let loops = 0;
-                    while (players[next].hasFinished && loops < 4) {
-                        next = (next + 1) % 4;
-                        loops++;
-                    }
-                    return next;
-                });
-                setDiceValue(null);
-                setCanRoll(true);
-                setConsecutive6s(0);
-            }, 500);
+    const handleGameState = useCallback((data: ServerGameState) => {
+        setServerState(data);
+        if (user) {
+            const myPlayer = data.players.find(p => p.id === user.id);
+            if (myPlayer) setMyColor(myPlayer.color);
         }
-    }, [turnTimeLeft, gameState, currentPlayer, players]);
+        if (data.status === 'WAITING') setMatchState('WAITING_ROOM');
+        else if (data.status === 'PLAYING') setMatchState('PLAYING');
+        else if (data.status === 'FINISHED') setMatchState('FINISHED');
+    }, [user]);
 
-
-    // --- Actions ---
-    const handleStart = () => {
-        if (!placeBet(betAmount)) return alert("Insufficient Funds");
-        setGameState('PLAYING');
-        setTurnTimeLeft(30);
-        addToLog("Game Started! Pot: ₹" + (betAmount * 4));
-    };
-
-    const rollDice = () => {
-        if (!canRoll) return;
+    const handleDiceResult = useCallback((data: any) => {
+        const { roll, playerColor, canMove, skipped, reason } = data;
+        setIsRolling(true);
         playDiceShake();
-        setCanRoll(false);
 
-        const roll = Math.floor(Math.random() * 6) + 1;
+        if (diceAnimRef.current) {
+            clearInterval(diceAnimRef.current);
+            diceAnimRef.current = null;
+        }
 
-        // Rolling animation simulation
         let i = 0;
-        const interval = setInterval(() => {
+        const maxTicks = 12;
+        diceAnimRef.current = setInterval(() => {
             setDiceValue(Math.floor(Math.random() * 6) + 1);
             i++;
-            if (i > 10) {
-                clearInterval(interval);
-                setDiceValue(roll);
-
-                // Check for 3 consecutive 6s limit
-                if (roll === 6) {
-                    if (consecutive6s >= 2) {
-                        // 3rd consecutive 6 - auto-pass turn
-                        addToLog(`${currentPlayer.name} rolled 3 sixes! Turn passed.`);
-                        setConsecutive6s(0);
-                        setTimeout(nextTurn, 1500);
-                        return;
-                    }
-                    setConsecutive6s(prev => prev + 1);
-                } else {
-                    setConsecutive6s(0);
+            if (i >= maxTicks) {
+                if (diceAnimRef.current) {
+                    clearInterval(diceAnimRef.current);
+                    diceAnimRef.current = null;
                 }
-
-                handleRollResult(roll);
+                setDiceValue(roll);
+                setIsRolling(false);
+                if (roll === 6) {
+                    setShowSixEffect(true);
+                    setTimeout(() => setShowSixEffect(false), 1200);
+                }
+                if (skipped && reason === 'three_sixes') {
+                    addToLog(`${playerColor} rolled 3 sixes! Turn skipped.`, 'normal');
+                } else if (!canMove) {
+                    addToLog(`${playerColor} rolled ${roll}. No moves.`, 'normal');
+                } else {
+                    addToLog(`${playerColor} rolled ${roll}`, 'normal');
+                }
             }
-        }, 50);
+        }, 65);
+    }, [addToLog]);
+
+    const handlePieceMoved = useCallback((data: any) => {
+        playPieceMove();
+        triggerHaptic('light');
+        if (data.captured) addToLog(`${data.playerColor} captured a piece!`, 'kill');
+    }, [addToLog, triggerHaptic]);
+
+    const handlePieceCaptured = useCallback((data: any) => {
+        playCapture();
+        triggerHaptic('heavy');
+        addToLog(`${data.capturedBy} captured ${data.capturedPlayer}'s piece!`, 'kill');
+
+        // Trigger capture animation
+        setCapturingPiece({ color: data.capturedPlayer, pieceId: data.capturedPieceId });
+        setTimeout(() => setCapturingPiece(null), 600);
+    }, [addToLog, triggerHaptic]);
+
+    const handlePieceHome = useCallback((data: any) => {
+        playHomeEntry();
+        triggerHaptic('medium');
+        addToLog(`${data.playerColor} got a piece home! (${data.finishedCount}/4)`, 'finish');
+
+        // Trigger sparkle animation
+        setSparklingPiece({ color: data.playerColor, pieceId: data.pieceId });
+        setTimeout(() => setSparklingPiece(null), 1200);
+    }, [addToLog, triggerHaptic]);
+
+    const handleTurnStart = useCallback((_data: any) => {
+        setTurnTimeLeft(30);
+        startTurnTimer();
+    }, []);
+
+    const handleGameFinished = useCallback((data: any) => {
+        setFinishData(data);
+        setMatchState('FINISHED');
+        stopTurnTimer();
+        addToLog('Game Over!', 'finish');
+
+        // Trigger celebration
+        playWinSound();
+        triggerHaptic('heavy');
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 3000);
+    }, [addToLog, triggerHaptic]);
+
+    // ─── Timers ────────────────────────────────────────────────────────
+
+    const startQueueTimer = () => {
+        setQueueTimer(0);
+        queueTimerRef.current = setInterval(() => setQueueTimer(prev => prev + 1), 1000);
     };
 
-    const renderDiceFace = (value: number): React.ReactNode => {
-        const dotStyle = {
-            width: '18px',
-            height: '18px',
-            background: 'radial-gradient(circle at 30% 30%, #333, #000)',
-            borderRadius: '50%',
-            boxShadow: 'inset 0 2px 5px rgba(0,0,0,0.8), 0 1px 1px rgba(255,255,255,0.5)',
-        };
-
-        // Helper to render empty spacer
-        const Empty = () => <div />;
-
-        // Dice Face Container with inset effect for realism
-        const Face = ({ children, style }: { children: React.ReactNode, style?: React.CSSProperties }) => (
-            <div style={{
-                width: '100%', height: '100%',
-                background: 'linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%)',
-                borderRadius: '16px',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gridTemplateRows: 'repeat(3, 1fr)',
-                padding: '12px',
-                boxSizing: 'border-box',
-                boxShadow: 'inset 0 0 15px rgba(0,0,0,0.1)',
-                gap: '2px', // minimal gap to align grid
-                ...style
-            }}>
-                {children}
-            </div>
-        );
-
-        // Map values to 3x3 grid positions
-        switch (value) {
-            case 1:
-                return (
-                    <Face style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <div style={{ ...dotStyle, width: '24px', height: '24px', background: 'radial-gradient(circle at 30% 30%, #ff3333, #cc0000)' }} />
-                    </Face>
-                );
-            case 2:
-                return (
-                    <Face>
-                        <div style={dotStyle} /> <Empty /> <Empty />
-                        <Empty /> <Empty /> <Empty />
-                        <Empty /> <Empty /> <div style={dotStyle} />
-                    </Face>
-                );
-            case 3:
-                return (
-                    <Face>
-                        <div style={dotStyle} /> <Empty /> <Empty />
-                        <Empty /> <div style={dotStyle} /> <Empty />
-                        <Empty /> <Empty /> <div style={dotStyle} />
-                    </Face>
-                );
-            case 4:
-                return (
-                    <Face>
-                        <div style={dotStyle} /> <Empty /> <div style={dotStyle} />
-                        <Empty /> <Empty /> <Empty />
-                        <div style={dotStyle} /> <Empty /> <div style={dotStyle} />
-                    </Face>
-                );
-            case 5:
-                return (
-                    <Face>
-                        <div style={dotStyle} /> <Empty /> <div style={dotStyle} />
-                        <Empty /> <div style={dotStyle} /> <Empty />
-                        <div style={dotStyle} /> <Empty /> <div style={dotStyle} />
-                    </Face>
-                );
-            case 6:
-                return (
-                    <Face>
-                        <div style={dotStyle} /> <Empty /> <div style={dotStyle} />
-                        <div style={dotStyle} /> <Empty /> <div style={dotStyle} />
-                        <div style={dotStyle} /> <Empty /> <div style={dotStyle} />
-                    </Face>
-                );
-            default:
-                return null;
-        }
+    const stopQueueTimer = () => {
+        if (queueTimerRef.current) { clearInterval(queueTimerRef.current); queueTimerRef.current = null; }
+        setQueueTimer(0);
     };
 
+    const startTurnTimer = () => {
+        stopTurnTimer();
+        setTurnTimeLeft(30);
+        turnTimerRef.current = setInterval(() => {
+            setTurnTimeLeft(prev => prev <= 1 ? 0 : prev - 1);
+        }, 1000);
+    };
 
-    const handleRollResult = (roll: number) => {
-        // Check moves
-        const p = players[turnIndex];
-        const movablePieces = p.pieces.filter(piece => canMove(piece, roll));
+    const stopTurnTimer = () => {
+        if (turnTimerRef.current) { clearInterval(turnTimerRef.current); turnTimerRef.current = null; }
+    };
 
-        if (movablePieces.length === 0) {
-            // No valid moves - auto-pass
-            if (roll === 6) {
-                addToLog(`${p.name} rolled 6 but no valid moves!`);
-            } else {
-                addToLog(`${p.name} rolled ${roll}. No moves available.`);
+    // ─── Actions ───────────────────────────────────────────────────────
+
+    const cloneGameState = (state: ServerGameState): ServerGameState => ({
+        ...state,
+        players: state.players.map(p => ({
+            ...p,
+            pieces: p.pieces.map(pc => ({ ...pc })),
+        })),
+        finishOrder: [...state.finishOrder],
+        movablePieces: [...state.movablePieces],
+    });
+
+    const getLocalMovablePieces = (player: ServerPlayer, roll: number): number[] => {
+        const movable: number[] = [];
+        for (const piece of player.pieces) {
+            if (piece.finished) continue;
+            if (piece.position === -1 && roll === 6) {
+                movable.push(piece.id);
+                continue;
             }
-            setConsecutive6s(0); // Reset counter
-            setTimeout(nextTurn, 1500);
-            return;
+            if (piece.position === -2) {
+                if (piece.travelled + roll <= 56) movable.push(piece.id);
+                continue;
+            }
+            if (piece.position >= 0) {
+                if (piece.travelled + roll <= 56) movable.push(piece.id);
+            }
         }
-        // User must click on pieces to move them
+        return movable;
     };
 
-    const canMove = (piece: Piece, roll: number): boolean => {
-        if (piece.position === 99) return false; // Already finished
-        if (piece.position === -1) return roll === 6; // Need 6 to start
-        if (piece.travelled + roll > 56) return false; // Overshoot home
-        // Strict home logic: 56 is the end (6th spot in home stretch).
+    const ensureOnlineReady = (): boolean => {
+        if (!isAuthenticated) {
+            setMenuError('Sign in required for online play');
+            return false;
+        }
+        if (wsStatus !== 'CONNECTED') {
+            wsService.connect();
+            setMenuError('Connecting to game server. Try again in a moment.');
+            return false;
+        }
         return true;
     };
 
+    const startLocalMatch = () => {
+        const colors = LOCAL_COLOR_SLOTS[maxPlayers];
+        const players: ServerPlayer[] = colors.map((color, i) => ({
+            id: `local_${i + 1}`,
+            username: i === 0 ? (user?.username || 'Player 1') : `Player ${i + 1}`,
+            color,
+            isBot: false,
+            pieces: Array.from({ length: 4 }, (_, pid) => ({
+                id: pid,
+                position: -1,
+                travelled: 0,
+                finished: false,
+            })),
+            finishedCount: 0,
+        }));
 
-    const movePiece = (piece: Piece, roll: number) => {
-        // 1. Calculate the outcome PURELY for the game loop decision (next turn / roll again)
-        // This avoids relying on side-effects inside setPlayers which might be async.
-        const simulateOutcome = () => {
-            const p = players.find(pl => pl.color === piece.color)!;
-            const target = p.pieces.find(pc => pc.id === piece.id)!;
-
-            if (target.position === -1) {
-                return { killed: false }; // Deploy never kills
-            }
-
-            // Predict new attributes
-            const newTravelled = target.travelled + roll;
-            const newPos = (target.position + roll) % 52;
-
-            if (newTravelled > 56) return { killed: false };
-
-            let kill = false;
-            if (!SAFE_SPOTS.includes(newPos) && newTravelled <= 50) {
-                // Check if any opponent is here
-                kill = players.some(opp =>
-                    opp.color !== piece.color &&
-                    opp.pieces.some(enemy => enemy.position === newPos && enemy.travelled <= 50)
-                );
-            }
-            return { killed: kill };
-        };
-
-        const outcome = simulateOutcome();
-        const isSix = roll === 6;
-
-        // 2. Perform the actual State Update
-        setPlayers(prev => {
-            const newPlayers = prev.map(p => ({
-                ...p,
-                pieces: p.pieces.map(pc => ({ ...pc }))
-            }));
-
-            const pIndex = newPlayers.findIndex(pl => pl.color === piece.color);
-            const p = newPlayers[pIndex];
-            const targetPiece = p.pieces.find(pc => pc.id === piece.id)!;
-            const pName = p.name;
-
-            if (targetPiece.position === -1) {
-                // Deploy
-                if (roll === 6) {
-                    targetPiece.position = START_OFFSETS[piece.color];
-                    targetPiece.travelled = 0;
-                    addToLog(`${pName} deployed a piece!`);
-                }
-            } else {
-                targetPiece.travelled += roll;
-                const newPos = (targetPiece.position + roll) % 52;
-
-                // Safety/Home Logic
-                if (targetPiece.travelled > 50) {
-                    targetPiece.position = newPos;
-                } else {
-                    targetPiece.position = newPos;
-                    // KILL LOGIC
-                    if (!SAFE_SPOTS.includes(newPos)) {
-                        newPlayers.forEach(opponent => {
-                            if (opponent.color !== p.color) {
-                                opponent.pieces.forEach(enemyPiece => {
-                                    if (enemyPiece.position === newPos && enemyPiece.travelled <= 50) {
-                                        enemyPiece.position = -1;
-                                        enemyPiece.travelled = 0;
-                                        addToLog(`${pName} KILLED ${opponent.name}'s piece!`);
-                                    }
-                                });
-                            }
-                        });
-                    }
-                }
-                addToLog(`${pName} moved piece ${roll} steps.`);
-            }
-
-            // Win
-            if (targetPiece.travelled === 56) targetPiece.position = 99;
-            if (p.pieces.every(pc => pc.position === 99)) {
-                p.hasFinished = true;
-                addToLog(`${pName} HAS FINISHED!`);
-            }
-
-            return newPlayers;
+        setIsLocalMatch(true);
+        localConsecutiveSixesRef.current = 0;
+        setMyColor(players[0].color);
+        setServerState({
+            gameId: `local_${Date.now()}`,
+            code: null,
+            status: 'PLAYING',
+            players,
+            currentPlayerIndex: 0,
+            currentPlayerColor: players[0].color,
+            lastRoll: 0,
+            waitingForMove: false,
+            movablePieces: [],
+            winner: null,
+            finishOrder: [],
+            betAmount: 0,
+            maxPlayers,
+            isPrivate: false,
         });
-
-        playClick();
-
-
-        // 3. Decide Next Turn
-        setTimeout(() => {
-            if (isSix || outcome.killed) {
-                setCanRoll(true);
-                // User must roll again manually
-            } else {
-                nextTurn();
-            }
-        }, 800);
+        setLog([{ text: 'Local game started', type: 'finish' }]);
+        setMatchState('PLAYING');
+        setMenuError('');
+        setDiceValue(null);
+        setFinishData(null);
+        startTurnTimer();
     };
 
-    const nextTurn = () => {
-        // Find next player who hasn't finished
-        let next = (turnIndex + 1) % 4;
-        let loops = 0;
-        while (players[next].hasFinished && loops < 4) {
-            next = (next + 1) % 4;
-            loops++;
+    const finishLocalIfNeeded = (state: ServerGameState): boolean => {
+        const unfinished = state.players.filter(p => p.finishedCount < 4);
+        if (unfinished.length > 1) return false;
+
+        unfinished.forEach(p => {
+            if (!state.finishOrder.includes(p.id || p.username)) {
+                state.finishOrder.push(p.id || p.username);
+            }
+        });
+        state.status = 'FINISHED';
+        const winnerId = state.finishOrder[0];
+        state.winner = winnerId;
+
+        const finishPayload = {
+            winner: winnerId,
+            finishOrder: state.finishOrder.map(id => {
+                const p = state.players.find(pp => (pp.id || pp.username) === id);
+                return { id: p?.id, username: p?.username, color: p?.color, isBot: p?.isBot };
+            }),
+            payouts: {},
+        };
+        handleGameFinished(finishPayload);
+        return true;
+    };
+
+    const nextLocalTurn = (state: ServerGameState, bonusTurn: boolean) => {
+        if (!bonusTurn) {
+            state.currentPlayerIndex = (state.currentPlayerIndex + 1) % state.players.length;
+            localConsecutiveSixesRef.current = 0;
+        }
+        state.currentPlayerColor = state.players[state.currentPlayerIndex].color;
+        state.lastRoll = 0;
+        state.waitingForMove = false;
+        state.movablePieces = [];
+        setTurnTimeLeft(30);
+    };
+
+    const executeLocalMove = (pieceId: number, explicitRoll?: number) => {
+        if (!serverState || serverState.status !== 'PLAYING') return;
+
+        const state = cloneGameState(serverState);
+        const roll = explicitRoll ?? state.lastRoll;
+        if (!roll) return;
+
+        const player = state.players[state.currentPlayerIndex];
+        const piece = player.pieces.find(p => p.id === pieceId);
+        if (!piece) return;
+
+        const startOffset = START_OFFSETS[player.color];
+        let captured = false;
+
+        if (piece.position === -1) {
+            if (roll !== 6) return;
+            piece.position = startOffset;
+            piece.travelled = 0;
+        } else {
+            const newTravelled = piece.travelled + roll;
+            if (newTravelled > 56) return;
+
+            if (newTravelled >= 51) {
+                piece.position = newTravelled === 56 ? -3 : -2;
+                piece.travelled = newTravelled;
+                if (newTravelled === 56 && !piece.finished) {
+                    piece.finished = true;
+                    player.finishedCount += 1;
+                    addToLog(`${player.color} got a piece home! (${player.finishedCount}/4)`, 'finish');
+                    playHomeEntry();
+                }
+            } else {
+                const newAbsPos = (startOffset + newTravelled) % 52;
+                piece.position = newAbsPos;
+                piece.travelled = newTravelled;
+
+                if (!SAFE_SPOTS.includes(newAbsPos)) {
+                    for (const other of state.players) {
+                        if (other.color === player.color) continue;
+                        for (const otherPiece of other.pieces) {
+                            if (otherPiece.position === newAbsPos && otherPiece.position >= 0) {
+                                otherPiece.position = -1;
+                                otherPiece.travelled = 0;
+                                captured = true;
+                                addToLog(`${player.color} captured ${other.color}!`, 'kill');
+                                playCapture();
+                            }
+                        }
+                    }
+                }
+            }
         }
 
-        if (loops === 4) {
-            setGameState('FINISHED');
+        playPieceMove();
+        state.waitingForMove = false;
+        state.movablePieces = [];
+        setServerState(state);
+
+        if (finishLocalIfNeeded(state)) return;
+
+        const bonusTurn = roll === 6 || captured;
+        setTimeout(() => {
+            setServerState(prev => {
+                if (!prev || prev.status !== 'PLAYING') return prev;
+                const next = cloneGameState(prev);
+                nextLocalTurn(next, bonusTurn);
+                return next;
+            });
+            if (!bonusTurn) addToLog(`${player.color} turn ended`, 'normal');
+        }, 350);
+    };
+
+    const findMatch = () => {
+        if (!ensureOnlineReady()) return;
+        setIsLocalMatch(false);
+        setMenuError('');
+        wsService.send({ game: 'ludo', type: 'find_match', data: { betAmount: Math.floor(betAmount * INTERNAL_MULTIPLIER), maxPlayers } });
+    };
+
+    const cancelMatch = () => {
+        wsService.send({ game: 'ludo', type: 'cancel_match', data: {} });
+        setMatchState('MENU');
+        stopQueueTimer();
+    };
+
+    const createPrivateRoom = () => {
+        if (!ensureOnlineReady()) return;
+        setIsLocalMatch(false);
+        setMenuError('');
+        wsService.send({ game: 'ludo', type: 'create_private', data: { betAmount: Math.floor(betAmount * INTERNAL_MULTIPLIER), maxPlayers } });
+    };
+
+    const joinPrivateRoom = () => {
+        if (!ensureOnlineReady() || !joinCode.trim()) return;
+        setIsLocalMatch(false);
+        setMenuError('');
+        wsService.send({ game: 'ludo', type: 'join_private', data: { code: joinCode.trim().toUpperCase() } });
+    };
+
+    const startGame = () => {
+        if (!ensureOnlineReady()) return;
+        wsService.send({ game: 'ludo', type: 'start_game', data: {} });
+    };
+
+    const rollDice = () => {
+        if (isRolling || !serverState || serverState.status !== 'PLAYING') return;
+        triggerHaptic('medium');
+
+        if (!isLocalMatch) {
+            wsService.send({ game: 'ludo', type: 'roll_dice', data: {} });
             return;
         }
 
-        setTurnIndex(next);
+        const state = cloneGameState(serverState);
+        const player = state.players[state.currentPlayerIndex];
+        const roll = Math.floor(Math.random() * 6) + 1;
+        state.lastRoll = roll;
+
+        if (roll === 6) {
+            localConsecutiveSixesRef.current += 1;
+        } else {
+            localConsecutiveSixesRef.current = 0;
+        }
+
+        const skipped = localConsecutiveSixesRef.current >= 3;
+        if (skipped) localConsecutiveSixesRef.current = 0;
+
+        const movable = skipped ? [] : getLocalMovablePieces(player, roll);
+        state.movablePieces = movable;
+        state.waitingForMove = movable.length > 1;
+        setServerState(state);
+
+        handleDiceResult({
+            roll,
+            playerColor: player.color,
+            canMove: movable.length > 0 && !skipped,
+            skipped,
+            reason: skipped ? 'three_sixes' : undefined,
+        });
+
+        if (movable.length === 1 && !skipped) {
+            setTimeout(() => executeLocalMove(movable[0], roll), 500);
+            return;
+        }
+
+        if (skipped || movable.length === 0) {
+            setTimeout(() => {
+                setServerState(prev => {
+                    if (!prev || prev.status !== 'PLAYING') return prev;
+                    const next = cloneGameState(prev);
+                    nextLocalTurn(next, false);
+                    return next;
+                });
+            }, 600);
+        }
+    };
+
+    const movePiece = (pieceId: number) => {
+        if (isLocalMatch) {
+            executeLocalMove(pieceId);
+            return;
+        }
+        wsService.send({ game: 'ludo', type: 'move', data: { pieceId } });
+    };
+
+    const leaveGame = () => {
+        if (!isLocalMatch) {
+            wsService.send({ game: 'ludo', type: 'leave_game', data: {} });
+        }
+        setIsLocalMatch(false);
+        setMatchState('MENU');
+        setServerState(null);
+        setMyColor(null);
         setDiceValue(null);
-        setCanRoll(true);
-        setTurnTimeLeft(30); // Reset timer for next player
-        setConsecutive6s(0); // Reset consecutive 6s counter
+        setLog([]);
+        setFinishData(null);
+        stopTurnTimer();
     };
 
-    const addToLog = (msg: string) => {
-        setLog(prev => [msg, ...prev].slice(0, 5));
+    const playAgain = () => {
+        setIsLocalMatch(false);
+        setFinishData(null);
+        setServerState(null);
+        setMyColor(null);
+        setDiceValue(null);
+        setLog([]);
+        setMatchState('MENU');
     };
 
-    // --- Coordinate Helper ---
+    // ─── Piece Rendering ──────────────────────────────────────────────
+
     const getPieceStyle = (color: PlayerColor, pos: number, traveled: number, pieceId: number) => {
-        // Base Positions
+        // Validate bounds
+        if (traveled < 0 || traveled > 56) {
+            return { gridRow: 1, gridColumn: 1, display: 'none' as const };
+        }
+
+        // In base (-1)
         if (pos === -1) {
-            const baseMap = {
-                GREEN: { r: 1, c: 1 },
-                YELLOW: { r: 1, c: 10 },
-                RED: { r: 10, c: 1 },
-                BLUE: { r: 10, c: 10 }
+            const baseMap: Record<PlayerColor, { r: number; c: number }> = {
+                GREEN: { r: 1, c: 1 }, YELLOW: { r: 1, c: 10 }, RED: { r: 10, c: 1 }, BLUE: { r: 10, c: 10 }
             };
-            // Exact offsets to hit corners of 6x6 base: (2,2), (2,5), (5,2), (5,5) relative to base start (1,1)
-            // If base starts at 1, then +1 = 2, +4 = 5.
             const b = baseMap[color];
             const offsets = [[1, 1], [1, 4], [4, 1], [4, 4]];
-
-            return {
-                gridRow: b.r + offsets[pieceId][0],
-                gridColumn: b.c + offsets[pieceId][1]
-            };
+            return { gridRow: b.r + offsets[pieceId][0], gridColumn: b.c + offsets[pieceId][1] };
         }
 
-        // Main Path & Home Stretch
-        if (traveled > 50) {
-            // 51 -> Index 0 of Home Path
+        // Finished (-3) or at home center
+        if (pos === -3 || (pos === -2 && traveled >= 56)) {
+            return { gridRow: 8, gridColumn: 8, opacity: 0.5 };
+        }
+
+        // In home stretch (pos === -2 OR travelled >= 51)
+        if (pos === -2 || traveled >= 51) {
+            // Home stretch: travelled 51-56 maps to HOME_PATHS[0-5]
             const homeIdx = traveled - 51;
-            if (homeIdx >= 0 && homeIdx < 5) {
-                const coord = HOME_PATHS[color][homeIdx];
+            if (homeIdx >= 0 && homeIdx <= 5) {
+                const coord = HOME_PATHS[color][Math.min(homeIdx, 4)];
                 return { gridRow: coord.r, gridColumn: coord.c };
             }
-            if (homeIdx >= 5) {
-                // Winner Center
-                return { gridRow: 8, gridColumn: 8, opacity: 0.5 }; // Inside center
-            }
+            // Fallback for out-of-bounds
+            return { gridRow: 8, gridColumn: 8, opacity: 0.5 };
         }
 
+        // On main path
         const coord = PATH_COORDS[pos];
-        if (coord) {
-            return { gridRow: coord.r, gridColumn: coord.c };
-        }
+        if (coord) return { gridRow: coord.r, gridColumn: coord.c };
 
-        return { gridRow: 1, gridColumn: 1, display: 'none' };
+        // Fallback
+        return { gridRow: 1, gridColumn: 1, display: 'none' as const };
     };
 
-    const payouts = getPayouts();
+    // ─── Derived State ─────────────────────────────────────────────────
 
-    return (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 600px) 300px', gap: '16px', height: '100%', justifyContent: 'center' }}>
+    const isMyTurn = !!(serverState?.status === 'PLAYING' && (
+        isLocalMatch ||
+        (user && serverState.players[serverState.currentPlayerIndex]?.id === user.id)
+    ));
+    const canRollDice = !!(isMyTurn && !serverState?.waitingForMove && !isRolling);
+    const currentPlayer = serverState?.players[serverState.currentPlayerIndex];
 
-            {/* Board Area */}
-            <div className="game-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#2f4553', padding: '16px' }}>
-                <div className="ludo-board">
-                    {/* Bases */}
-                    <div className="base green"><div className="base-inner">{[0, 1, 2, 3].map(i => <div key={i} className="piece-spot" />)}</div></div>
-                    <div className="base yellow" style={{ gridColumn: '10 / span 6' }}><div className="base-inner">{[0, 1, 2, 3].map(i => <div key={i} className="piece-spot" />)}</div></div>
-                    <div className="base red" style={{ gridRow: '10 / span 6' }}><div className="base-inner">{[0, 1, 2, 3].map(i => <div key={i} className="piece-spot" />)}</div></div>
-                    <div className="base blue" style={{ gridRow: '10 / span 6', gridColumn: '10 / span 6' }}><div className="base-inner">{[0, 1, 2, 3].map(i => <div key={i} className="piece-spot" />)}</div></div>
+    // ─── Render: MENU ──────────────────────────────────────────────────
 
-                    {/* Center */}
-                    <div className="home-center"></div>
+    if (matchState === 'MENU') {
+        return (
+            <div className="ludo-mobile-screen">
+                <div className="ludo-mobile-card">
+                    <h2 className="ludo-title">Ludo Arena</h2>
+                    <p className="ludo-subtitle">Multiplayer board game with real-time betting</p>
 
-
-                    {/* Main Path Cells */}
-                    {PATH_COORDS.map((coord, i) => (
-                        <div
-                            key={`path-${i}`}
-                            className={`cell ${SAFE_SPOTS.includes(i) ? 'safe' : ''}`}
-                            style={{ gridRow: coord.r, gridColumn: coord.c }}
-                        >
-                            {/* Star icon for safe spots is handled via CSS background-image */}
-                        </div>
-                    ))}
-
-                    {/* Home Stretch Cells */}
-                    {Object.entries(HOME_PATHS).map(([color, paths]) =>
-                        paths.map((coord, i) => (
-                            <div
-                                key={`home-${color}-${i}`}
-                                className={`cell path-${color.toLowerCase()}`}
-                                style={{ gridRow: coord.r, gridColumn: coord.c }}
-                            />
-                        ))
+                    {!isAuthenticated && menuMode !== 'local' && (
+                        <div className="ludo-auth-warn">Sign in to play multiplayer</div>
                     )}
 
-                    {/* Rendering Pieces */}
-                    {players.flatMap(p => p.pieces.map(piece => {
-                        const style = getPieceStyle(piece.color, piece.position, piece.travelled, piece.id);
-                        return (
-                            <motion.div
-                                key={`${p.color}-${piece.id}`}
-                                className={`piece ${p.color.toLowerCase()} ${canMove(piece, diceValue || 0) && turnIndex === players.findIndex(pl => pl === p) && !p.isBot ? 'glow' : ''}`}
-                                style={style}
-                                onClick={() => {
-                                    if (!p.isBot && canRoll === false && canMove(piece, diceValue || 0)) {
-                                        movePiece(piece, diceValue!);
-                                    }
-                                }}
-                                layout
-                                transition={{
-                                    type: "spring",
-                                    stiffness: 300,
-                                    damping: 30,
-                                    mass: 0.8
-                                }}
-                                animate={{
-                                    scale: canMove(piece, diceValue || 0) && turnIndex === players.findIndex(pl => pl === p) ? [1, 1.05, 1] : 1
-                                }}
-                            />
-                        );
-                    }))}
+                    {/* Mode Tabs */}
+                    <div className="ludo-tab-bar">
+                        <button className={`ludo-tab${menuMode === 'quick' ? ' active' : ''}`} onClick={() => setMenuMode('quick')}>
+                            Quick Match
+                        </button>
+                        <button className={`ludo-tab${menuMode === 'private' ? ' active' : ''}`} onClick={() => setMenuMode('private')}>
+                            Private Room
+                        </button>
+                        <button className={`ludo-tab${menuMode === 'local' ? ' active' : ''}`} onClick={() => setMenuMode('local')}>
+                            Local
+                        </button>
+                    </div>
 
-                    {/* Player Info Panels */}
+                    {/* Entry Fee */}
+                    <div className="ludo-field">
+                        <label>Entry Fee</label>
+                        <div className="bet-input-row">
+                            <input type="number" value={betAmount} onChange={e => setBetAmount(Math.max(0, Number(e.target.value)))} min={0} />
+                            <div className="bet-actions">
+                                <button className="btn-quick" onClick={() => setBetAmount(p => Math.max(0, Math.floor(p / 2)))}>1/2</button>
+                                <button className="btn-quick" onClick={() => setBetAmount(p => p * 2)}>2x</button>
+                            </div>
+                        </div>
+                        <div className="ludo-bet-quick">
+                            {BET_PRESETS.map(amt => (
+                                <button key={amt} onClick={() => setBetAmount(amt)}
+                                    className={betAmount === amt ? 'selected' : ''}>
+                                    {amt}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Players */}
+                    <div className="ludo-field">
+                        <label>Players</label>
+                        <div className="ludo-player-select">
+                            {([2, 3, 4] as const).map(n => (
+                                <button key={n} className={maxPlayers === n ? 'selected' : ''} onClick={() => setMaxPlayers(n)}>
+                                    {n}P
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Pot Info */}
+                    <div className="ludo-pot-info">
+                        <div className="pot-row">
+                            <span>Total Pot</span>
+                            <span className="pot-value">{formatIndianNumber(betAmount * maxPlayers)}</span>
+                        </div>
+                        <div className="pot-row sub">
+                            <span>Winner Takes</span>
+                            <span className="pot-win">{formatIndianNumber(Math.floor(betAmount * maxPlayers * 0.95))}</span>
+                        </div>
+                    </div>
+
+                    {/* Error */}
+                    {menuError && <div className="ludo-error-banner">{menuError}</div>}
+
+                    {/* Actions */}
+                    {menuMode === 'quick' ? (
+                        <button className="ludo-action-btn primary" onClick={findMatch} disabled={!isAuthenticated}>
+                            Find Match
+                        </button>
+                    ) : menuMode === 'private' ? (
+                        <div className="ludo-private-actions">
+                            <button className="ludo-action-btn primary" onClick={createPrivateRoom} disabled={!isAuthenticated}>
+                                Create Room
+                            </button>
+                            <div className="ludo-divider"><span>or join</span></div>
+                            <div className="ludo-join-row">
+                                <input
+                                    type="text"
+                                    className="ludo-code-input"
+                                    placeholder="ROOM CODE"
+                                    value={joinCode}
+                                    onChange={e => setJoinCode(e.target.value.toUpperCase())}
+                                    maxLength={6}
+                                />
+                                <button className="ludo-action-btn secondary" onClick={joinPrivateRoom}
+                                    disabled={!isAuthenticated || joinCode.length < 6}>
+                                    Join
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <button className="ludo-action-btn primary" onClick={startLocalMatch}>
+                            Start Local Match
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    // ─── Render: QUEUING ──────────────────────────────────────────────
+
+    if (matchState === 'QUEUING') {
+        const mins = Math.floor(queueTimer / 60);
+        const secs = queueTimer % 60;
+
+        return (
+            <div className="ludo-mobile-screen">
+                <div className="ludo-mobile-card" style={{ textAlign: 'center' }}>
+                    <div className="ludo-queue-spinner" />
+                    <h2 className="ludo-title" style={{ marginTop: '20px' }}>Finding Match...</h2>
+                    <p className="ludo-subtitle">{maxPlayers} players, {formatIndianNumber(betAmount)} entry</p>
+                    <div className="ludo-queue-timer">{mins}:{secs.toString().padStart(2, '0')}</div>
+                    <button className="ludo-action-btn secondary" onClick={cancelMatch}>Cancel</button>
+                </div>
+            </div>
+        );
+    }
+
+    // ─── Render: WAITING ROOM ─────────────────────────────────────────
+
+    if (matchState === 'WAITING_ROOM' && serverState) {
+        const isCreator = user && serverState.players[0]?.id === user.id;
+        const displayBet = serverState.betAmount / INTERNAL_MULTIPLIER;
+
+        return (
+            <div className="ludo-mobile-screen">
+                <div className="ludo-mobile-card">
+                    <h2 className="ludo-title">Waiting Room</h2>
+
+                    {serverState.code && (
+                        <div
+                            className="ludo-room-code-box"
+                            onClick={async () => {
+                                try {
+                                    await navigator.clipboard.writeText(serverState.code!);
+                                    addToLog('Room code copied', 'normal');
+                                } catch {
+                                    setMenuError('Copy failed. Please copy manually.');
+                                }
+                            }}
+                        >
+                            <div className="code-label">Room Code</div>
+                            <div className="code-value">{serverState.code}</div>
+                            <div className="code-hint">Tap to copy</div>
+                        </div>
+                    )}
+
+                    <div className="ludo-player-slots">
+                        {Array.from({ length: serverState.maxPlayers }).map((_, i) => {
+                            const player = serverState.players[i];
+                            const color = player?.color;
+                            const colors = color ? COLOR_MAP[color] : null;
+
+                            return (
+                                <div key={i} className={`ludo-slot${player ? ' filled' : ''}`}
+                                    style={player ? { borderColor: colors?.main + '60' } as React.CSSProperties : {}}>
+                                    <div className="slot-avatar" style={{ background: colors?.gradient || 'rgba(255,255,255,0.1)' }}>
+                                        {player ? player.username[0].toUpperCase() : '?'}
+                                    </div>
+                                    <div className="slot-info">
+                                        <div className="slot-name">{player ? player.username : 'Waiting...'}</div>
+                                        {player && (
+                                            <div className="slot-color" style={{ color: colors?.main }}>
+                                                {color} {player.id === user?.id ? '(You)' : ''}
+                                            </div>
+                                        )}
+                                    </div>
+                                    {player ? (
+                                        <div className="slot-ready">Ready</div>
+                                    ) : (
+                                        <div className="ludo-waiting-dots"><span /><span /><span /></div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <div className="ludo-pot-info" style={{ marginBottom: '12px' }}>
+                        <div className="pot-row sub" style={{ justifyContent: 'center' }}>
+                            <span>{serverState.players.length}/{serverState.maxPlayers} players &middot; Entry: {formatIndianNumber(displayBet)}</span>
+                        </div>
+                    </div>
+
+                    <div className="ludo-action-row">
+                        <button className="ludo-action-btn secondary" onClick={leaveGame}>Leave</button>
+                        {isCreator && (
+                            <button className="ludo-action-btn primary" onClick={startGame} style={{ flex: 2 }}>
+                                Start {serverState.players.length < serverState.maxPlayers ? '(+ bots)' : 'Game'}
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ─── Render: PLAYING + FINISHED ───────────────────────────────────
+
+    if ((matchState === 'PLAYING' || matchState === 'FINISHED') && serverState) {
+        const players = serverState.players;
+        const displayBet = serverState.betAmount / INTERNAL_MULTIPLIER;
+        const totalPot = displayBet * players.length;
+
+        return (
+            <div className="ludo-game-screen">
+                {/* Confetti Effect */}
+                {showConfetti && <Confetti />}
+
+                {/* Player Strip */}
+                <div className="ludo-player-strip">
                     {players.map((player, idx) => {
-                        const isActive = idx === turnIndex && gameState === 'PLAYING';
-                        const colorMap = { GREEN: '#00cc00', YELLOW: '#ffdd00', BLUE: '#3399ff', RED: '#ff3333' };
-                        const positions = [
-                            { top: '-80px', left: '10px' }, // Green - Top Left
-                            { top: '-80px', right: '10px' }, // Yellow - Top Right
-                            { bottom: '-80px', right: '10px' }, // Blue - Bottom Right
-                            { bottom: '-80px', left: '10px' } // Red - Bottom Left
-                        ];
+                        const isActive = idx === serverState.currentPlayerIndex;
+                        const colors = COLOR_MAP[player.color];
+                        const isMe = player.id === user?.id;
 
                         return (
-                            <div key={player.color} style={{
-                                position: 'absolute',
-                                ...positions[idx],
-                                background: isActive ? `linear-gradient(135deg, ${colorMap[player.color]}22, ${colorMap[player.color]}44)` : 'rgba(0,0,0,0.3)',
-                                border: `3px solid ${isActive ? colorMap[player.color] : 'rgba(255,255,255,0.1)'}`,
-                                borderRadius: '12px',
-                                padding: '8px 12px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '10px',
-                                boxShadow: isActive ? `0 0 20px ${colorMap[player.color]}88` : '0 2px 8px rgba(0,0,0,0.3)',
-                                transition: 'all 0.3s ease',
-                                zIndex: 100
-                            }}>
-                                {/* Avatar */}
-                                <div style={{
-                                    width: '40px',
-                                    height: '40px',
-                                    borderRadius: '50%',
-                                    background: `linear-gradient(135deg, ${colorMap[player.color]}, ${colorMap[player.color]}cc)`,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '1.5rem',
-                                    fontWeight: 'bold',
-                                    color: '#fff',
-                                    border: '2px solid rgba(255,255,255,0.3)',
-                                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)'
-                                }}>
-                                    {player.name[0]}
+                            <div key={player.color}
+                                className={`ludo-strip-player${isActive ? ' active' : ''}${isMe ? ' me' : ''}`}
+                                style={{ '--strip-color': colors.main, '--strip-glow': colors.glow } as React.CSSProperties}>
+                                <div className="strip-avatar" style={{ background: colors.gradient }}>
+                                    {player.username[0].toUpperCase()}
                                 </div>
-                                {/* Info */}
-                                <div style={{ flex: 1 }}>
-                                    <div style={{
-                                        fontSize: '0.9rem',
-                                        fontWeight: 'bold',
-                                        color: isActive ? colorMap[player.color] : '#fff',
-                                        marginBottom: '2px'
-                                    }}>
-                                        {player.name}
-                                    </div>
-                                    <div style={{ fontSize: '0.7rem', color: '#aaa' }}>
-                                        {player.hasFinished ? '🏆 Finished' : isActive ? '⏳ Playing...' : 'Waiting'}
-                                    </div>
+                                <div className="strip-name">
+                                    {isMe ? 'You' : player.username.slice(0, 6)}
+                                    {player.isBot && <span className="strip-bot">BOT</span>}
                                 </div>
+                                <div className="strip-score">{player.finishedCount}/4</div>
+                                {isActive && player.finishedCount < 4 && (
+                                    <TimerRing timeLeft={turnTimeLeft} maxTime={30} color={colors.main} />
+                                )}
                             </div>
                         );
                     })}
                 </div>
-            </div>
 
-            {/* Sidebar */}
-            <div className="stake-card" style={{ display: 'flex', flexDirection: 'column' }}>
-                {/* Prize Pool Info - Always Visible */}
-                <div style={{ padding: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '12px', marginBottom: '24px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '1.1rem', fontWeight: 'bold' }}>
-                        <span>Prize Pool</span>
-                        <span style={{ color: '#00e701' }}>₹{formatIndianNumber(payouts.prizePool)}</span>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '0.85rem' }}>
-                        <div style={{ background: 'rgba(255, 215, 0, 0.1)', color: '#FFD700', padding: '4px 8px', borderRadius: '4px' }}>1st: ₹{formatIndianNumber(payouts.split.first)}</div>
-                        <div style={{ background: 'rgba(192, 192, 192, 0.1)', color: '#C0C0C0', padding: '4px 8px', borderRadius: '4px' }}>2nd: ₹{formatIndianNumber(payouts.split.second)}</div>
-                        <div style={{ background: 'rgba(205, 127, 50, 0.1)', color: '#CD7F32', padding: '4px 8px', borderRadius: '4px' }}>3rd: ₹{formatIndianNumber(payouts.split.third)}</div>
+                {/* Board */}
+                <div className="ludo-board-container">
+                    <div className="ludo-board">
+                        <div className="base green"><div className="base-inner">{[0, 1, 2, 3].map(i => <div key={i} className="piece-spot" />)}</div></div>
+                        <div className="base yellow" style={{ gridColumn: '10 / span 6' }}><div className="base-inner">{[0, 1, 2, 3].map(i => <div key={i} className="piece-spot" />)}</div></div>
+                        <div className="base red" style={{ gridRow: '10 / span 6' }}><div className="base-inner">{[0, 1, 2, 3].map(i => <div key={i} className="piece-spot" />)}</div></div>
+                        <div className="base blue" style={{ gridRow: '10 / span 6', gridColumn: '10 / span 6' }}><div className="base-inner">{[0, 1, 2, 3].map(i => <div key={i} className="piece-spot" />)}</div></div>
+                        <div className="home-center" />
+                        {PATH_COORDS.map((coord, i) => (
+                            <div key={`path-${i}`} className={`cell ${SAFE_SPOTS.includes(i) ? 'safe' : ''}`} style={{ gridRow: coord.r, gridColumn: coord.c }} />
+                        ))}
+                        {Object.entries(HOME_PATHS).map(([color, paths]) =>
+                            paths.map((coord, i) => (
+                                <div key={`home-${color}-${i}`} className={`cell path-${color.toLowerCase()}`} style={{ gridRow: coord.r, gridColumn: coord.c }} />
+                            ))
+                        )}
+                        {players.flatMap(p =>
+                            p.pieces.map(piece => {
+                                const style = getPieceStyle(p.color, piece.position, piece.travelled, piece.id);
+                                const activeColor = currentPlayer?.color;
+                                const isMovable = serverState.waitingForMove &&
+                                    serverState.movablePieces.includes(piece.id) &&
+                                    !piece.finished &&
+                                    (isLocalMatch ? p.color === activeColor : (isMyTurn && p.color === myColor));
+
+                                // Check for animation states
+                                const isCaptured = capturingPiece?.color === p.color && capturingPiece?.pieceId === piece.id;
+                                const isSparkling = sparklingPiece?.color === p.color && sparklingPiece?.pieceId === piece.id;
+
+                                const classNames = [
+                                    'piece',
+                                    p.color.toLowerCase(),
+                                    isMovable && 'glow',
+                                    isCaptured && 'captured',
+                                    isSparkling && 'sparkling',
+                                ].filter(Boolean).join(' ');
+
+                                return (
+                                    <motion.div
+                                        key={`${p.color}-${piece.id}`}
+                                        className={classNames}
+                                        style={{ ...style, cursor: isMovable ? 'pointer' : 'default' }}
+                                        onClick={() => {
+                                            if (isMovable) {
+                                                triggerHaptic('light');
+                                                movePiece(piece.id);
+                                            }
+                                        }}
+                                        layout
+                                        transition={{ type: "spring", stiffness: 300, damping: 30, mass: 0.8 }}
+                                    />
+                                );
+                            })
+                        )}
                     </div>
                 </div>
 
-                {/* Stats / Controls */}
-                {gameState === 'BETTING' ? (
-                    <div style={{ textAlign: 'center', marginTop: 'auto', marginBottom: 'auto' }}>
-                        <h2>Ludo Arena</h2>
-                        <div className="input-group" style={{ margin: '16px 0' }}>
-                            <label>Entry Fee</label>
-                            <input type="number" value={betAmount} onChange={e => setBetAmount(Number(e.target.value))} style={{ background: 'transparent', color: '#fff', border: 'none' }} />
-                        </div>
-                        <div style={{ padding: '16px', background: '#0f212e', borderRadius: '8px', marginBottom: '16px' }}>
-                            <div style={{ color: '#b1bad3', marginBottom: '4px' }}>Total Pot: <span style={{ color: '#fff' }}>₹{formatIndianNumber(betAmount * 4)}</span></div>
-                            <div style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)' }}>House Edge: 10%</div>
-                        </div>
-                        <button className="btn-primary" onClick={handleStart} style={{ width: '100%', padding: '16px' }}>Join Game</button>
-                    </div>
-                ) : (
-                    <>
-                        {/* Turn Indicator */}
-                        <div style={{ marginBottom: '24px', textAlign: 'center' }}>
-                            <div style={{ fontSize: '0.9rem', color: '#b1bad3' }}>Current Turn</div>
-                            <h2 style={{ color: currentPlayer.color === 'GREEN' ? '#00cc00' : currentPlayer.color === 'RED' ? '#ff3333' : currentPlayer.color === 'BLUE' ? '#3399ff' : '#ffdd00', margin: '8px 0' }}>
-                                {currentPlayer.name}
-                            </h2>
-                            {/* Timer Display */}
-                            <div style={{
-                                fontSize: '1.5rem',
-                                fontWeight: 'bold',
-                                color: turnTimeLeft <= 10 ? '#ff3333' : '#00cc00',
-                                marginTop: '8px'
-                            }}>
-                                ⏱️ {turnTimeLeft}s
+                {/* Bottom Controls */}
+                <div className="ludo-bottom-panel">
+                    {matchState === 'FINISHED' && finishData ? (
+                        <div className="ludo-finish-panel">
+                            <h3 className="finish-title">Game Over!</h3>
+                            <div className="finish-results">
+                                {finishData.finishOrder?.map((p: any, i: number) => {
+                                    const colors = COLOR_MAP[p.color as PlayerColor];
+                                    const payout = finishData.payouts?.[p.id] || 0;
+                                    const displayPayout = payout / INTERNAL_MULTIPLIER;
+                                    const isMe = p.id === user?.id;
+                                    const medals = ['1st', '2nd', '3rd', '4th'];
+
+                                    return (
+                                        <div key={i} className={`finish-row${isMe ? ' me' : ''}`}>
+                                            <span className={`finish-medal${i === 0 ? ' gold' : ''}`}>{medals[i]}</span>
+                                            <div className="finish-avatar" style={{ background: colors?.gradient }}>
+                                                {p.username?.[0]?.toUpperCase()}
+                                            </div>
+                                            <span className="finish-name">
+                                                {p.username} {isMe ? '(You)' : ''} {p.isBot ? 'BOT' : ''}
+                                            </span>
+                                            {displayPayout > 0 && (
+                                                <span className="finish-payout">+{formatIndianNumber(displayPayout)}</span>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
+                            <button className="ludo-action-btn primary" onClick={playAgain}>Play Again</button>
                         </div>
-
-                        {/* Dice */}
-                        <motion.div
-                            className={`dice-container ${canRoll && !currentPlayer.isBot ? 'active' : ''}`}
-                            onClick={() => !currentPlayer.isBot && rollDice()}
-                            style={{
-                                width: '100px', height: '100px',
-                                background: '#fff',
-                                borderRadius: '16px',
-                                margin: '0 auto 24px auto',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontSize: '3.5rem', color: '#000', fontWeight: 'bold',
-                                boxShadow: canRoll && !currentPlayer.isBot ? '0 8px 16px rgba(0,0,0,0.3), 0 0 0 4px rgba(255,215,0,0.5)' : '0 4px 8px rgba(0,0,0,0.2)',
-                                border: '2px solid #ddd',
-                                cursor: canRoll && !currentPlayer.isBot ? 'pointer' : 'default',
-                                opacity: canRoll && !currentPlayer.isBot ? 1 : 0.5,
-                                transition: 'all 0.3s ease',
-                            }}
-                            animate={{
-                                scale: canRoll && !currentPlayer.isBot ? 1.05 : 1,
-                                rotate: canRoll && !currentPlayer.isBot ? [0, -5, 5, -5, 0] : 0,
-                            }}
-                            whileHover={canRoll && !currentPlayer.isBot ? { scale: 1.1, rotate: 10 } : {}}
-                            whileTap={canRoll && !currentPlayer.isBot ? {
-                                scale: 0.95,
-                                rotateX: [0, 360, 720],
-                                rotateY: [0, 360, 720],
-                                transition: { duration: 0.6 }
-                            } : {}}
-                        >
-                            {diceValue ? (
-                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    {renderDiceFace(diceValue)}
+                    ) : (
+                        <>
+                            {/* Dice + Turn info */}
+                            <div className="ludo-dice-area">
+                                <div className="dice-turn-info">
+                                    {currentPlayer && (
+                                        <span style={{ color: COLOR_MAP[currentPlayer.color].main, fontWeight: 700, fontSize: '0.8rem' }}>
+                                            {isLocalMatch
+                                                ? `${currentPlayer.username}'s turn`
+                                                : (currentPlayer.id === user?.id ? 'Your turn' : `${currentPlayer.username}'s turn`)}
+                                        </span>
+                                    )}
+                                    {isMyTurn && serverState?.waitingForMove && (
+                                        <span className="dice-hint-move">Pick a piece</span>
+                                    )}
                                 </div>
-                            ) : (
-                                <span style={{ fontSize: '1.2rem', color: '#999', fontWeight: 'normal' }}>ROLL</span>
-                            )}
-                        </motion.div>
 
-                        {/* Log */}
-                        <div style={{ flex: 1, background: '#0f212e', borderRadius: '8px', padding: '12px', overflowY: 'auto' }}>
-                            {log.map((l, i) => (
-                                <div key={i} style={{ marginBottom: '4px', fontSize: '0.8rem', borderBottom: '1px solid #2f4553', paddingBottom: '4px' }}>{l}</div>
-                            ))}
-                        </div>
-                    </>
-                )}
+                                <motion.div
+                                    className={`ludo-dice ${canRollDice ? 'can-roll' : 'disabled'} ${isRolling ? 'rolling' : ''} ${showSixEffect ? 'dice-six-glow' : ''}`}
+                                    onClick={() => canRollDice && rollDice()}
+                                    whileTap={canRollDice ? { scale: 0.9 } : {}}
+                                >
+                                    {diceValue ? <DiceFace value={diceValue} /> : (
+                                        <span style={{ fontSize: '0.7rem', color: '#999', fontWeight: 600 }}>
+                                            {canRollDice ? 'TAP' : 'WAIT'}
+                                        </span>
+                                    )}
+                                </motion.div>
+
+                                <AnimatePresence>
+                                    {showSixEffect && (
+                                        <motion.div className="dice-bonus-label"
+                                            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: -5 }} exit={{ opacity: 0, y: -20 }}>
+                                            BONUS!
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+
+                                <div className="dice-pot-info">
+                                    <span>Pot: {formatIndianNumber(totalPot * 0.95)}</span>
+                                </div>
+                            </div>
+
+                            {/* Activity Log (compact) */}
+                            <div className="ludo-log-compact">
+                                {log.slice(0, 3).map((entry, i) => (
+                                    <div key={i} className={`log-line ${entry.type}`}>{entry.text}</div>
+                                ))}
+                            </div>
+
+                            <button className="ludo-leave-btn" onClick={leaveGame}>Leave</button>
+                        </>
+                    )}
+                </div>
             </div>
+        );
+    }
+
+    return (
+        <div className="ludo-mobile-screen">
+            <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</p>
         </div>
     );
 };

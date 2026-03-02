@@ -203,3 +203,132 @@ export const playExplosion = () => {
 };
 
 export const playSpinTick = playWheelTick; // Alias
+
+// --- Ludo Specific Sounds ---
+
+export const playPieceMove = () => {
+    // Soft woodblock click for piece movement
+    const ctx = getCtx();
+    const t = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.frequency.value = 500;
+    osc.type = 'square';
+
+    gain.gain.setValueAtTime(0.06, t);
+    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.08);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + 0.08);
+};
+
+export const playCapture = () => {
+    // Whoosh + impact sound for capturing opponent
+    const ctx = getCtx();
+    const t = ctx.currentTime;
+
+    // Whoosh (sweep down)
+    const sweep = ctx.createOscillator();
+    const sweepGain = ctx.createGain();
+
+    sweep.frequency.setValueAtTime(1200, t);
+    sweep.frequency.exponentialRampToValueAtTime(200, t + 0.3);
+    sweep.type = 'sawtooth';
+
+    sweepGain.gain.setValueAtTime(0.12, t);
+    sweepGain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+
+    sweep.connect(sweepGain);
+    sweepGain.connect(ctx.destination);
+    sweep.start(t);
+    sweep.stop(t + 0.3);
+
+    // Impact (low thump)
+    const impact = ctx.createOscillator();
+    const impactGain = ctx.createGain();
+
+    impact.frequency.value = 60;
+    impact.type = 'sine';
+
+    impactGain.gain.setValueAtTime(0.15, t + 0.25);
+    impactGain.gain.exponentialRampToValueAtTime(0.01, t + 0.45);
+
+    impact.connect(impactGain);
+    impactGain.connect(ctx.destination);
+    impact.start(t + 0.25);
+    impact.stop(t + 0.45);
+};
+
+export const playHomeEntry = () => {
+    // Chime sound for entering home stretch
+    const ctx = getCtx();
+    const t = ctx.currentTime;
+
+    // Two-tone chime (harmonic fifth)
+    [880, 1320].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc.frequency.value = freq;
+        osc.type = 'sine';
+
+        const start = t + (i * 0.05);
+        gain.gain.setValueAtTime(0.08, start);
+        gain.gain.exponentialRampToValueAtTime(0.01, start + 0.6);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + 0.6);
+    });
+};
+
+export const playWinSound = () => {
+    // Victorious fanfare (extended version of playWin with more notes)
+    const ctx = getCtx();
+    const t = ctx.currentTime;
+
+    // Major scale celebration: C5 D5 E5 G5 C6
+    const melody = [523.25, 587.33, 659.25, 783.99, 1046.50];
+
+    melody.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const start = t + i * 0.12;
+
+        osc.frequency.value = freq;
+        osc.type = 'triangle';
+
+        gain.gain.setValueAtTime(0.1, start);
+        gain.gain.exponentialRampToValueAtTime(0.01, start + 0.5);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + 0.5);
+    });
+
+    // Add harmonic layer
+    setTimeout(() => {
+        [1046.50, 1318.51].forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const start = ctx.currentTime + (i * 0.08);
+
+            osc.frequency.value = freq;
+            osc.type = 'sine';
+
+            gain.gain.setValueAtTime(0.06, start);
+            gain.gain.exponentialRampToValueAtTime(0.01, start + 0.8);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(start);
+            osc.stop(start + 0.8);
+        });
+    }, 400);
+};

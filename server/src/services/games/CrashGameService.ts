@@ -2,6 +2,7 @@ import { Client, GameMessage } from '../WebSocketGameServer.js';
 import { query } from '../../config/database.js';
 import { ProvablyFair } from '../../utils/provablyFair.js';
 import { redisClient } from '../../config/redis.js';
+import { DEFAULT_HOUSE_EDGE } from '../../config/gameEconomy.js';
 
 interface CrashBet {
   userId: string;
@@ -79,6 +80,14 @@ export class CrashGameService {
         this.wsServer.sendToClient(client.id, {
           type: 'crash_error',
           data: { message: 'Invalid bet amount' },
+        });
+        return;
+      }
+
+      if (autoCashout !== undefined && autoCashout !== null && autoCashout < 1.01) {
+        this.wsServer.sendToClient(client.id, {
+          type: 'crash_error',
+          data: { message: 'Auto cashout must be at least 1.01x' },
         });
         return;
       }
@@ -245,7 +254,8 @@ export class CrashGameService {
     const crashPoint = ProvablyFair.generateCrashPoint(
       seedPair.serverSeed,
       seedPair.clientSeed,
-      nonce
+      nonce,
+      DEFAULT_HOUSE_EDGE
     );
 
     this.currentRound = {
@@ -310,15 +320,21 @@ export class CrashGameService {
   private runRound(): void {
     if (!this.currentRound) return;
 
-    this.roundInterval = setInterval(() => {
-      if (!this.currentRound) return;
+      this.roundInterval = setInterval(() => {
+        if (!this.currentRound) return;
 
-      this.currentRound.currentMultiplier += this.MULTIPLIER_INCREMENT;
+        this.currentRound.currentMultiplier += this.MULTIPLIER_INCREMENT;
 
-      // Check auto-cashouts
-      this.currentRound.bets.forEach((bet, userId) => {
-        if (
-          !bet.cashedOut &&
+        // Crash must resolve before any cashout at/after crash point.
+        if (this.currentRound.currentMultiplier >= this.currentRound.crashPoint) {
+          this.crashRound();
+          return;
+        }
+
+        // Check auto-cashouts
+        this.currentRound.bets.forEach((bet, userId) => {
+          if (
+            !bet.cashedOut &&
           bet.autoCashout &&
           this.currentRound!.currentMultiplier >= bet.autoCashout
         ) {
@@ -331,11 +347,6 @@ export class CrashGameService {
         type: 'crash_tick',
         data: { multiplier: this.currentRound.currentMultiplier.toFixed(2) },
       });
-
-      // Check if crashed
-      if (this.currentRound.currentMultiplier >= this.currentRound.crashPoint) {
-        this.crashRound();
-      }
     }, this.TICK_RATE);
   }
 
@@ -393,13 +404,7 @@ export class CrashGameService {
   }
 
   public handleDisconnect(client: Client): void {
-    // Auto cash out if round is running
-    if (this.currentRound && this.currentRound.status === 'running') {
-      const bet = this.currentRound.bets.get(client.userId);
-      if (bet && !bet.cashedOut) {
-        this.processCashout(client.userId, bet, this.currentRound.currentMultiplier);
-      }
-    }
+    // Do not auto-cashout on disconnect; unresolved bets continue in-round.
   }
 }
 

@@ -1,6 +1,7 @@
 import { Client, GameMessage } from '../WebSocketGameServer.js';
 import { query } from '../../config/database.js';
 import { ProvablyFair } from '../../utils/provablyFair.js';
+import { PLINKO_RTP_ADJUSTMENT } from '../../config/gameEconomy.js';
 
 const PLINKO_PAYOUTS = {
   low: [16, 9, 2, 1.4, 1.4, 1.2, 1.1, 1, 0.5, 1, 1.1, 1.2, 1.4, 1.4, 2, 9, 16],
@@ -56,8 +57,9 @@ export class PlinkoGameService {
       );
 
       const finalPosition = path.reduce((sum, direction) => sum + direction, 0);
-      const multiplier = PLINKO_PAYOUTS[risk][finalPosition];
-      const payout = betAmount * multiplier;
+      const rawMultiplier = PLINKO_PAYOUTS[risk][finalPosition];
+      const multiplier = Number((rawMultiplier * PLINKO_RTP_ADJUSTMENT).toFixed(4));
+      const payout = Math.floor(betAmount * multiplier);
 
       await query('UPDATE users SET balance = balance + $1 WHERE id = $2', [
         payout,

@@ -88,7 +88,7 @@ export const HiLoGame: React.FC = () => {
         setRoundCount(prev => prev + 1);
 
         if (won) {
-            let moveMult = multiplierIncrement;
+            const moveMult = multiplierIncrement;
             if (roundCount === 0) {
                 // First move multiplier handling if needed
             }

@@ -6,53 +6,21 @@ export interface Game {
     icon: string;
     status: 'ACTIVE' | 'MAINTENANCE' | 'COMING_SOON';
     playing: number;
+    category: 'originals' | 'casino' | 'board';
+    badge?: 'hot' | 'new' | 'live';
 }
 
 export const GAMES: Game[] = [
     {
-        id: 'mines',
-        name: 'Mines',
-        description: 'Uncover gems, avoid bombs.',
-        color: '#007aff',
-        icon: '💎',
-        status: 'ACTIVE',
-        playing: 2594
-    },
-    {
-        id: 'dice',
-        name: 'Dice',
-        description: 'Roll for the win.',
-        color: '#ff0055',
+        id: 'ludo',
+        name: 'Ludo',
+        description: 'Multiplayer Betting.',
+        color: '#ffcc00',
         icon: '🎲',
         status: 'ACTIVE',
-        playing: 2192
-    },
-    {
-        id: 'plinko',
-        name: 'Plinko',
-        description: 'Drop the ball.',
-        color: '#ff0099',
-        icon: '📍',
-        status: 'ACTIVE',
-        playing: 1325
-    },
-    {
-        id: 'limbo',
-        name: 'Limbo',
-        description: 'How high can you go?',
-        color: '#ff9900',
-        icon: '🚀',
-        status: 'ACTIVE',
-        playing: 1945
-    },
-    {
-        id: 'blackjack',
-        name: 'Blackjack',
-        description: 'Beat the dealer.',
-        color: '#cc0000',
-        icon: '♠️',
-        status: 'ACTIVE',
-        playing: 837
+        playing: 450,
+        category: 'board',
+        badge: 'hot'
     },
     {
         id: 'crash',
@@ -61,7 +29,60 @@ export const GAMES: Game[] = [
         color: '#ffcc00',
         icon: '📈',
         status: 'ACTIVE',
-        playing: 1295
+        playing: 1295,
+        category: 'originals',
+        badge: 'live'
+    },
+    {
+        id: 'mines',
+        name: 'Mines',
+        description: 'Uncover gems, avoid bombs.',
+        color: '#007aff',
+        icon: '💎',
+        status: 'ACTIVE',
+        playing: 2594,
+        category: 'originals',
+        badge: 'hot'
+    },
+    {
+        id: 'dice',
+        name: 'Dice',
+        description: 'Roll for the win.',
+        color: '#ff0055',
+        icon: '🎲',
+        status: 'ACTIVE',
+        playing: 2192,
+        category: 'originals'
+    },
+    {
+        id: 'plinko',
+        name: 'Plinko',
+        description: 'Drop the ball.',
+        color: '#ff0099',
+        icon: '📍',
+        status: 'ACTIVE',
+        playing: 1325,
+        category: 'originals'
+    },
+    {
+        id: 'limbo',
+        name: 'Limbo',
+        description: 'How high can you go?',
+        color: '#ff9900',
+        icon: '🚀',
+        status: 'ACTIVE',
+        playing: 1945,
+        category: 'originals'
+    },
+    {
+        id: 'blackjack',
+        name: 'Blackjack',
+        description: 'Beat the dealer.',
+        color: '#cc0000',
+        icon: '♠️',
+        status: 'ACTIVE',
+        playing: 837,
+        category: 'casino'
     },
     {
         id: 'keno',
@@ -70,7 +91,9 @@ export const GAMES: Game[] = [
         color: '#33cc33',
         icon: '🔢',
         status: 'ACTIVE',
-        playing: 1127
+        playing: 1127,
+        category: 'originals',
+        badge: 'new'
     },
     {
         id: 'wheel',
@@ -79,7 +102,8 @@ export const GAMES: Game[] = [
         color: '#00ccff',
         icon: '🎡',
         status: 'ACTIVE',
-        playing: 249
+        playing: 249,
+        category: 'casino'
     },
     {
         id: 'roulette',
@@ -88,7 +112,8 @@ export const GAMES: Game[] = [
         color: '#009900',
         icon: '🔴',
         status: 'ACTIVE',
-        playing: 114
+        playing: 114,
+        category: 'casino'
     },
     {
         id: 'diamonds',
@@ -97,7 +122,8 @@ export const GAMES: Game[] = [
         color: '#9933ff',
         icon: '💠',
         status: 'ACTIVE',
-        playing: 105
+        playing: 105,
+        category: 'originals'
     },
     {
         id: 'dragon_tower',
@@ -106,7 +132,8 @@ export const GAMES: Game[] = [
         color: '#ff9933',
         icon: '🐲',
         status: 'ACTIVE',
-        playing: 468
+        playing: 468,
+        category: 'originals'
     },
     {
         id: 'hilo',
@@ -115,15 +142,7 @@ export const GAMES: Game[] = [
         color: '#ff3300',
         icon: '🃏',
         status: 'ACTIVE',
-        playing: 521
-    },
-    {
-        id: 'ludo',
-        name: 'Ludo',
-        description: 'Multiplayer Betting.',
-        color: '#ffcc00',
-        icon: '🎲',
-        status: 'ACTIVE',
-        playing: 450
+        playing: 521,
+        category: 'casino'
     }
 ];

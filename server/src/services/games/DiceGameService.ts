@@ -1,6 +1,7 @@
 import { Client, GameMessage } from '../WebSocketGameServer.js';
 import { query } from '../../config/database.js';
 import { ProvablyFair } from '../../utils/provablyFair.js';
+import { DEFAULT_RTP_FACTOR } from '../../config/gameEconomy.js';
 
 export class DiceGameService {
   private wsServer: any;
@@ -21,6 +22,24 @@ export class DiceGameService {
   ): Promise<void> {
     try {
       const { betAmount, target, rollOver } = data;
+      const numericTarget = Number(target);
+      const isRollOver = Boolean(rollOver);
+
+      if (!betAmount || betAmount <= 0) {
+        this.wsServer.sendToClient(client.id, {
+          type: 'dice_error',
+          data: { message: 'Invalid bet amount' },
+        });
+        return;
+      }
+
+      if (!Number.isFinite(numericTarget) || numericTarget <= 0 || numericTarget >= 10000) {
+        this.wsServer.sendToClient(client.id, {
+          type: 'dice_error',
+          data: { message: 'Target must be between 1 and 9999' },
+        });
+        return;
+      }
 
       const balanceResult = await query(
         'SELECT balance FROM users WHERE id = $1 FOR UPDATE',
@@ -47,10 +66,10 @@ export class DiceGameService {
         Date.now()
       );
 
-      const win = rollOver ? result > target : result < target;
-      const winChance = rollOver ? (10000 - target) / 10000 : target / 10000;
-      const multiplier = win ? (0.99 / winChance) : 0;
-      const payout = win ? betAmount * multiplier : 0;
+      const win = isRollOver ? result > numericTarget : result < numericTarget;
+      const winChance = isRollOver ? (10000 - numericTarget) / 10000 : numericTarget / 10000;
+      const multiplier = win ? (DEFAULT_RTP_FACTOR / winChance) : 0;
+      const payout = win ? Math.floor(betAmount * multiplier) : 0;
 
       if (win) {
         await query('UPDATE users SET balance = balance + $1 WHERE id = $2', [

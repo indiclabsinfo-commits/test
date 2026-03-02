@@ -1,6 +1,7 @@
 import { Client, GameMessage } from '../WebSocketGameServer.js';
 import { query } from '../../config/database.js';
 import { ProvablyFair } from '../../utils/provablyFair.js';
+import { DEFAULT_RTP_FACTOR } from '../../config/gameEconomy.js';
 
 interface MinesSession {
   userId: string;
@@ -51,10 +52,27 @@ export class MinesGameService {
       const { betAmount, mineCount } = data;
       const gridSize = 25;
 
+      if (!betAmount || betAmount <= 0) {
+        this.wsServer.sendToClient(client.id, {
+          type: 'mines_error',
+          data: { message: 'Invalid bet amount' },
+        });
+        return;
+      }
+
       if (mineCount < 1 || mineCount > 24) {
         this.wsServer.sendToClient(client.id, {
           type: 'mines_error',
           data: { message: 'Invalid mine count' },
+        });
+        return;
+      }
+
+      const existingSession = this.sessions.get(client.userId);
+      if (existingSession?.active) {
+        this.wsServer.sendToClient(client.id, {
+          type: 'mines_error',
+          data: { message: 'Finish current game first' },
         });
         return;
       }
@@ -118,8 +136,26 @@ export class MinesGameService {
   private async revealTile(client: Client, data: { tileIndex: number }): Promise<void> {
     const session = this.sessions.get(client.userId);
     if (!session || !session.active) return;
+    const { tileIndex } = data;
 
-    if (session.minePositions.includes(data.tileIndex)) {
+    if (!Number.isInteger(tileIndex) || tileIndex < 0 || tileIndex >= session.gridSize) {
+      this.wsServer.sendToClient(client.id, {
+        type: 'mines_error',
+        data: { message: 'Invalid tile index' },
+      });
+      return;
+    }
+
+    // Prevent replaying already revealed tiles to farm multiplier.
+    if (session.revealedTiles.includes(tileIndex)) {
+      this.wsServer.sendToClient(client.id, {
+        type: 'mines_error',
+        data: { message: 'Tile already revealed' },
+      });
+      return;
+    }
+
+    if (session.minePositions.includes(tileIndex)) {
       session.active = false;
       await query('UPDATE users SET total_lost = total_lost + $1 WHERE id = $2', [
         session.betAmount,
@@ -129,13 +165,14 @@ export class MinesGameService {
       this.wsServer.sendToClient(client.id, {
         type: 'mines_hit',
         data: {
-          tileIndex: data.tileIndex,
+          tileIndex,
           minePositions: session.minePositions,
           serverSeed: session.serverSeed,
         },
       });
+      this.sessions.delete(client.userId);
     } else {
-      session.revealedTiles.push(data.tileIndex);
+      session.revealedTiles.push(tileIndex);
       session.currentMultiplier = this.calculateMultiplier(
         session.revealedTiles.length,
         session.mineCount,
@@ -145,7 +182,7 @@ export class MinesGameService {
       this.wsServer.sendToClient(client.id, {
         type: 'mines_safe',
         data: {
-          tileIndex: data.tileIndex,
+          tileIndex,
           multiplier: session.currentMultiplier,
         },
       });
@@ -174,10 +211,12 @@ export class MinesGameService {
   private calculateMultiplier(revealed: number, mines: number, total: number): number {
     const safe = total - mines;
     let multiplier = 1.0;
+
+    // Fair odds for each safe pick: (remaining total / remaining safe)
     for (let i = 0; i < revealed; i++) {
-      multiplier *= (safe - i) / (total - i - mines);
+      multiplier *= (total - i) / (safe - i);
     }
-    return Number((multiplier * 0.97).toFixed(2)); // 3% house edge
+    return Number((multiplier * DEFAULT_RTP_FACTOR).toFixed(2));
   }
 }
 

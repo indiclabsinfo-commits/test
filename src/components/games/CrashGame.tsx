@@ -24,6 +24,7 @@ export const CrashGame: React.FC = () => {
 
     // User State
     const [betAmount, setBetAmount] = useState(10);
+    const [autoCashout, setAutoCashout] = useState<number | null>(null);
     const [hasBet, setHasBet] = useState(false);
     const [hasCashedOut, setHasCashedOut] = useState(false);
     const [userWinAmount, setUserWinAmount] = useState(0);
@@ -104,12 +105,35 @@ export const CrashGame: React.FC = () => {
             return bot;
         }));
 
+        // Auto-cashout for user if enabled
+        if (autoCashout && hasBet && !hasCashedOut && nextMult >= autoCashout) {
+            const win = betAmount * autoCashout;
+            collectWinnings(win);
+            setHasCashedOut(true);
+            setUserWinAmount(win);
+        }
+
         if (nextMult >= crashPoint) {
             // CRASH
             setCurrentMultiplier(crashPoint);
             setGameState('CRASHED');
             if (hasBet && !hasCashedOut) playExplosion(); // Big sound for crash
+            
+            // Mark bots who didn't cash out as crashed
+            setBots(prev => prev.map(bot => 
+                bot.status === 'BETTING' ? { ...bot, status: 'CRASHED' } : bot
+            ));
+            
             drawGraph(crashPoint, true);
+            
+            // Auto-reset after 5 seconds
+            setTimeout(() => {
+                setGameState('BETTING');
+                setHasBet(false);
+                setHasCashedOut(false);
+                setUserWinAmount(0);
+                setCurrentMultiplier(1.00);
+            }, 5000);
         } else {
             setCurrentMultiplier(nextMult);
             drawGraph(nextMult, false);
@@ -195,6 +219,23 @@ export const CrashGame: React.FC = () => {
                             style={{ flex: 1, background: 'transparent', border: 'none', color: '#fff' }}
                         />
                         <span style={{ color: '#b1bad3' }}>₹</span>
+                    </div>
+                </div>
+
+                <div style={{ marginBottom: '24px' }}>
+                    <label style={{ fontSize: '0.9rem', color: '#b1bad3' }}>Auto Cashout (Optional)</label>
+                    <div className="input-group">
+                        <input
+                            type="number"
+                            value={autoCashout || ''}
+                            onChange={(e) => setAutoCashout(e.target.value ? Number(e.target.value) : null)}
+                            placeholder="e.g. 2.00"
+                            disabled={hasBet}
+                            step="0.1"
+                            min="1.01"
+                            style={{ flex: 1, background: 'transparent', border: 'none', color: '#fff' }}
+                        />
+                        <span style={{ color: '#b1bad3' }}>x</span>
                     </div>
                 </div>
 

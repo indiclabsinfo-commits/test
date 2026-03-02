@@ -1,12 +1,19 @@
-import jwt from 'jsonwebtoken';
+import jwt, { type SignOptions } from 'jsonwebtoken';
+import { Request, Response, NextFunction } from 'express';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret';
+const jwtSecretRaw = process.env.JWT_SECRET;
+const jwtRefreshSecretRaw = process.env.JWT_REFRESH_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h';
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+
+if (!jwtSecretRaw || !jwtRefreshSecretRaw) {
+  throw new Error('JWT_SECRET and JWT_REFRESH_SECRET must be set');
+}
+const JWT_SECRET: string = jwtSecretRaw;
+const JWT_REFRESH_SECRET: string = jwtRefreshSecretRaw;
 
 export interface TokenPayload {
   userId: string;
@@ -17,30 +24,29 @@ export interface TokenPayload {
 
 export interface RefreshTokenPayload {
   userId: string;
-  sessionId: string;
+  sessionId?: string;
 }
 
+const ACCESS_TOKEN_OPTIONS: SignOptions = {
+  expiresIn: JWT_EXPIRES_IN as SignOptions['expiresIn'],
+  issuer: 'tacticash-arena',
+  audience: 'tacticash-client',
+};
+
+const REFRESH_TOKEN_OPTIONS: SignOptions = {
+  expiresIn: JWT_REFRESH_EXPIRES_IN as SignOptions['expiresIn'],
+  issuer: 'tacticash-arena',
+  audience: 'tacticash-client',
+};
+
 export class JWTService {
-  /**
-   * Generate access token
-   */
-  static generateAccessToken(payload: TokenPayload): string {
-    return jwt.sign(payload, JWT_SECRET, {
-      expiresIn: JWT_EXPIRES_IN,
-      issuer: 'tacticash-arena',
-      audience: 'tacticash-client'
-    });
+  static generateAccessToken(userId: string, username: string, vipTier = 'BRONZE'): string {
+    return jwt.sign({ userId, username, vipTier }, JWT_SECRET, ACCESS_TOKEN_OPTIONS);
   }
 
-  /**
-   * Generate refresh token
-   */
-  static generateRefreshToken(payload: RefreshTokenPayload): string {
-    return jwt.sign(payload, JWT_REFRESH_SECRET, {
-      expiresIn: JWT_REFRESH_EXPIRES_IN,
-      issuer: 'tacticash-arena',
-      audience: 'tacticash-client'
-    });
+  static generateRefreshToken(userId: string, sessionId?: string): string {
+    const payload: RefreshTokenPayload = sessionId ? { userId, sessionId } : { userId };
+    return jwt.sign(payload, JWT_REFRESH_SECRET, REFRESH_TOKEN_OPTIONS);
   }
 
   /**
@@ -51,7 +57,7 @@ export class JWTService {
       return jwt.verify(token, JWT_SECRET, {
         issuer: 'tacticash-arena',
         audience: 'tacticash-client'
-      }) as TokenPayload;
+      }) as unknown as TokenPayload;
     } catch (error) {
       throw new Error('Invalid or expired access token');
     }
@@ -65,7 +71,7 @@ export class JWTService {
       return jwt.verify(token, JWT_REFRESH_SECRET, {
         issuer: 'tacticash-arena',
         audience: 'tacticash-client'
-      }) as RefreshTokenPayload;
+      }) as unknown as RefreshTokenPayload;
     } catch (error) {
       throw new Error('Invalid or expired refresh token');
     }
@@ -78,20 +84,23 @@ export class JWTService {
     return jwt.decode(token);
   }
 
-  /**
-   * Generate token pair (access + refresh)
-   */
-  static generateTokenPair(
-    userPayload: TokenPayload,
-    sessionId: string
-  ): { accessToken: string; refreshToken: string } {
-    const accessToken = this.generateAccessToken(userPayload);
-    const refreshToken = this.generateRefreshToken({
-      userId: userPayload.userId,
-      sessionId
-    });
+  static middleware(req: Request, res: Response, next: NextFunction) {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
 
-    return { accessToken, refreshToken };
+    const token = authHeader.substring(7);
+
+    try {
+      const decoded = this.verifyAccessToken(token);
+      (req as any).userId = decoded.userId;
+      (req as any).username = decoded.username;
+      next();
+    } catch (err) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
   }
 }
 

@@ -9,7 +9,6 @@ interface SoundSettings {
 
 class SoundManager {
   private settings: SoundSettings;
-  private audioContext: AudioContext | null = null;
 
   constructor() {
     const saved = localStorage.getItem('soundSettings');
@@ -21,7 +20,7 @@ class SoundManager {
     };
   }
 
-  private play(soundFn: () => void, volumeMultiplier: number = 1) {
+  private play(soundFn: () => void) {
     if (!this.settings.enabled) return;
 
     try {
