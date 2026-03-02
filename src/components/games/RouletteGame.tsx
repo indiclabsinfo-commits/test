@@ -150,10 +150,10 @@ export const RouletteGame: React.FC = () => {
 
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 25%) 1fr', gap: '24px', height: '100%', overflow: 'hidden' }}>
+        <div className="game-shell game-layout-two game-theme-roulette">
 
             {/* Sidebar Controls */}
-            <div className="stake-card">
+            <div className="stake-card game-panel">
                 <div style={{ marginBottom: '24px' }}>
                     <label style={{ fontSize: '0.9rem', color: '#b1bad3', marginBottom: '8px', display: 'block' }}>Chip Value</label>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -199,7 +199,7 @@ export const RouletteGame: React.FC = () => {
             </div>
 
             {/* Game Board & Wheel */}
-            <div className="game-container" style={{
+            <div className="game-container game-stage" style={{
                 position: 'relative',
                 background: '#0f212e',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start',
@@ -241,7 +241,7 @@ export const RouletteGame: React.FC = () => {
 
 
                 {/* Wheel */}
-                <div style={{ position: 'relative', width: '300px', height: '300px' }}>
+                <div style={{ position: 'relative', width: 'min(82vw, 300px)', height: 'min(82vw, 300px)' }}>
                     {/* Marker */}
                     <div style={{
                         position: 'absolute', top: '-10px', left: '50%', transform: 'translateX(-50%)',
@@ -280,12 +280,12 @@ export const RouletteGame: React.FC = () => {
                 </div>
 
                 {/* Betting Board */}
+                <div style={{ width: '100%', maxWidth: '800px', marginTop: '20px', overflowX: 'auto' }}>
                 <div style={{
                     display: 'grid',
                     gridTemplateColumns: '50px repeat(12, 1fr)',
                     gap: '4px',
-                    width: '100%', maxWidth: '800px',
-                    marginTop: '20px'
+                    minWidth: '680px'
                 }}>
                     {/* Zero */}
                     <button
@@ -353,6 +353,7 @@ export const RouletteGame: React.FC = () => {
                         <MetaBtn label="19-36" onClick={() => { }} />
                     </div>
 
+                </div>
                 </div>
 
             </div>

@@ -117,9 +117,9 @@ export const DiamondsGame: React.FC = () => {
 
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '24px', height: '100%' }}>
+        <div className="game-shell game-layout-two game-theme-diamonds">
             {/* Sidebar Controls */}
-            <div className="stake-card">
+            <div className="stake-card game-panel">
                 <div style={{ marginBottom: '24px' }}>
                     <label style={{ fontSize: '0.9rem', color: '#b1bad3', marginBottom: '8px', display: 'block' }}>Bet Amount</label>
                     <div className="input-group">
@@ -157,7 +157,7 @@ export const DiamondsGame: React.FC = () => {
             </div>
 
             {/* Game Area */}
-            <div className="game-container" style={{
+            <div className="game-container game-stage" style={{
                 position: 'relative',
                 background: '#0f212e',
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',

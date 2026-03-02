@@ -164,10 +164,10 @@ export const BlackjackGame: React.FC = () => {
 
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '24px', height: '100%' }}>
+        <div className="game-shell game-layout-two game-theme-blackjack">
 
             {/* Sidebar Controls */}
-            <div className="stake-card">
+            <div className="stake-card game-panel">
                 <div style={{ marginBottom: '24px' }}>
                     <label style={{ fontSize: '0.9rem', color: '#b1bad3', marginBottom: '8px', display: 'block' }}>Bet Amount</label>
                     <div className="input-group" style={{ padding: '8px 12px', background: '#0f212e', border: '1px solid #2f4553' }}>
@@ -212,7 +212,7 @@ export const BlackjackGame: React.FC = () => {
             </div>
 
             {/* Game Table */}
-            <div className="game-container" style={{
+            <div className="game-container game-stage" style={{
                 position: 'relative',
                 background: '#15202b', // Dark felt
                 border: '8px solid #3c2a1e', // Wood border simulation

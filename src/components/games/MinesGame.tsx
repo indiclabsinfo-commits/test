@@ -71,9 +71,9 @@ export const MinesGame: React.FC = () => {
     };
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '16px', width: '100%', height: '100%' }}>
+        <div className="game-shell game-layout-two game-theme-mines">
             {/* Sidebar */}
-            <div className="stake-card" style={{ padding: '16px', height: 'fit-content' }}>
+            <div className="stake-card game-panel" style={{ padding: '16px', height: 'fit-content' }}>
                 <div style={{ marginBottom: '16px' }}>
                     <label style={{ fontSize: '0.8rem', color: '#b1bad3' }}>Bet Amount</label>
                     <div className="input-group">
@@ -101,7 +101,7 @@ export const MinesGame: React.FC = () => {
             </div>
 
             {/* Grid */}
-            <div className="game-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', padding: '40px', maxWidth: '500px', margin: '0 auto', alignItems: 'stretch', justifyItems: 'stretch' }}>
+            <div className="game-container game-stage" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px', padding: 'min(5vw, 28px)', width: '100%', maxWidth: '520px', margin: '0 auto', alignItems: 'stretch', justifyItems: 'stretch' }}>
                 {Array(25).fill(null).map((_, i) => (
                     <button
                         key={i}

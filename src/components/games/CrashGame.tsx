@@ -204,10 +204,10 @@ export const CrashGame: React.FC = () => {
     }, []);
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(250px, 20%) 1fr minmax(250px, 20%)', gap: '16px', height: '100%' }}>
+        <div className="game-shell game-layout-three game-theme-crash">
 
             {/* Left: Controls */}
-            <div className="stake-card" style={{ zIndex: 10 }}>
+            <div className="stake-card game-panel" style={{ zIndex: 10 }}>
                 <div style={{ marginBottom: '24px' }}>
                     <label style={{ fontSize: '0.9rem', color: '#b1bad3' }}>Bet Amount</label>
                     <div className="input-group">
@@ -267,7 +267,7 @@ export const CrashGame: React.FC = () => {
             </div>
 
             {/* Middle: Graph */}
-            <div className="game-container" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+            <div className="game-container game-stage" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                 <canvas ref={canvasRef} width={600} height={400} style={{ width: '100%', height: '100%' }} />
 
                 <div style={{ position: 'absolute', textAlign: 'center' }}>
@@ -276,7 +276,7 @@ export const CrashGame: React.FC = () => {
                     )}
                     {(gameState === 'FLYING' || gameState === 'CRASHED') && (
                         <div style={{
-                            fontSize: '5rem',
+                            fontSize: 'clamp(2.2rem, 8vw, 5rem)',
                             fontWeight: 'bold',
                             color: gameState === 'CRASHED' ? '#ea3e3e' : '#fff'
                         }}>
@@ -290,7 +290,7 @@ export const CrashGame: React.FC = () => {
             </div>
 
             {/* Right: Leaderboard (Group Aspect) */}
-            <div className="stake-card" style={{ maxHeight: '100%', overflowY: 'auto' }}>
+            <div className="stake-card game-panel" style={{ maxHeight: '100%', overflowY: 'auto' }}>
                 <h3 style={{ fontSize: '1rem', color: '#fff', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span>👥</span> Players ({bots.length + 1})
                 </h3>

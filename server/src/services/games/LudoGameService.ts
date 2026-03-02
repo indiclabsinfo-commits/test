@@ -53,6 +53,15 @@ interface QueueEntry {
   joinedAt: number;
 }
 
+interface LudoSettlement {
+  paidPlayers: string[];
+  totalPool: number;
+  houseFee: number;
+  prizePool: number;
+  winnerId: string | null;
+  payouts: Record<string, number>;
+}
+
 // Colors assigned based on player count and slot
 const COLOR_SLOTS_4: PlayerColor[] = ['GREEN', 'YELLOW', 'BLUE', 'RED'];
 const COLOR_SLOTS_2: PlayerColor[] = ['GREEN', 'BLUE'];
@@ -73,6 +82,7 @@ const BOT_NAMES = [
 const TURN_TIMEOUT = 30000; // 30 seconds per turn
 const QUEUE_CHECK_INTERVAL = 5000;
 const QUEUE_BOT_FILL_TIMEOUT = 30000;
+const LUDO_HOUSE_EDGE = 0.05;
 
 // ─── Service ─────────────────────────────────────────────────────────────
 
@@ -906,17 +916,23 @@ export class LudoGameService {
       }
 
       await this.settleBets(game);
+      const settlement = this.calculateSettlement(game);
 
       this.broadcastToRoom(game.id, {
         type: 'game_finished',
         game: 'ludo',
         data: {
           winner: game.winner,
+          payoutWinner: settlement.winnerId,
           finishOrder: game.finishOrder.map(id => {
             const p = game.players.find(pp => pp.id === id);
             return { id: p?.isBot ? null : id, username: p?.username, color: p?.color, isBot: p?.isBot };
           }),
-          payouts: this.calculatePayouts(game),
+          payouts: settlement.payouts,
+          totalPool: settlement.totalPool,
+          houseFee: settlement.houseFee,
+          prizePool: settlement.prizePool,
+          paidPlayers: settlement.paidPlayers.length,
         },
       });
 
@@ -927,23 +943,30 @@ export class LudoGameService {
     }
   }
 
-  private calculatePayouts(game: LudoGame): Record<string, number> {
-    const totalPool = game.betAmount * game.players.length;
+  private calculateSettlement(game: LudoGame): LudoSettlement {
+    const paidPlayers = game.players.filter(p => !p.isBot).map(p => p.id);
+    const totalPool = game.betAmount * paidPlayers.length;
+    const houseFee = Math.floor(totalPool * LUDO_HOUSE_EDGE);
+    const prizePool = totalPool - houseFee;
     const payouts: Record<string, number> = {};
 
-    if (game.finishOrder.length === 0) return payouts;
+    if (game.finishOrder.length === 0 || totalPool <= 0) {
+      return { paidPlayers, totalPool, houseFee, prizePool, winnerId: null, payouts };
+    }
 
-    // Winner takes all (minus house edge)
-    const houseEdge = 0.05; // 5%
-    const winnerPayout = Math.floor(totalPool * (1 - houseEdge));
-    const winnerId = game.finishOrder[0];
-    payouts[winnerId] = winnerPayout;
+    // Award prize to the best-ranked human who actually paid entry.
+    const winnerId = game.finishOrder.find(id => paidPlayers.includes(id)) || null;
+    if (!winnerId) {
+      return { paidPlayers, totalPool, houseFee, prizePool, winnerId: null, payouts };
+    }
 
-    return payouts;
+    payouts[winnerId] = prizePool;
+    return { paidPlayers, totalPool, houseFee, prizePool, winnerId, payouts };
   }
 
   private async settleBets(game: LudoGame): Promise<void> {
-    const payouts = this.calculatePayouts(game);
+    const settlement = this.calculateSettlement(game);
+    const payouts = settlement.payouts;
 
     for (const [playerId, payout] of Object.entries(payouts)) {
       const player = game.players.find(p => p.id === playerId);
@@ -967,6 +990,9 @@ export class LudoGameService {
               gameId: game.id,
               players: game.players.map(p => ({ color: p.color, username: p.username, isBot: p.isBot })),
               finishOrder: game.finishOrder,
+              totalPool: settlement.totalPool,
+              houseFee: settlement.houseFee,
+              prizePool: settlement.prizePool,
             }),
           ]
         );
@@ -998,7 +1024,12 @@ export class LudoGameService {
             player.id,
             game.betAmount,
             -game.betAmount,
-            JSON.stringify({ gameId: game.id }),
+            JSON.stringify({
+              gameId: game.id,
+              totalPool: settlement.totalPool,
+              houseFee: settlement.houseFee,
+              prizePool: settlement.prizePool,
+            }),
           ]
         );
       } catch (err) {

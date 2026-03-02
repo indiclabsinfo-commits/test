@@ -27,8 +27,8 @@ export const GenericGamePlaceholder: React.FC<{ name: string, icon: string }> = 
     };
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '16px', width: '100%', height: '100%' }}>
-            <div className="stake-card" style={{ padding: '16px', height: 'fit-content' }}>
+        <div className="game-shell game-layout-two game-theme-generic">
+            <div className="stake-card game-panel" style={{ height: 'fit-content' }}>
                 <div style={{ marginBottom: '16px' }}>
                     <label style={{ fontSize: '0.8rem', color: '#b1bad3' }}>Bet Amount</label>
                     <input type="number" value={betAmount} onChange={e => setBetAmount(Number(e.target.value))}
@@ -39,7 +39,7 @@ export const GenericGamePlaceholder: React.FC<{ name: string, icon: string }> = 
                 </button>
             </div>
 
-            <div className="game-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+            <div className="game-container game-stage" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
                 <div style={{ fontSize: '6rem', marginBottom: '24px' }}>{icon}</div>
                 <h2>{name}</h2>
                 {status === 'PLAYING' && <div className="spinner">🎲</div>}

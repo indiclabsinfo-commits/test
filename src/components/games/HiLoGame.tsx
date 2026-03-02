@@ -112,9 +112,9 @@ export const HiLoGame: React.FC = () => {
     const odds = currentCard ? getOdds(currentCard.value) : { high: 0, low: 0, pHigh: 0, pLow: 0 };
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '24px', height: '100%', alignItems: 'start' }}>
+        <div className="game-shell game-layout-two game-theme-hilo">
             {/* Sidebar */}
-            <div className="stake-card">
+            <div className="stake-card game-panel">
                 <div style={{ marginBottom: '24px' }}>
                     <label style={{ fontSize: '0.9rem', color: '#b1bad3', marginBottom: '8px', display: 'block', fontWeight: 600 }}>Bet Amount</label>
                     <div className="input-group" style={{ padding: '8px 12px', background: '#0f212e', border: '1px solid #2f4553' }}>
@@ -211,7 +211,7 @@ export const HiLoGame: React.FC = () => {
             </div>
 
             {/* Game Board */}
-            <div className="game-container" style={{
+            <div className="game-container game-stage" style={{
                 position: 'relative',
                 minHeight: '600px',
                 background: 'radial-gradient(circle at center, #1a2c38 0%, #0f212e 100%)',

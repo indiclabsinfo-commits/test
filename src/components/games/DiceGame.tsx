@@ -48,10 +48,10 @@ export const DiceGame: React.FC = () => {
     const isWin = lastRoll !== null && ((rollType === 'OVER' && lastRoll > prediction) || (rollType === 'UNDER' && lastRoll < prediction));
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '24px', height: '100%' }}>
+        <div className="game-shell game-layout-two game-theme-dice">
 
             {/* Sidebar */}
-            <div className="stake-card">
+            <div className="stake-card game-panel">
                 <div style={{ marginBottom: '24px' }}>
                     <label style={{ fontSize: '0.9rem', color: '#b1bad3', marginBottom: '8px', display: 'block' }}>Bet Amount</label>
                     <div className="input-group" style={{ padding: '8px 12px', background: '#0f212e', border: '1px solid #2f4553' }}>
@@ -121,7 +121,7 @@ export const DiceGame: React.FC = () => {
             </div>
 
             {/* Game Area */}
-            <div className="game-container" style={{
+            <div className="game-container game-stage" style={{
                 position: 'relative',
                 background: 'radial-gradient(circle at center, #1a2c38 0%, #0f212e 100%)',
                 borderColor: '#2f4553',
@@ -167,7 +167,7 @@ export const DiceGame: React.FC = () => {
 
                 {/* Slider Render */}
                 <div style={{
-                    position: 'relative', width: '80%', height: '80px', background: '#0f212e', borderRadius: '40px', margin: '60px 0',
+                    position: 'relative', width: 'min(92%, 820px)', height: '80px', background: '#0f212e', borderRadius: '40px', margin: 'clamp(22px, 6vw, 60px) 0',
                     display: 'flex', alignItems: 'center', padding: '0 10px',
                     boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)'
                 }}>

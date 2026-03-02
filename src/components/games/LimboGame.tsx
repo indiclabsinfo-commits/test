@@ -92,8 +92,8 @@ export const LimboGame: React.FC = () => {
     }, []);
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '16px', width: '100%', height: '100%' }}>
-            <div className="stake-card" style={{ padding: '16px', height: 'fit-content' }}>
+        <div className="game-shell game-layout-two game-theme-limbo">
+            <div className="stake-card game-panel" style={{ padding: '16px', height: 'fit-content' }}>
                 <div style={{ marginBottom: '16px' }}>
                     <label style={{ fontSize: '0.8rem', color: '#b1bad3' }}>Bet Amount</label>
                     <input type="number" value={betAmount} onChange={e => setBetAmount(Number(e.target.value))}
@@ -110,7 +110,7 @@ export const LimboGame: React.FC = () => {
                 </button>
             </div>
 
-            <div className="game-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+            <div className="game-container game-stage" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
                 <div style={{
                     fontSize: '6rem',
                     fontWeight: 'bold',

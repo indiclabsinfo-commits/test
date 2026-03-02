@@ -1,21 +1,47 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useGame } from '../../contexts/GameContext';
 import { formatIndianNumber } from '../../utils/format';
 
+interface KenoResult {
+  won?: boolean;
+  payout?: number;
+  matchCount?: number;
+  multiplier?: number;
+  matches?: number[];
+  drawnNumbers?: number[];
+}
+
 export const KenoGame: React.FC = () => {
   const { placeBet, balance } = useGame();
-  
+
   const [betAmount, setBetAmount] = useState(10);
   const [selectedNumbers, setSelectedNumbers] = useState<number[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [lastResult, setLastResult] = useState<any>(null);
-  const [clientSeed, setClientSeed] = useState(() => {
-    return Math.random().toString(36).substring(2, 15);
-  });
+  const [lastResult, setLastResult] = useState<KenoResult | null>(null);
+  const [clientSeed, setClientSeed] = useState(() => Math.random().toString(36).substring(2, 15));
+  const [drawPreview, setDrawPreview] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      setDrawPreview([]);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      const nums: number[] = [];
+      while (nums.length < 12) {
+        const n = Math.floor(Math.random() * 80) + 1;
+        if (!nums.includes(n)) nums.push(n);
+      }
+      setDrawPreview(nums);
+    }, 120);
+
+    return () => clearInterval(timer);
+  }, [isPlaying]);
 
   const toggleNumber = (num: number) => {
     if (isPlaying) return;
-    
+
     if (selectedNumbers.includes(num)) {
       setSelectedNumbers(prev => prev.filter(n => n !== num));
     } else if (selectedNumbers.length < 10) {
@@ -23,14 +49,14 @@ export const KenoGame: React.FC = () => {
     }
   };
 
-  const quickPick = () => {
+  const quickPick = (count: number) => {
     if (isPlaying) return;
-    const numbers: number[] = [];
-    while (numbers.length < 5) {
+    const picked: number[] = [];
+    while (picked.length < count) {
       const n = Math.floor(Math.random() * 80) + 1;
-      if (!numbers.includes(n)) numbers.push(n);
+      if (!picked.includes(n)) picked.push(n);
     }
-    setSelectedNumbers(numbers);
+    setSelectedNumbers(picked);
   };
 
   const clearNumbers = () => {
@@ -42,7 +68,7 @@ export const KenoGame: React.FC = () => {
   const handleBet = async () => {
     if (selectedNumbers.length === 0 || selectedNumbers.length > 10) return;
     if (balance < betAmount) return;
-    
+
     setIsPlaying(true);
     try {
       const result = await placeBet(betAmount, {
@@ -51,9 +77,9 @@ export const KenoGame: React.FC = () => {
         selectedNumbers,
         betId: `keno_${Date.now()}`
       });
-      
+
       if (result) {
-        setLastResult(result);
+        setLastResult(result as KenoResult);
         setClientSeed(Math.random().toString(36).substring(2, 15));
       }
     } catch (err) {
@@ -63,174 +89,125 @@ export const KenoGame: React.FC = () => {
     }
   };
 
-  const numbers = Array.from({ length: 80 }, (_, i) => i + 1);
+  const numbers = useMemo(() => Array.from({ length: 80 }, (_, i) => i + 1), []);
 
   return (
-    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
-      <h2 style={{ textAlign: 'center', marginBottom: '20px' }}>Keno</h2>
-
-      {/* Bet Amount */}
-      <div style={{ 
-        background: '#1a2c38', 
-        padding: '16px', 
-        borderRadius: '8px', 
-        marginBottom: '20px',
-        display: 'flex',
-        gap: '10px',
-        alignItems: 'center'
-      }}>
-        <span>Bet Amount:</span>
-        <input
-          type="number"
-          value={betAmount}
-          min={1}
-          max={balance}
-          onChange={(e) => setBetAmount(Math.max(1, parseInt(e.target.value) || 0))}
-          style={{
-            background: '#0f212e',
-            border: '1px solid #2f4553',
-            color: '#fff',
-            padding: '8px 12px',
-            borderRadius: '4px',
-            width: '100px'
-          }}
-        />
-      </div>
-
-      {/* Controls */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-        <button 
-          onClick={quickPick}
-          disabled={isPlaying}
-          style={{
-            background: '#2f4553',
-            color: '#fff',
-            border: 'none',
-            padding: '10px 20px',
-            borderRadius: '4px',
-            cursor: isPlaying ? 'not-allowed' : 'pointer'
-          }}
-        >
-          Quick Pick
-        </button>
-        <button 
-          onClick={clearNumbers}
-          disabled={isPlaying}
-          style={{
-            background: '#ff4444',
-            color: '#fff',
-            border: 'none',
-            padding: '10px 20px',
-            borderRadius: '4px',
-            cursor: isPlaying ? 'not-allowed' : 'pointer'
-          }}
-        >
-          Clear
-        </button>
-      </div>
-
-      {/* Numbers Grid */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(10, 1fr)', 
-        gap: '4px',
-        marginBottom: '20px'
-      }}>
-        {numbers.map((num) => {
-          const isSelected = selectedNumbers.includes(num);
-          const isMatch = lastResult?.matches?.includes(num);
-          
-          return (
-            <button
-              key={num}
-              onClick={() => toggleNumber(num)}
+    <div className="game-shell game-layout-two game-theme-keno">
+      <div className="stake-card game-panel">
+        <div style={{ marginBottom: '16px' }}>
+          <div className="game-section-title">Bet Amount</div>
+          <div className="bet-input-row">
+            <input
+              type="number"
+              value={betAmount}
+              min={1}
+              max={balance}
               disabled={isPlaying}
-              style={{
-                background: isMatch ? '#00ff00' : isSelected ? '#1475e1' : '#0f212e',
-                color: isMatch ? '#000' : isSelected ? '#fff' : '#b1bad3',
-                border: isMatch ? '2px solid #00ff00' : '1px solid #2f4553',
-                padding: '10px 5px',
-                borderRadius: '4px',
-                cursor: isPlaying ? 'not-allowed' : 'pointer',
-                fontWeight: isSelected || isMatch ? 'bold' : 'normal'
-              }}
-            >
-              {num}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Selected Count & Play Button */}
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center',
-        background: '#1a2c38',
-        padding: '16px',
-        borderRadius: '8px'
-      }}>
-        <div>
-          <div>Selected: {selectedNumbers.length}/10</div>
-          <div style={{ color: '#b1bad3', fontSize: '0.9rem' }}>
-            Client Seed: {clientSeed}
+              onChange={(e) => setBetAmount(Math.max(1, parseInt(e.target.value, 10) || 0))}
+            />
+            <span style={{ color: '#b1bad3' }}>₹</span>
           </div>
         </div>
-        
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '16px' }}>
+          <button className="btn-secondary" onClick={() => quickPick(5)} disabled={isPlaying}>Quick 5</button>
+          <button className="btn-secondary" onClick={() => quickPick(10)} disabled={isPlaying}>Quick 10</button>
+          <button className="btn-secondary" onClick={clearNumbers} disabled={isPlaying}>Clear</button>
+        </div>
+
+        <div className="game-stat-block" style={{ marginBottom: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#b1bad3', marginBottom: '6px' }}>
+            <span>Selected</span>
+            <span style={{ color: '#fff', fontWeight: 700 }}>{selectedNumbers.length}/10</span>
+          </div>
+          <div style={{ color: '#7f93a8', fontSize: '0.8rem', wordBreak: 'break-all' }}>
+            Seed: {clientSeed}
+          </div>
+        </div>
+
         <button
+          className="btn-primary"
           onClick={handleBet}
           disabled={isPlaying || selectedNumbers.length === 0 || balance < betAmount}
-          style={{
-            background: isPlaying ? '#2f4553' : '#00e701',
-            color: isPlaying ? '#b1bad3' : '#000',
-            border: 'none',
-            padding: '12px 40px',
-            borderRadius: '4px',
-            fontSize: '1.1rem',
-            fontWeight: 'bold',
-            cursor: isPlaying || selectedNumbers.length === 0 || balance < betAmount ? 'not-allowed' : 'pointer'
-          }}
+          style={{ width: '100%' }}
         >
-          {isPlaying ? 'Drawing...' : `Bet $${formatIndianNumber(betAmount)}`}
+          {isPlaying ? 'Drawing...' : `Bet ₹${formatIndianNumber(betAmount)}`}
         </button>
+
+        {lastResult && (
+          <div className="game-stat-block" style={{ marginTop: '12px' }}>
+            <div style={{ fontSize: '1rem', marginBottom: '8px', color: lastResult.won ? '#00e701' : '#ea3e3e', fontWeight: 800 }}>
+              {lastResult.won ? `Won ₹${formatIndianNumber(lastResult.payout || 0)}` : 'No Match'}
+            </div>
+            <div style={{ color: '#b1bad3', marginBottom: '8px', fontSize: '0.9rem' }}>
+              Matches: {lastResult.matchCount || 0} | Multiplier: {lastResult.multiplier || 0}x
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {(lastResult.drawnNumbers || []).slice(0, 10).map((n) => (
+                <span
+                  key={n}
+                  style={{
+                    background: (lastResult.matches || []).includes(n) ? '#00e701' : '#2f4553',
+                    color: (lastResult.matches || []).includes(n) ? '#001900' : '#fff',
+                    padding: '2px 7px',
+                    borderRadius: '5px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700
+                  }}
+                >
+                  {n}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Result Display */}
-      {lastResult && (
-        <div style={{ 
-          marginTop: '20px', 
-          background: '#1a2c38', 
-          padding: '16px', 
-          borderRadius: '8px',
-          textAlign: 'center'
-        }}>
-          <div style={{ fontSize: '1.2rem', marginBottom: '10px' }}>
-            {lastResult.won ? (
-              <span style={{ color: '#00e701' }}>🎉 You Won ${formatIndianNumber(lastResult.payout)}!</span>
-            ) : (
-              <span style={{ color: '#ff4444' }}>😔 No Match</span>
-            )}
-          </div>
-          <div style={{ color: '#b1bad3' }}>
-            Matches: {lastResult.matchCount} | Multiplier: {lastResult.multiplier}x
-          </div>
-          {lastResult.drawnNumbers && (
-            <div style={{ marginTop: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
-              <span>Drawn:</span>
-              {lastResult.drawnNumbers.slice(0, 10).map((n: number) => (
-                <span key={n} style={{ 
-                  background: selectedNumbers.includes(n) ? '#00ff00' : '#2f4553',
-                  color: selectedNumbers.includes(n) ? '#000' : '#fff',
-                  padding: '2px 6px',
-                  borderRadius: '3px',
-                  fontSize: '0.8rem'
-                }}>{n}</span>
-              ))}
-              <span>... +{lastResult.drawnNumbers.length - 10} more</span>
-            </div>
-          )}
+      <div className="game-container game-stage" style={{ justifyContent: 'flex-start', gap: '14px' }}>
+        <h2 style={{ marginBottom: '4px' }}>Keno</h2>
+        <div style={{ color: '#b1bad3', fontSize: '0.9rem', marginBottom: '6px' }}>
+          Pick up to 10 numbers. More matches means higher payout.
         </div>
-      )}
+
+        <div style={{ width: '100%', overflowX: 'auto' }}>
+          <div style={{
+            minWidth: '520px',
+            width: '100%',
+            maxWidth: '760px',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(10, minmax(0, 1fr))',
+            gap: '7px'
+          }}>
+            {numbers.map((num) => {
+              const isSelected = selectedNumbers.includes(num);
+              const isMatch = (lastResult?.matches || []).includes(num);
+              const isPreview = isPlaying && drawPreview.includes(num);
+
+              return (
+                <button
+                  key={num}
+                  onClick={() => toggleNumber(num)}
+                  disabled={isPlaying}
+                  style={{
+                    background: isMatch ? '#00e701' : isSelected ? '#1475e1' : isPreview ? '#27435f' : '#0f212e',
+                    color: isMatch ? '#001900' : '#fff',
+                    border: isMatch ? '1px solid #63ff63' : '1px solid #2f4553',
+                    borderRadius: '7px',
+                    minHeight: '34px',
+                    padding: '8px 4px',
+                    fontWeight: isSelected || isMatch ? 700 : 500,
+                    fontSize: '0.8rem',
+                    boxShadow: isPreview ? '0 0 8px rgba(120, 168, 220, 0.35)' : 'none',
+                    transition: 'all 0.12s ease'
+                  }}
+                >
+                  {num}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

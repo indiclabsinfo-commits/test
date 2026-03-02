@@ -106,6 +106,11 @@ body {
   line-height: 1.5;
 }
 
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 #root {
   width: 100%;
   padding: 0;
@@ -191,6 +196,7 @@ p {
   flex-direction: column;
   align-items: center;
   background: var(--bg-deepest);
+  min-width: 0;
 }
 
 /* ============================================
@@ -715,6 +721,12 @@ input, select {
   max-width: 1200px;
   margin-bottom: var(--space-6);
   padding: 0 var(--space-2);
+  gap: var(--space-3);
+}
+
+.header-left,
+.header-right {
+  min-width: 0;
 }
 
 .header-back {
@@ -729,6 +741,8 @@ input, select {
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all var(--duration-fast);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .header-back:hover {
@@ -745,6 +759,7 @@ input, select {
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-subtle);
   box-shadow: var(--shadow-sm);
+  min-width: 0;
 }
 
 .wallet-balance {
@@ -985,6 +1000,100 @@ input, select {
    GAME-SPECIFIC UTILITIES
    ============================================ */
 
+.game-shell {
+  width: min(100%, 1280px);
+  margin: 0 auto;
+}
+
+.game-layout-two {
+  display: grid;
+  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  gap: var(--space-4);
+  width: 100%;
+  align-items: start;
+}
+
+.game-layout-three {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr) minmax(220px, 280px);
+  gap: var(--space-4);
+  width: 100%;
+  align-items: start;
+}
+
+.game-layout-two > *,
+.game-layout-three > * {
+  min-width: 0;
+}
+
+.game-panel {
+  width: 100%;
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+}
+
+.game-stage {
+  min-height: clamp(320px, 58vh, 620px);
+  padding: clamp(14px, 2.5vw, 30px);
+  width: 100%;
+  min-width: 0;
+}
+
+.game-stat-block {
+  background: rgba(10, 25, 41, 0.7);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+}
+
+.game-section-title {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: var(--space-2);
+}
+
+/* Unique per-game visual identity */
+.game-theme-dice .game-panel { background: linear-gradient(160deg, #1a3246 0%, #16283a 100%); }
+.game-theme-dice .game-stage { background: radial-gradient(circle at 18% 12%, rgba(89, 199, 255, 0.22), #0f212e 65%); }
+
+.game-theme-crash .game-panel { background: linear-gradient(160deg, #352332 0%, #2b2233 100%); }
+.game-theme-crash .game-stage { background: radial-gradient(circle at 50% 10%, rgba(255, 86, 120, 0.24), #131d2b 62%); }
+
+.game-theme-mines .game-panel { background: linear-gradient(160deg, #19363d 0%, #173036 100%); }
+.game-theme-mines .game-stage { background: radial-gradient(circle at 15% 12%, rgba(0, 231, 169, 0.2), #102630 66%); }
+
+.game-theme-plinko .game-panel { background: linear-gradient(160deg, #322944 0%, #272039 100%); }
+.game-theme-plinko .game-stage { background: radial-gradient(circle at 20% 10%, rgba(214, 125, 255, 0.24), #151f31 66%); }
+
+.game-theme-limbo .game-panel { background: linear-gradient(160deg, #3a2f1e 0%, #2f271a 100%); }
+.game-theme-limbo .game-stage { background: radial-gradient(circle at 20% 8%, rgba(255, 206, 92, 0.23), #102131 66%); }
+
+.game-theme-wheel .game-panel { background: linear-gradient(160deg, #21344d 0%, #1a293d 100%); }
+.game-theme-wheel .game-stage { background: radial-gradient(circle at 50% 12%, rgba(106, 170, 255, 0.28), #111f33 63%); }
+
+.game-theme-roulette .game-panel { background: linear-gradient(160deg, #3a2323 0%, #2f2020 100%); }
+.game-theme-roulette .game-stage { background: radial-gradient(circle at 50% 10%, rgba(255, 93, 93, 0.24), #131f2f 64%); }
+
+.game-theme-blackjack .game-panel { background: linear-gradient(160deg, #1f3a2e 0%, #192f26 100%); }
+.game-theme-blackjack .game-stage { background: radial-gradient(circle at 18% 10%, rgba(67, 202, 116, 0.24), #10202f 66%); }
+
+.game-theme-hilo .game-panel { background: linear-gradient(160deg, #2a2745 0%, #211f3a 100%); }
+.game-theme-hilo .game-stage { background: radial-gradient(circle at 50% 10%, rgba(139, 156, 255, 0.24), #121f31 64%); }
+
+.game-theme-keno .game-panel { background: linear-gradient(160deg, #243a2d 0%, #1f3027 100%); }
+.game-theme-keno .game-stage { background: radial-gradient(circle at 18% 10%, rgba(82, 220, 138, 0.22), #102132 66%); }
+
+.game-theme-dragon .game-panel { background: linear-gradient(160deg, #3a2b1d 0%, #322517 100%); }
+.game-theme-dragon .game-stage { background: radial-gradient(circle at 14% 9%, rgba(255, 163, 76, 0.24), #111f32 64%); }
+
+.game-theme-diamonds .game-panel { background: linear-gradient(160deg, #1f3251 0%, #192843 100%); }
+.game-theme-diamonds .game-stage { background: radial-gradient(circle at 12% 10%, rgba(98, 178, 255, 0.24), #111f31 64%); }
+
+.game-theme-generic .game-panel { background: linear-gradient(160deg, #2a2f42 0%, #232839 100%); }
+.game-theme-generic .game-stage { background: radial-gradient(circle at 20% 10%, rgba(170, 158, 255, 0.22), #121e31 66%); }
+
 /* Multiplier display */
 .multiplier-display {
   font-size: 3rem;
@@ -1069,6 +1178,21 @@ input, select {
   .stake-card {
     padding: var(--space-4);
   }
+
+  .game-layout-two {
+    grid-template-columns: minmax(240px, 310px) minmax(0, 1fr);
+  }
+
+  .game-layout-three {
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .game-layout-two,
+  .game-layout-three {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 @media (max-width: 768px) {
@@ -1137,6 +1261,7 @@ input, select {
 
   .main-content {
     padding: var(--space-4);
+    align-items: stretch;
   }
 
   .stake-card {
@@ -1177,6 +1302,67 @@ input, select {
   .lobby-hero {
     padding: var(--space-4);
   }
+
+  .game-shell {
+    width: 100%;
+  }
+
+  .game-layout-two,
+  .game-layout-three {
+    grid-template-columns: 1fr !important;
+    gap: var(--space-3);
+  }
+
+  .game-panel {
+    padding: var(--space-3);
+  }
+
+  .game-stage {
+    min-height: 280px;
+    padding: var(--space-3);
+  }
+
+  .app-header {
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+    padding: 0;
+  }
+
+  .header-left {
+    width: 100%;
+  }
+
+  .header-right {
+    margin-left: auto;
+  }
+
+  .header-back {
+    max-width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .header-back-game {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .wallet-display {
+    gap: var(--space-2);
+    padding: 8px 10px;
+  }
+
+  .wallet-balance {
+    font-size: 0.86rem;
+  }
+
+  .wallet-btn {
+    padding: 6px 10px;
+    font-size: 0.76rem;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1191,6 +1377,19 @@ input, select {
   .game-container {
     padding: var(--space-3);
     min-height: 250px;
+  }
+
+  .wallet-display svg {
+    display: none;
+  }
+
+  .header-back-lobby,
+  .header-back-divider {
+    display: none;
+  }
+
+  .header-back-game {
+    max-width: 90px;
   }
 }
 
