@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DepositTab } from './DepositTab';
 import { WithdrawTab } from './WithdrawTab';
 import { TransactionHistory } from './TransactionHistory';
@@ -7,12 +7,26 @@ import './Wallet.css';
 interface WalletModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialTab?: TabType;
+  initialDepositMethod?: 'select' | 'agent' | 'qr' | 'crypto';
+  autoQRAmountInr?: number;
 }
 
 type TabType = 'deposit' | 'withdraw' | 'history';
 
-export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<TabType>('deposit');
+export const WalletModal: React.FC<WalletModalProps> = ({
+  isOpen,
+  onClose,
+  initialTab = 'deposit',
+  initialDepositMethod = 'select',
+  autoQRAmountInr,
+}) => {
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
+
+  // keep modal tab aligned to caller intent when reopened
+  useEffect(() => {
+    if (isOpen) setActiveTab(initialTab);
+  }, [isOpen, initialTab]);
 
   if (!isOpen) return null;
 
@@ -41,7 +55,7 @@ export const WalletModal: React.FC<WalletModalProps> = ({ isOpen, onClose }) => 
         </div>
 
         <div className="wallet-content">
-          {activeTab === 'deposit' && <DepositTab />}
+          {activeTab === 'deposit' && <DepositTab initialMethod={initialDepositMethod} autoQRAmountInr={autoQRAmountInr} />}
           {activeTab === 'withdraw' && <WithdrawTab />}
           {activeTab === 'history' && <TransactionHistory />}
         </div>

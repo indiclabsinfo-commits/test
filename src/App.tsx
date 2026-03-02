@@ -62,18 +62,28 @@ const SIDEBAR_CATEGORIES = [
 ];
 
 const GameController = () => {
-  const { isDemoMode, activeBalance, toggleDemoMode, activeGameId, joinGame, leaveGame, login, isAuthenticated, user } = useGame();
+  const { isDemoMode, activeBalance, toggleDemoMode, activeGameId, joinGame, leaveGame, login, register, isAuthenticated, user } = useGame();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isWalletOpen, setIsWalletOpen] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
+  const [walletInitialTab, setWalletInitialTab] = useState<'deposit' | 'withdraw' | 'history'>('deposit');
+  const [walletInitialDepositMethod, setWalletInitialDepositMethod] = useState<'select' | 'agent' | 'qr' | 'crypto'>('select');
+  const [walletAutoQRAmountInr, setWalletAutoQRAmountInr] = useState<number | undefined>(undefined);
 
   const handleJoin = (gameId: string) => {
     joinGame(gameId);
   };
 
-  const handleAuthSuccess = async (_method: 'phone' | 'email', value: string, password?: string) => {
-    if (password) {
-      await login(value, password);
+  const handleAuthSuccess = async (payload: { mode: 'login' | 'register'; username: string; password: string }) => {
+    if (payload.mode === 'register') {
+      await register(payload.username, payload.password);
+      // Prompt immediate recharge after successful registration.
+      setWalletInitialTab('deposit');
+      setWalletInitialDepositMethod('qr');
+      setWalletAutoQRAmountInr(100);
+      setIsWalletOpen(true);
+    } else {
+      await login(payload.username, payload.password);
     }
     setIsAuthModalOpen(false);
   };
@@ -236,8 +246,16 @@ const GameController = () => {
               </svg>
               <span className="wallet-balance">${formatIndianNumber(activeBalance, true)}</span>
               {isAuthenticated ? (
-                <button className="wallet-btn" onClick={() => setIsWalletOpen(true)}>
-                  Wallet
+                <button
+                  className="wallet-btn"
+                  onClick={() => {
+                    setWalletInitialTab('deposit');
+                    setWalletInitialDepositMethod('qr');
+                    setWalletAutoQRAmountInr(undefined);
+                    setIsWalletOpen(true);
+                  }}
+                >
+                  Recharge
                 </button>
               ) : (
                 <button className="wallet-btn" onClick={() => setIsAuthModalOpen(true)}>
@@ -261,6 +279,9 @@ const GameController = () => {
       <WalletModal
         isOpen={isWalletOpen}
         onClose={() => setIsWalletOpen(false)}
+        initialTab={walletInitialTab}
+        initialDepositMethod={walletInitialDepositMethod}
+        autoQRAmountInr={walletAutoQRAmountInr}
       />
     </div>
   );

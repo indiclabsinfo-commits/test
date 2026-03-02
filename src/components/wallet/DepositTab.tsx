@@ -5,11 +5,16 @@ import { CryptoDepositFlow } from './CryptoDepositFlow';
 
 type DepositMethod = 'select' | 'agent' | 'qr' | 'crypto';
 
-export const DepositTab: React.FC = () => {
-  const [method, setMethod] = useState<DepositMethod>('select');
+interface DepositTabProps {
+  initialMethod?: DepositMethod;
+  autoQRAmountInr?: number;
+}
+
+export const DepositTab: React.FC<DepositTabProps> = ({ initialMethod = 'select', autoQRAmountInr }) => {
+  const [method, setMethod] = useState<DepositMethod>(initialMethod);
 
   if (method === 'agent') return <AgentDepositFlow onBack={() => setMethod('select')} />;
-  if (method === 'qr') return <QRDepositFlow onBack={() => setMethod('select')} />;
+  if (method === 'qr') return <QRDepositFlow onBack={() => setMethod('select')} autoCreateAmountInr={autoQRAmountInr} />;
   if (method === 'crypto') return <CryptoDepositFlow onBack={() => setMethod('select')} />;
 
   return (

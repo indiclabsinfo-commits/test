@@ -4,11 +4,12 @@ import { formatIndianNumber } from '../../utils/format';
 
 interface Props {
   onBack: () => void;
+  autoCreateAmountInr?: number;
 }
 
 type Step = 'amount' | 'qr' | 'done' | 'error';
 
-export const QRDepositFlow: React.FC<Props> = ({ onBack }) => {
+export const QRDepositFlow: React.FC<Props> = ({ onBack, autoCreateAmountInr }) => {
   const [step, setStep] = useState<Step>('amount');
   const [amount, setAmount] = useState('');
   const [order, setOrder] = useState<any>(null);
@@ -28,6 +29,30 @@ export const QRDepositFlow: React.FC<Props> = ({ onBack }) => {
     }, 1000);
     return () => clearInterval(timer);
   }, [order?.expiresAt]);
+
+  useEffect(() => {
+    if (!autoCreateAmountInr || step !== 'amount') return;
+    const auto = async () => {
+      setAmount(String(autoCreateAmountInr));
+      setLoading(true);
+      setError('');
+      try {
+        const internalAmount = Math.floor(autoCreateAmountInr * 100000);
+        const result = await apiService.createQRDeposit(internalAmount);
+        if (result.order) {
+          setOrder(result.order);
+          setStep('qr');
+        } else {
+          setError(result.error || 'No bank accounts available');
+        }
+      } catch (err: any) {
+        setError(err.response?.data?.error || 'Failed to create QR deposit');
+      } finally {
+        setLoading(false);
+      }
+    };
+    auto();
+  }, [autoCreateAmountInr, step]);
 
   // Poll status
   useEffect(() => {
@@ -140,6 +165,22 @@ export const QRDepositFlow: React.FC<Props> = ({ onBack }) => {
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
               Account: {order.accountHolder} ({order.bankName})
             </p>
+          )}
+
+          {order.qrData && (
+            <div style={{ marginTop: '10px', textAlign: 'center' }}>
+              <img
+                src={`https://quickchart.io/qr?size=220&text=${encodeURIComponent(order.qrData)}`}
+                alt="UPI QR"
+                style={{
+                  width: 'min(220px, 100%)',
+                  borderRadius: '10px',
+                  border: '1px solid var(--border-subtle)',
+                  background: '#fff',
+                  padding: '8px'
+                }}
+              />
+            </div>
           )}
 
           <div className="wallet-status pending">
