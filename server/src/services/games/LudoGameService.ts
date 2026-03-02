@@ -1,6 +1,7 @@
 import { Client, GameMessage } from '../WebSocketGameServer.js';
 import { query } from '../../config/database.js';
 import { ProvablyFair } from '../../utils/provablyFair.js';
+import { pool } from '../../config/database.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────
 
@@ -236,7 +237,7 @@ export class LudoGameService {
 
       // Check if oldest entry has waited long enough to fill with bots
       const oldest = entries[0];
-      if (entries.length >= 2 && Date.now() - oldest.joinedAt > QUEUE_BOT_FILL_TIMEOUT) {
+      if (entries.length >= 1 && Date.now() - oldest.joinedAt > QUEUE_BOT_FILL_TIMEOUT) {
         this.createMatchedGame(entries.splice(0, Math.min(entries.length, maxPlayers)), betAmount, maxPlayers);
         if (entries.length === 0) this.matchQueues.delete(key);
       }
@@ -441,7 +442,7 @@ export class LudoGameService {
       return;
     }
 
-    if (game.players.length < 2) {
+    if (game.players.length < game.maxPlayers) {
       // Fill with bots up to maxPlayers
       const colorSlots = this.getColorSlots(game.maxPlayers);
       const usedNames = new Set(game.players.map(p => p.username));
@@ -973,8 +974,46 @@ export class LudoGameService {
       if (!player || player.isBot) continue;
 
       try {
-        const col = await this.getBalanceColumn(playerId);
-        await query(`UPDATE users SET ${col} = ${col} + $1 WHERE id = $2`, [payout, playerId]);
+        const dbClient = await pool.connect();
+        try {
+          await dbClient.query('BEGIN');
+          const lockRes = await dbClient.query(
+            'SELECT balance, demo_balance, is_demo_mode FROM users WHERE id = $1 FOR UPDATE',
+            [playerId]
+          );
+          if (lockRes.rows.length === 0) {
+            await dbClient.query('ROLLBACK');
+            continue;
+          }
+          const row = lockRes.rows[0];
+          const col = row.is_demo_mode ? 'demo_balance' : 'balance';
+          const before = row.is_demo_mode ? Number(row.demo_balance) : Number(row.balance);
+          const after = before + payout;
+
+          await dbClient.query(`UPDATE users SET ${col} = $1 WHERE id = $2`, [after, playerId]);
+
+          await dbClient.query(
+            `INSERT INTO transactions
+             (user_id, type, status, amount, fee, net_amount, currency, balance_before, balance_after, reference_type, description, metadata, is_demo)
+             VALUES ($1, 'game_payout', 'completed', $2, 0, $2, 'INR', $3, $4, 'ludo_match', $5, $6, $7)`,
+            [
+              playerId,
+              payout,
+              before,
+              after,
+              `Ludo payout for game ${game.id}`,
+              JSON.stringify({ gameId: game.id, houseFee: settlement.houseFee, prizePool: settlement.prizePool }),
+              row.is_demo_mode,
+            ]
+          );
+
+          await dbClient.query('COMMIT');
+        } catch (txErr) {
+          await dbClient.query('ROLLBACK');
+          throw txErr;
+        } finally {
+          dbClient.release();
+        }
 
         // Record game session
         await query(
@@ -998,7 +1037,10 @@ export class LudoGameService {
         );
 
         // Send balance update with the active balance
-        const balRes = await query(`SELECT ${col} as active_balance FROM users WHERE id = $1`, [playerId]);
+        const balRes = await query(
+          'SELECT CASE WHEN is_demo_mode THEN demo_balance ELSE balance END as active_balance FROM users WHERE id = $1',
+          [playerId]
+        );
         if (balRes.rows.length > 0) {
           const wsClient = this.findClientByUserId(playerId);
           if (wsClient) {
@@ -1044,26 +1086,52 @@ export class LudoGameService {
     const humans = game.players.filter(p => !p.isBot);
     if (humans.length === 0) return true;
 
+    const dbClient = await pool.connect();
     try {
-      await query('BEGIN');
+      await dbClient.query('BEGIN');
 
       for (const player of humans) {
-        const col = await this.getBalanceColumn(player.id);
-        const res = await query(
-          `UPDATE users SET ${col} = ${col} - $1 WHERE id = $2 AND ${col} >= $1 RETURNING id`,
-          [game.betAmount, player.id]
+        const lockRes = await dbClient.query(
+          'SELECT balance, demo_balance, is_demo_mode FROM users WHERE id = $1 FOR UPDATE',
+          [player.id]
         );
-        if (res.rows.length === 0) {
-          await query('ROLLBACK');
+        if (lockRes.rows.length === 0) {
+          await dbClient.query('ROLLBACK');
           return false;
         }
+        const row = lockRes.rows[0];
+        const col = row.is_demo_mode ? 'demo_balance' : 'balance';
+        const before = row.is_demo_mode ? Number(row.demo_balance) : Number(row.balance);
+        if (before < game.betAmount) {
+          await dbClient.query('ROLLBACK');
+          return false;
+        }
+        const after = before - game.betAmount;
+
+        await dbClient.query(`UPDATE users SET ${col} = $1 WHERE id = $2`, [after, player.id]);
+        await dbClient.query(
+          `INSERT INTO transactions
+           (user_id, type, status, amount, fee, net_amount, currency, balance_before, balance_after, reference_type, description, metadata, is_demo)
+           VALUES ($1, 'game_bet', 'completed', $2, 0, $2, 'INR', $3, $4, 'ludo_match', $5, $6, $7)`,
+          [
+            player.id,
+            game.betAmount,
+            before,
+            after,
+            `Ludo entry fee for game ${game.id}`,
+            JSON.stringify({ gameId: game.id, maxPlayers: game.maxPlayers }),
+            row.is_demo_mode,
+          ]
+        );
       }
 
-      await query('COMMIT');
+      await dbClient.query('COMMIT');
 
       for (const player of humans) {
-        const col = await this.getBalanceColumn(player.id);
-        const balRes = await query(`SELECT ${col} as active_balance FROM users WHERE id = $1`, [player.id]);
+        const balRes = await query(
+          'SELECT CASE WHEN is_demo_mode THEN demo_balance ELSE balance END as active_balance FROM users WHERE id = $1',
+          [player.id]
+        );
         if (balRes.rows.length > 0) {
           const wsClient = this.findClientByUserId(player.id);
           if (wsClient) {
@@ -1078,12 +1146,14 @@ export class LudoGameService {
       return true;
     } catch (err) {
       try {
-        await query('ROLLBACK');
+        await dbClient.query('ROLLBACK');
       } catch {
         // ignore rollback errors
       }
       console.error('Ludo deduct bet error:', err);
       return false;
+    } finally {
+      dbClient.release();
     }
   }
 
