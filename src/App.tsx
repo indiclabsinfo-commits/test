@@ -25,6 +25,7 @@ import { GenericGamePlaceholder } from './components/games/GenericGamePlaceholde
 import { GameGlyph } from './components/ui/GameGlyph';
 import { GAMES } from './data/games';
 import { AgentPortal } from './pages/AgentPortal';
+import { AdminPortal } from './pages/AdminPortal';
 
 const SIDEBAR_CATEGORIES = [
   {
@@ -293,6 +294,15 @@ function App() {
     return (
       <ErrorBoundary>
         <AgentPortal />
+      </ErrorBoundary>
+    );
+  }
+
+  // Master admin portal on /admin path
+  if (window.location.pathname === '/admin') {
+    return (
+      <ErrorBoundary>
+        <AdminPortal />
       </ErrorBoundary>
     );
   }

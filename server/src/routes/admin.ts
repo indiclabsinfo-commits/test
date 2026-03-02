@@ -145,6 +145,36 @@ router.post('/bank-accounts', [
   }
 });
 
+router.put('/bank-accounts/:id', [
+  body('label').optional().trim().notEmpty(),
+  body('upiId').optional().trim().notEmpty(),
+  body('priority').optional().isInt({ min: 0 }),
+  body('dailyLimit').optional().isInt({ min: 10000000 }),
+  body('isActive').optional().isBoolean(),
+], async (req: any, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: 'Invalid input' });
+  }
+  try {
+    const ok = await bankAccountService.updateAccount(req.params.id, req.body);
+    if (!ok) return res.status(404).json({ error: 'Bank account not found' });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update bank account' });
+  }
+});
+
+router.post('/bank-accounts/:id/primary', async (req: any, res: Response) => {
+  try {
+    const ok = await bankAccountService.setPrimaryAccount(req.params.id);
+    if (!ok) return res.status(404).json({ error: 'Bank account not found' });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to set primary bank account' });
+  }
+});
+
 // ============================================
 // PLATFORM STATS
 // ============================================

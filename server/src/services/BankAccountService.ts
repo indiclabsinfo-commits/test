@@ -212,6 +212,70 @@ export class BankAccountService {
     );
     return result.rows;
   }
+
+  // Admin: update account details and runtime status/priority
+  async updateAccount(
+    id: string,
+    patch: {
+      label?: string;
+      upiId?: string;
+      bankName?: string;
+      accountHolder?: string;
+      isActive?: boolean;
+      priority?: number;
+      dailyLimit?: number;
+    }
+  ): Promise<boolean> {
+    const updates: string[] = [];
+    const params: any[] = [];
+
+    const set = (col: string, val: any) => {
+      params.push(val);
+      updates.push(`${col} = $${params.length}`);
+    };
+
+    if (patch.label !== undefined) set('label', patch.label);
+    if (patch.upiId !== undefined) set('upi_id', patch.upiId);
+    if (patch.bankName !== undefined) set('bank_name', patch.bankName);
+    if (patch.accountHolder !== undefined) set('account_holder', patch.accountHolder);
+    if (patch.isActive !== undefined) set('is_active', patch.isActive);
+    if (patch.priority !== undefined) set('priority', patch.priority);
+    if (patch.dailyLimit !== undefined) set('daily_limit', patch.dailyLimit);
+
+    if (updates.length === 0) return false;
+
+    updates.push('updated_at = NOW()');
+    params.push(id);
+
+    const result = await query(
+      `UPDATE bank_accounts SET ${updates.join(', ')} WHERE id = $${params.length} RETURNING id`,
+      params
+    );
+
+    return result.rows.length > 0;
+  }
+
+  // Admin: mark one account as primary by lifting its priority above all others
+  async setPrimaryAccount(id: string): Promise<boolean> {
+    await query('BEGIN');
+    try {
+      const maxResult = await query('SELECT COALESCE(MAX(priority), 0) as max_p FROM bank_accounts');
+      const nextPriority = Number(maxResult.rows[0]?.max_p || 0) + 1;
+      const updated = await query(
+        'UPDATE bank_accounts SET priority = $1, updated_at = NOW() WHERE id = $2 RETURNING id',
+        [nextPriority, id]
+      );
+      if (updated.rows.length === 0) {
+        await query('ROLLBACK');
+        return false;
+      }
+      await query('COMMIT');
+      return true;
+    } catch (err) {
+      await query('ROLLBACK');
+      throw err;
+    }
+  }
 }
 
 export const bankAccountService = new BankAccountService();
