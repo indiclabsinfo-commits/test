@@ -201,6 +201,7 @@ export const LudoGame: React.FC = () => {
     const [showConfetti, setShowConfetti] = useState(false);
     const [capturingPiece, setCapturingPiece] = useState<{color: PlayerColor, pieceId: number} | null>(null);
     const [sparklingPiece, setSparklingPiece] = useState<{color: PlayerColor, pieceId: number} | null>(null);
+    const [movingPieceTrail, setMovingPieceTrail] = useState<{color: PlayerColor, pieceId: number} | null>(null);
     const [isLocalMatch, setIsLocalMatch] = useState(false);
 
     const queueTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -221,6 +222,12 @@ export const LudoGame: React.FC = () => {
 
     const addToLog = useCallback((text: string, type: 'normal' | 'kill' | 'finish') => {
         setLog(prev => [{ text, type }, ...prev].slice(0, 10));
+    }, []);
+
+    const flashMovedPiece = useCallback((color?: PlayerColor, pieceId?: number) => {
+        if (!color || typeof pieceId !== 'number') return;
+        setMovingPieceTrail({ color, pieceId });
+        setTimeout(() => setMovingPieceTrail(null), 420);
     }, []);
 
     // Haptic feedback helper
@@ -343,8 +350,9 @@ export const LudoGame: React.FC = () => {
     const handlePieceMoved = useCallback((data: any) => {
         playPieceMove();
         triggerHaptic('light');
+        flashMovedPiece(data.playerColor, data.pieceId);
         if (data.captured) addToLog(`${data.playerColor} captured a piece!`, 'kill');
-    }, [addToLog, triggerHaptic]);
+    }, [addToLog, triggerHaptic, flashMovedPiece]);
 
     const handlePieceCaptured = useCallback((data: any) => {
         playCapture();
@@ -590,6 +598,7 @@ export const LudoGame: React.FC = () => {
         }
 
         playPieceMove();
+        flashMovedPiece(player.color, piece.id);
         state.waitingForMove = false;
         state.movablePieces = [];
         setServerState(state);
@@ -712,6 +721,7 @@ export const LudoGame: React.FC = () => {
         setDiceValue(null);
         setLog([]);
         setFinishData(null);
+        setMovingPieceTrail(null);
         stopTurnTimer();
     };
 
@@ -722,6 +732,7 @@ export const LudoGame: React.FC = () => {
         setMyColor(null);
         setDiceValue(null);
         setLog([]);
+        setMovingPieceTrail(null);
         setMatchState('MENU');
     };
 
@@ -1058,11 +1069,13 @@ export const LudoGame: React.FC = () => {
                                 // Check for animation states
                                 const isCaptured = capturingPiece?.color === p.color && capturingPiece?.pieceId === piece.id;
                                 const isSparkling = sparklingPiece?.color === p.color && sparklingPiece?.pieceId === piece.id;
+                                const isMovingTrail = movingPieceTrail?.color === p.color && movingPieceTrail?.pieceId === piece.id;
 
                                 const classNames = [
                                     'piece',
                                     p.color.toLowerCase(),
                                     isMovable && 'glow',
+                                    isMovingTrail && 'trail',
                                     isCaptured && 'captured',
                                     isSparkling && 'sparkling',
                                 ].filter(Boolean).join(' ');
@@ -1092,6 +1105,12 @@ export const LudoGame: React.FC = () => {
                     {matchState === 'FINISHED' && finishData ? (
                         <div className="ludo-finish-panel">
                             <h3 className="finish-title">Game Over!</h3>
+                            {finishData.finishOrder?.[0] && (
+                                <div className="ludo-winner-spotlight">
+                                    <span>Winner</span>
+                                    <strong>{finishData.finishOrder[0].username}</strong>
+                                </div>
+                            )}
                             <div className="finish-results">
                                 {finishData.finishOrder?.map((p: any, i: number) => {
                                     const colors = COLOR_MAP[p.color as PlayerColor];
@@ -1101,7 +1120,13 @@ export const LudoGame: React.FC = () => {
                                     const medals = ['1st', '2nd', '3rd', '4th'];
 
                                     return (
-                                        <div key={i} className={`finish-row${isMe ? ' me' : ''}`}>
+                                        <motion.div
+                                            key={i}
+                                            className={`finish-row${isMe ? ' me' : ''}`}
+                                            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            transition={{ duration: 0.24, delay: i * 0.06 }}
+                                        >
                                             <span className={`finish-medal${i === 0 ? ' gold' : ''}`}>{medals[i]}</span>
                                             <div className="finish-avatar" style={{ background: colors?.gradient }}>
                                                 {p.username?.[0]?.toUpperCase()}
@@ -1112,7 +1137,7 @@ export const LudoGame: React.FC = () => {
                                             {displayPayout > 0 && (
                                                 <span className="finish-payout">+{formatIndianNumber(displayPayout)}</span>
                                             )}
-                                        </div>
+                                        </motion.div>
                                     );
                                 })}
                             </div>

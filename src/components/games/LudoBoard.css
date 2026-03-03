@@ -880,6 +880,25 @@
     filter: brightness(1.1);
 }
 
+.piece.trail {
+    animation: piece-trail-pop 0.4s ease-out;
+}
+
+@keyframes piece-trail-pop {
+    0% {
+        transform: scale(1);
+        filter: brightness(1);
+    }
+    45% {
+        transform: scale(1.2);
+        filter: brightness(1.35) drop-shadow(0 0 12px rgba(255, 255, 255, 0.5));
+    }
+    100% {
+        transform: scale(1);
+        filter: brightness(1);
+    }
+}
+
 @keyframes piece-glow-pulse {
     from {
         transform: scale(1.1);
@@ -913,7 +932,7 @@
         0 4px 12px rgba(0, 0, 0, 0.25),
         inset 0 1px 0 rgba(255, 255, 255, 0.8),
         inset 0 -2px 4px rgba(0, 0, 0, 0.05);
-    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, filter 0.2s ease;
     border: 2px solid #d0d0d0;
     flex-shrink: 0;
     will-change: transform;
@@ -933,6 +952,7 @@
         0 0 16px rgba(255, 215, 0, 0.15),
         inset 0 1px 0 rgba(255, 255, 255, 0.8);
     animation: dice-ready 1.5s ease-in-out infinite;
+    filter: saturate(1.05);
 }
 
 .ludo-dice.can-roll:active {
@@ -941,6 +961,11 @@
 
 .ludo-dice.rolling {
     animation: dice-roll 0.75s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    box-shadow:
+        0 10px 26px rgba(0, 0, 0, 0.35),
+        0 0 0 4px rgba(120, 144, 156, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .ludo-dice.disabled {
@@ -1168,6 +1193,32 @@
     flex-direction: column;
     gap: 12px;
     padding: 4px 0;
+}
+
+.ludo-winner-spotlight {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 8px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 215, 0, 0.25);
+    background: radial-gradient(circle at top, rgba(255, 215, 0, 0.14), rgba(255, 215, 0, 0.04));
+}
+
+.ludo-winner-spotlight span {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255, 215, 0, 0.9);
+}
+
+.ludo-winner-spotlight strong {
+    font-size: 0.95rem;
+    font-weight: 900;
+    color: #ffe066;
+    text-shadow: 0 0 14px rgba(255, 215, 0, 0.35);
 }
 
 .finish-title {
@@ -1426,6 +1477,7 @@
 @media (prefers-reduced-motion: reduce) {
     .ludo-strip-player.active,
     .piece.glow,
+    .piece.trail,
     .ludo-dice.can-roll,
     .ludo-dice.rolling,
     .dice-hint-move,
