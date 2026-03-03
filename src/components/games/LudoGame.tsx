@@ -211,6 +211,7 @@ export const LudoGame: React.FC = () => {
     const [sparklingPiece, setSparklingPiece] = useState<{color: PlayerColor, pieceId: number} | null>(null);
     const [movingPieceTrail, setMovingPieceTrail] = useState<{color: PlayerColor, pieceId: number} | null>(null);
     const [isLocalMatch, setIsLocalMatch] = useState(false);
+    const [localHumanPlayerId, setLocalHumanPlayerId] = useState<string | null>(null);
     const [showRollHint, setShowRollHint] = useState(false);
     const [rollHintCount, setRollHintCount] = useState(0);
 
@@ -510,6 +511,7 @@ export const LudoGame: React.FC = () => {
 
         setIsLocalMatch(true);
         localConsecutiveSixesRef.current = 0;
+        setLocalHumanPlayerId(players[0].id);
         setMyColor(players[0].color);
         setServerState({
             gameId: `local_${Date.now()}`,
@@ -651,6 +653,45 @@ export const LudoGame: React.FC = () => {
         }, 350);
     };
 
+    const pickLocalBotMove = (state: ServerGameState, player: ServerPlayer, movable: number[], roll: number): number => {
+        if (movable.length === 1) return movable[0];
+        const startOffset = START_OFFSETS[player.color];
+        let bestPiece = movable[0];
+        let bestScore = -Infinity;
+
+        for (const pieceId of movable) {
+            const piece = player.pieces.find(p => p.id === pieceId);
+            if (!piece) continue;
+            let score = 0;
+
+            if (piece.position === -1 && roll === 6) {
+                score += 35;
+            } else {
+                const newTravelled = piece.travelled + roll;
+                if (newTravelled === 56) score += 100;
+                score += newTravelled;
+
+                if (newTravelled < 51) {
+                    const newAbsPos = (startOffset + newTravelled) % 52;
+                    if (SAFE_SPOTS.includes(newAbsPos)) score += 8;
+                    for (const other of state.players) {
+                        if (other.color === player.color) continue;
+                        if (other.pieces.some(op => op.position === newAbsPos && op.position >= 0)) {
+                            score += 55;
+                        }
+                    }
+                }
+            }
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestPiece = pieceId;
+            }
+        }
+
+        return bestPiece;
+    };
+
     const findMatch = () => {
         if (!ensureOnlineReady()) return;
         setIsLocalMatch(false);
@@ -706,6 +747,7 @@ export const LudoGame: React.FC = () => {
 
         const state = cloneGameState(serverState);
         const player = state.players[state.currentPlayerIndex];
+        const isLocalBotTurn = !!(isLocalMatch && localHumanPlayerId && player.id !== localHumanPlayerId);
         const roll = Math.floor(Math.random() * 6) + 1;
         state.lastRoll = roll;
 
@@ -720,7 +762,7 @@ export const LudoGame: React.FC = () => {
 
         const movable = skipped ? [] : getLocalMovablePieces(player, roll);
         state.movablePieces = movable;
-        state.waitingForMove = movable.length > 1;
+        state.waitingForMove = !isLocalBotTurn && movable.length > 1;
         setServerState(state);
 
         handleDiceResult({
@@ -733,6 +775,12 @@ export const LudoGame: React.FC = () => {
 
         if (movable.length === 1 && !skipped) {
             setTimeout(() => executeLocalMove(movable[0], roll), 500);
+            return;
+        }
+
+        if (movable.length > 1 && !skipped && isLocalBotTurn) {
+            const bestPiece = pickLocalBotMove(state, player, movable, roll);
+            setTimeout(() => executeLocalMove(bestPiece, roll), 650);
             return;
         }
 
@@ -761,6 +809,7 @@ export const LudoGame: React.FC = () => {
             wsService.send({ game: 'ludo', type: 'leave_game', data: {} });
         }
         setIsLocalMatch(false);
+        setLocalHumanPlayerId(null);
         setMatchState('MENU');
         setServerState(null);
         setMyColor(null);
@@ -774,6 +823,7 @@ export const LudoGame: React.FC = () => {
 
     const playAgain = () => {
         setIsLocalMatch(false);
+        setLocalHumanPlayerId(null);
         setFinishData(null);
         setServerState(null);
         setMyColor(null);
@@ -830,7 +880,8 @@ export const LudoGame: React.FC = () => {
     // ─── Derived State ─────────────────────────────────────────────────
 
     const isMyTurn = !!(serverState?.status === 'PLAYING' && (
-        isLocalMatch ||
+        (isLocalMatch ? (!!localHumanPlayerId && serverState.players[serverState.currentPlayerIndex]?.id === localHumanPlayerId) :
+        false) ||
         (user && serverState.players[serverState.currentPlayerIndex]?.id === user.id)
     ));
     const canRollDice = !!(isMyTurn && !serverState?.waitingForMove && !isRolling);
@@ -847,6 +898,7 @@ export const LudoGame: React.FC = () => {
     useEffect(() => {
         if (
             matchState === 'PLAYING' &&
+            !isLocalMatch &&
             isMyTurn &&
             canRollDice &&
             !serverState?.waitingForMove &&
@@ -856,7 +908,23 @@ export const LudoGame: React.FC = () => {
             return;
         }
         setShowRollHint(false);
-    }, [matchState, isMyTurn, canRollDice, serverState?.waitingForMove, rollHintCount]);
+    }, [matchState, isLocalMatch, isMyTurn, canRollDice, serverState?.waitingForMove, rollHintCount]);
+
+    useEffect(() => {
+        if (!isLocalMatch || !serverState || serverState.status !== 'PLAYING' || isRolling) return;
+        if (!localHumanPlayerId) return;
+        const current = serverState.players[serverState.currentPlayerIndex];
+        if (!current || current.id === localHumanPlayerId) return;
+        if (serverState.waitingForMove) return;
+
+        const t = setTimeout(() => rollDice(), 900);
+        return () => clearTimeout(t);
+    }, [
+        isLocalMatch,
+        serverState,
+        localHumanPlayerId,
+        isRolling,
+    ]);
 
     // ─── Render: MENU ──────────────────────────────────────────────────
 
