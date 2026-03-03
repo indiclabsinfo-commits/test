@@ -31,6 +31,8 @@ interface ServerPlayer {
     username: string;
     color: PlayerColor;
     isBot: boolean;
+    isConnected?: boolean;
+    reconnectDeadline?: number | null;
     pieces: ServerPiece[];
     finishedCount: number;
 }
@@ -49,6 +51,9 @@ interface ServerGameState {
     finishOrder: string[];
     betAmount: number;
     maxPlayers: 2 | 3 | 4;
+    quickMode?: boolean;
+    targetFinishCount?: number;
+    turnTimeLimitMs?: number;
     isPrivate: boolean;
 }
 
@@ -184,6 +189,7 @@ export const LudoGame: React.FC = () => {
 
     const [betAmount, setBetAmount] = useState(100);
     const [maxPlayers, setMaxPlayers] = useState<2 | 3 | 4>(4);
+    const [quickMode, setQuickMode] = useState(false);
     const [menuMode, setMenuMode] = useState<'quick' | 'private' | 'local'>('quick');
     const [joinCode, setJoinCode] = useState('');
     const [queueTimer, setQueueTimer] = useState(0);
@@ -277,6 +283,13 @@ export const LudoGame: React.FC = () => {
                 case 'turn_start':
                     handleTurnStart(msg.data);
                     break;
+                case 'player_connection':
+                    if (msg.data?.connected === false && msg.data?.username) {
+                        addToLog(`${msg.data.username} disconnected`, 'normal');
+                    } else if (msg.data?.connected === true && msg.data?.username) {
+                        addToLog(`${msg.data.username} reconnected`, 'finish');
+                    }
+                    break;
                 case 'game_finished':
                     handleGameFinished(msg.data);
                     break;
@@ -367,21 +380,23 @@ export const LudoGame: React.FC = () => {
     const handlePieceHome = useCallback((data: any) => {
         playHomeEntry();
         triggerHaptic('medium');
-        addToLog(`${data.playerColor} got a piece home! (${data.finishedCount}/4)`, 'finish');
+        const finishTarget = serverState?.targetFinishCount || 4;
+        addToLog(`${data.playerColor} got a piece home! (${data.finishedCount}/${finishTarget})`, 'finish');
 
         // Trigger sparkle animation
         setSparklingPiece({ color: data.playerColor, pieceId: data.pieceId });
         setTimeout(() => setSparklingPiece(null), 1200);
-    }, [addToLog, triggerHaptic]);
+    }, [addToLog, triggerHaptic, serverState?.targetFinishCount]);
 
     const handleTurnStart = useCallback((data: any) => {
-        setTurnTimeLeft(30);
-        startTurnTimer();
+        const turnSecs = Math.max(8, Math.floor((data?.turnTimeLimitMs || serverState?.turnTimeLimitMs || 30000) / 1000));
+        setTurnTimeLeft(turnSecs);
+        startTurnTimer(turnSecs);
         if (data?.playerId && data.playerId === user?.id) {
             playTurnStart();
             triggerHaptic('light');
         }
-    }, [triggerHaptic, user?.id]);
+    }, [triggerHaptic, user?.id, serverState?.turnTimeLimitMs]);
 
     const handleGameFinished = useCallback((data: any) => {
         setFinishData(data);
@@ -408,9 +423,9 @@ export const LudoGame: React.FC = () => {
         setQueueTimer(0);
     };
 
-    const startTurnTimer = () => {
+    const startTurnTimer = (durationSeconds = 30) => {
         stopTurnTimer();
-        setTurnTimeLeft(30);
+        setTurnTimeLeft(durationSeconds);
         turnTimerRef.current = setInterval(() => {
             setTurnTimeLeft(prev => prev <= 1 ? 0 : prev - 1);
         }, 1000);
@@ -497,6 +512,9 @@ export const LudoGame: React.FC = () => {
             finishOrder: [],
             betAmount: 0,
             maxPlayers,
+            quickMode,
+            targetFinishCount: quickMode ? 2 : 4,
+            turnTimeLimitMs: quickMode ? 18000 : 30000,
             isPrivate: false,
         });
         setLog([{ text: 'Local game started', type: 'finish' }]);
@@ -504,11 +522,12 @@ export const LudoGame: React.FC = () => {
         setMenuError('');
         setDiceValue(null);
         setFinishData(null);
-        startTurnTimer();
+        startTurnTimer(quickMode ? 18 : 30);
     };
 
     const finishLocalIfNeeded = (state: ServerGameState): boolean => {
-        const unfinished = state.players.filter(p => p.finishedCount < 4);
+        const finishTarget = state.targetFinishCount || 4;
+        const unfinished = state.players.filter(p => p.finishedCount < finishTarget);
         if (unfinished.length > 1) return false;
 
         unfinished.forEach(p => {
@@ -541,7 +560,7 @@ export const LudoGame: React.FC = () => {
         state.lastRoll = 0;
         state.waitingForMove = false;
         state.movablePieces = [];
-        setTurnTimeLeft(30);
+        setTurnTimeLeft(Math.max(8, Math.floor((state.turnTimeLimitMs || 30000) / 1000)));
     };
 
     const executeLocalMove = (pieceId: number, explicitRoll?: number) => {
@@ -572,7 +591,7 @@ export const LudoGame: React.FC = () => {
                 if (newTravelled === 56 && !piece.finished) {
                     piece.finished = true;
                     player.finishedCount += 1;
-                    addToLog(`${player.color} got a piece home! (${player.finishedCount}/4)`, 'finish');
+                    addToLog(`${player.color} got a piece home! (${player.finishedCount}/${state.targetFinishCount || 4})`, 'finish');
                     playHomeEntry();
                 }
             } else {
@@ -621,7 +640,11 @@ export const LudoGame: React.FC = () => {
         if (!ensureOnlineReady()) return;
         setIsLocalMatch(false);
         setMenuError('');
-        wsService.send({ game: 'ludo', type: 'find_match', data: { betAmount: Math.floor(betAmount * INTERNAL_MULTIPLIER), maxPlayers } });
+        wsService.send({
+            game: 'ludo',
+            type: 'find_match',
+            data: { betAmount: Math.floor(betAmount * INTERNAL_MULTIPLIER), maxPlayers, quickMode },
+        });
     };
 
     const cancelMatch = () => {
@@ -634,7 +657,11 @@ export const LudoGame: React.FC = () => {
         if (!ensureOnlineReady()) return;
         setIsLocalMatch(false);
         setMenuError('');
-        wsService.send({ game: 'ludo', type: 'create_private', data: { betAmount: Math.floor(betAmount * INTERNAL_MULTIPLIER), maxPlayers } });
+        wsService.send({
+            game: 'ludo',
+            type: 'create_private',
+            data: { betAmount: Math.floor(betAmount * INTERNAL_MULTIPLIER), maxPlayers, quickMode },
+        });
     };
 
     const joinPrivateRoom = () => {
@@ -854,6 +881,21 @@ export const LudoGame: React.FC = () => {
                         </div>
                     </div>
 
+                    <div className="ludo-field">
+                        <label>Game Pace</label>
+                        <div className="ludo-player-select">
+                            <button className={!quickMode ? 'selected' : ''} onClick={() => setQuickMode(false)}>
+                                Classic
+                            </button>
+                            <button className={quickMode ? 'selected' : ''} onClick={() => setQuickMode(true)}>
+                                Quick
+                            </button>
+                        </div>
+                        <div className="pot-row sub" style={{ marginTop: 8 }}>
+                            <span>{quickMode ? '2 pieces to finish · 18s turn timer' : '4 pieces to finish · 30s turn timer'}</span>
+                        </div>
+                    </div>
+
                     {/* Pot Info */}
                     <div className="ludo-pot-info">
                         <div className="pot-row">
@@ -863,6 +905,10 @@ export const LudoGame: React.FC = () => {
                         <div className="pot-row sub">
                             <span>Winner Takes</span>
                             <span className="pot-win">{formatIndianNumber(Math.floor(betAmount * maxPlayers * 0.95))}</span>
+                        </div>
+                        <div className="pot-row sub">
+                            <span>Mode</span>
+                            <span className="pot-win">{quickMode ? 'Quick' : 'Classic'}</span>
                         </div>
                     </div>
 
@@ -913,10 +959,12 @@ export const LudoGame: React.FC = () => {
 
         return (
             <div className="ludo-mobile-screen">
-                <div className="ludo-mobile-card" style={{ textAlign: 'center' }}>
+                    <div className="ludo-mobile-card" style={{ textAlign: 'center' }}>
                     <div className="ludo-queue-spinner" />
                     <h2 className="ludo-title" style={{ marginTop: '20px' }}>Finding Match...</h2>
-                    <p className="ludo-subtitle">{maxPlayers} players, {formatIndianNumber(betAmount)} entry</p>
+                    <p className="ludo-subtitle">
+                        {maxPlayers} players, {formatIndianNumber(betAmount)} entry · {quickMode ? 'Quick' : 'Classic'}
+                    </p>
                     <div className="ludo-queue-timer">{mins}:{secs.toString().padStart(2, '0')}</div>
                     <button className="ludo-action-btn secondary" onClick={cancelMatch}>Cancel</button>
                 </div>
@@ -985,7 +1033,9 @@ export const LudoGame: React.FC = () => {
 
                     <div className="ludo-pot-info" style={{ marginBottom: '12px' }}>
                         <div className="pot-row sub" style={{ justifyContent: 'center' }}>
-                            <span>{serverState.players.length}/{serverState.maxPlayers} players &middot; Entry: {formatIndianNumber(displayBet)}</span>
+                            <span>
+                                {serverState.players.length}/{serverState.maxPlayers} players &middot; Entry: {formatIndianNumber(displayBet)} &middot; {serverState.quickMode ? 'Quick' : 'Classic'}
+                            </span>
                         </div>
                     </div>
 
@@ -1008,6 +1058,8 @@ export const LudoGame: React.FC = () => {
         const players = serverState.players;
         const displayBet = serverState.betAmount / INTERNAL_MULTIPLIER;
         const totalPot = displayBet * players.length;
+        const finishTarget = serverState.targetFinishCount || 4;
+        const turnSeconds = Math.max(8, Math.floor((serverState.turnTimeLimitMs || 30000) / 1000));
 
         return (
             <div className="ludo-game-screen">
@@ -1031,10 +1083,11 @@ export const LudoGame: React.FC = () => {
                                 <div className="strip-name">
                                     {isMe ? 'You' : player.username.slice(0, 6)}
                                     {player.isBot && <span className="strip-bot">BOT</span>}
+                                    {!player.isBot && player.isConnected === false && <span className="strip-bot">OFF</span>}
                                 </div>
-                                <div className="strip-score">{player.finishedCount}/4</div>
-                                {isActive && player.finishedCount < 4 && (
-                                    <TimerRing timeLeft={turnTimeLeft} maxTime={30} color={colors.main} />
+                                <div className="strip-score">{player.finishedCount}/{finishTarget}</div>
+                                {isActive && player.finishedCount < finishTarget && (
+                                    <TimerRing timeLeft={turnTimeLeft} maxTime={turnSeconds} color={colors.main} />
                                 )}
                             </div>
                         );
@@ -1147,7 +1200,7 @@ export const LudoGame: React.FC = () => {
                     ) : (
                         <>
                             {/* Center Dice Dock for Touch Play */}
-                            <div className="ludo-dice-dock">
+                            <div className={`ludo-dice-dock${isMyTurn ? ' active-turn' : ''}`}>
                                 <div className="dice-side-chip">
                                     {currentPlayer && (
                                         <span style={{ color: COLOR_MAP[currentPlayer.color].main }}>

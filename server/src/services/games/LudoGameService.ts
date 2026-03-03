@@ -20,6 +20,8 @@ interface LudoPlayer {
   username: string;
   color: PlayerColor;
   isBot: boolean;
+  disconnectedAt: number | null;
+  reconnectDeadline: number | null;
   pieces: LudoPiece[];
   finishedCount: number;
 }
@@ -37,6 +39,9 @@ interface LudoGame {
   finishOrder: string[];       // player ids in finish order
   betAmount: number;           // bet per player (internal units)
   maxPlayers: 2 | 3 | 4;
+  quickMode: boolean;
+  targetFinishCount: number;
+  turnTimeLimitMs: number;
   isPrivate: boolean;
   createdAt: number;
   creatorId: string;
@@ -81,8 +86,10 @@ const BOT_NAMES = [
 ];
 
 const TURN_TIMEOUT = 30000; // 30 seconds per turn
+const QUICK_TURN_TIMEOUT = 18000; // 18 seconds in quick mode
 const QUEUE_CHECK_INTERVAL = 5000;
 const QUEUE_BOT_FILL_TIMEOUT = 30000;
+const RECONNECT_GRACE_MS = 45000;
 const LUDO_HOUSE_EDGE = 0.05;
 
 // ─── Service ─────────────────────────────────────────────────────────────
@@ -93,6 +100,7 @@ export class LudoGameService {
   private playerGameMap: Map<string, string> = new Map();     // userId -> gameId
   private matchQueues: Map<string, QueueEntry[]> = new Map(); // "betAmount_maxPlayers" -> entries
   private codeToGameId: Map<string, string> = new Map();      // room code -> gameId
+  private reconnectTimers: Map<string, ReturnType<typeof setTimeout>> = new Map(); // userId -> timeout
   private queueInterval: ReturnType<typeof setInterval>;
 
   constructor(wsServer: any) {
@@ -164,9 +172,10 @@ export class LudoGameService {
   // ─── Matchmaking ─────────────────────────────────────────────────────
 
   private async handleFindMatch(client: Client, data: any): Promise<void> {
-    const { betAmount = 10000, maxPlayers = 4 } = data;
+    const { betAmount = 10000, maxPlayers = 4, quickMode = false } = data;
     const clampedPlayers = Math.min(4, Math.max(2, maxPlayers)) as 2 | 3 | 4;
     const internalBet = Math.max(0, Math.floor(betAmount));
+    const mode = quickMode ? 'quick' : 'classic';
 
     // Check not already in game/queue
     if (this.playerGameMap.has(client.userId!)) {
@@ -187,7 +196,7 @@ export class LudoGameService {
       }
     }
 
-    const queueKey = `${internalBet}_${clampedPlayers}`;
+    const queueKey = `${internalBet}_${clampedPlayers}_${mode}`;
     if (!this.matchQueues.has(queueKey)) {
       this.matchQueues.set(queueKey, []);
     }
@@ -202,11 +211,11 @@ export class LudoGameService {
     this.sendToClient(client, {
       type: 'queue_joined',
       game: 'ludo',
-      data: { betAmount: internalBet, maxPlayers: clampedPlayers },
+      data: { betAmount: internalBet, maxPlayers: clampedPlayers, quickMode: !!quickMode },
     });
 
     // Try to match immediately
-    this.tryMatchQueue(queueKey, internalBet, clampedPlayers);
+    this.tryMatchQueue(queueKey, internalBet, clampedPlayers, !!quickMode);
   }
 
   private handleCancelMatch(client: Client): void {
@@ -231,20 +240,21 @@ export class LudoGameService {
   private processQueues(): void {
     for (const [key, entries] of this.matchQueues) {
       if (entries.length === 0) continue;
-      const [betStr, playersStr] = key.split('_');
+      const [betStr, playersStr, mode] = key.split('_');
       const betAmount = parseInt(betStr);
       const maxPlayers = parseInt(playersStr) as 2 | 3 | 4;
+      const quickMode = mode === 'quick';
 
       // Check if oldest entry has waited long enough to fill with bots
       const oldest = entries[0];
       if (entries.length >= 1 && Date.now() - oldest.joinedAt > QUEUE_BOT_FILL_TIMEOUT) {
-        this.createMatchedGame(entries.splice(0, Math.min(entries.length, maxPlayers)), betAmount, maxPlayers);
+        this.createMatchedGame(entries.splice(0, Math.min(entries.length, maxPlayers)), betAmount, maxPlayers, quickMode);
         if (entries.length === 0) this.matchQueues.delete(key);
       }
     }
   }
 
-  private tryMatchQueue(queueKey: string, betAmount: number, maxPlayers: 2 | 3 | 4): void {
+  private tryMatchQueue(queueKey: string, betAmount: number, maxPlayers: 2 | 3 | 4, quickMode: boolean): void {
     const entries = this.matchQueues.get(queueKey);
     if (!entries || entries.length < maxPlayers) return;
 
@@ -252,11 +262,11 @@ export class LudoGameService {
     const matched = entries.splice(0, maxPlayers);
     if (entries.length === 0) this.matchQueues.delete(queueKey);
 
-    this.createMatchedGame(matched, betAmount, maxPlayers);
+    this.createMatchedGame(matched, betAmount, maxPlayers, quickMode);
   }
 
-  private async createMatchedGame(entries: QueueEntry[], betAmount: number, maxPlayers: 2 | 3 | 4): Promise<void> {
-    const game = this.createGameInstance(betAmount, maxPlayers, false, entries[0].userId);
+  private async createMatchedGame(entries: QueueEntry[], betAmount: number, maxPlayers: 2 | 3 | 4, quickMode: boolean): Promise<void> {
+    const game = this.createGameInstance(betAmount, maxPlayers, false, entries[0].userId, quickMode);
     const colorSlots = this.getColorSlots(maxPlayers);
 
     // Add human players
@@ -319,7 +329,7 @@ export class LudoGameService {
   // ─── Private Rooms ───────────────────────────────────────────────────
 
   private async handleCreatePrivate(client: Client, data: any): Promise<void> {
-    const { betAmount = 10000, maxPlayers = 4 } = data;
+    const { betAmount = 10000, maxPlayers = 4, quickMode = false } = data;
     const clampedPlayers = Math.min(4, Math.max(2, maxPlayers)) as 2 | 3 | 4;
     const internalBet = Math.max(0, Math.floor(betAmount));
 
@@ -337,7 +347,7 @@ export class LudoGameService {
       }
     }
 
-    const game = this.createGameInstance(internalBet, clampedPlayers, true, client.userId!);
+    const game = this.createGameInstance(internalBet, clampedPlayers, true, client.userId!, !!quickMode);
     const colorSlots = this.getColorSlots(clampedPlayers);
 
     const player = this.createPlayer(client.userId!, client.id, client.username || 'Player', colorSlots[0], false);
@@ -584,7 +594,7 @@ export class LudoGameService {
           const bestPiece = this.pickBestMove(game, player, movable, roll);
           this.executeMove(game, player, bestPiece, roll);
         }
-      }, TURN_TIMEOUT);
+      }, game.turnTimeLimitMs);
     }
   }
 
@@ -663,7 +673,7 @@ export class LudoGameService {
           });
 
           // Check win
-          if (player.finishedCount === 4) {
+          if (player.finishedCount === game.targetFinishCount) {
             game.finishOrder.push(player.id);
             this.checkGameEnd(game);
             return;
@@ -769,7 +779,7 @@ export class LudoGameService {
     const player = game.players[game.currentPlayerIndex];
 
     // Skip finished players
-    if (player.finishedCount === 4) {
+    if (player.finishedCount >= game.targetFinishCount) {
       if (!game.finishOrder.includes(player.id)) {
         game.finishOrder.push(player.id);
       }
@@ -788,6 +798,7 @@ export class LudoGameService {
         playerColor: player.color,
         playerIndex: game.currentPlayerIndex,
         isBot: player.isBot,
+        turnTimeLimitMs: game.turnTimeLimitMs,
       },
     });
 
@@ -808,7 +819,7 @@ export class LudoGameService {
           // Auto-roll for AFK player
           this.executeDiceRoll(game);
         }
-      }, TURN_TIMEOUT);
+      }, game.turnTimeLimitMs);
     }
   }
 
@@ -898,7 +909,7 @@ export class LudoGameService {
 
   private async checkGameEnd(game: LudoGame): Promise<void> {
     // Count players who haven't finished all 4 pieces
-    const unfinished = game.players.filter(p => p.finishedCount < 4);
+    const unfinished = game.players.filter(p => p.finishedCount < game.targetFinishCount);
 
     if (unfinished.length <= 1) {
       // Add remaining unfinished to finish order
@@ -1188,10 +1199,45 @@ export class LudoGameService {
     const game = this.games.get(gameId);
     if (!game) return;
 
-    this.removePlayerFromGame(game, client.userId!, client.id);
+    this.removePlayerFromGame(game, client.userId!, client.id, true);
   }
 
-  private removePlayerFromGame(game: LudoGame, userId: string, clientId: string): void {
+  public handleReconnect(client: Client): void {
+    if (!client.userId) return;
+    const gameId = this.playerGameMap.get(client.userId);
+    if (!gameId) return;
+    const game = this.games.get(gameId);
+    if (!game) return;
+
+    const player = game.players.find(p => p.id === client.userId && !p.isBot);
+    if (!player) return;
+
+    const timer = this.reconnectTimers.get(client.userId);
+    if (timer) {
+      clearTimeout(timer);
+      this.reconnectTimers.delete(client.userId);
+    }
+
+    player.clientId = client.id;
+    player.disconnectedAt = null;
+    player.reconnectDeadline = null;
+    this.wsServer.subscribeToRoom(client.ws, game.id);
+
+    this.sendToClient(client, {
+      type: 'rejoined',
+      game: 'ludo',
+      data: { gameId: game.id, status: game.status },
+    });
+
+    this.broadcastToRoom(game.id, {
+      type: 'player_connection',
+      game: 'ludo',
+      data: { userId: player.id, username: player.username, connected: true },
+    });
+    this.broadcastGameState(game);
+  }
+
+  private removePlayerFromGame(game: LudoGame, userId: string, clientId: string, isDisconnect = false): void {
     const playerIdx = game.players.findIndex(p => p.id === userId);
     if (playerIdx < 0) return;
 
@@ -1211,41 +1257,119 @@ export class LudoGameService {
       } else {
         this.broadcastGameState(game);
       }
+    } else if (game.status === 'PLAYING' && isDisconnect) {
+      const player = game.players[playerIdx];
+      player.clientId = '';
+      player.disconnectedAt = Date.now();
+      player.reconnectDeadline = Date.now() + RECONNECT_GRACE_MS;
+
+      const wsClient = this.wsServer.getClient(clientId);
+      if (wsClient) this.wsServer.unsubscribeFromRoom(wsClient.ws, game.id);
+
+      this.broadcastToRoom(game.id, {
+        type: 'player_connection',
+        game: 'ludo',
+        data: { userId: player.id, username: player.username, connected: false, reconnectDeadline: player.reconnectDeadline },
+      });
+      this.broadcastGameState(game);
+
+      const existingTimer = this.reconnectTimers.get(userId);
+      if (existingTimer) clearTimeout(existingTimer);
+      this.reconnectTimers.set(userId, setTimeout(() => {
+        this.reconnectTimers.delete(userId);
+        const liveGame = this.games.get(game.id);
+        if (!liveGame || liveGame.status !== 'PLAYING') return;
+        const livePlayerIdx = liveGame.players.findIndex(p => p.id === userId && !p.isBot);
+        if (livePlayerIdx < 0) return;
+        const livePlayer = liveGame.players[livePlayerIdx];
+        if (livePlayer.clientId) return;
+
+        const usedNames = new Set(liveGame.players.map(p => p.username));
+        const botName = BOT_NAMES.find(n => !usedNames.has(n)) || `Bot_${Math.floor(Math.random() * 999)}`;
+        livePlayer.isBot = true;
+        livePlayer.id = `bot_${Date.now()}_${livePlayerIdx}`;
+        livePlayer.username = botName;
+        livePlayer.clientId = '';
+        livePlayer.disconnectedAt = null;
+        livePlayer.reconnectDeadline = null;
+        this.playerGameMap.delete(userId);
+
+        this.broadcastToRoom(liveGame.id, {
+          type: 'player_connection',
+          game: 'ludo',
+          data: { userId, connected: false, replacedByBot: true },
+        });
+        this.broadcastGameState(liveGame);
+
+        if (liveGame.currentPlayerIndex === livePlayerIdx) {
+          if (liveGame.turnTimer) {
+            clearTimeout(liveGame.turnTimer);
+            liveGame.turnTimer = null;
+          }
+          if (liveGame.waitingForMove && liveGame.movablePieces.length > 0) {
+            const bestPiece = this.pickBestMove(liveGame, livePlayer, liveGame.movablePieces, liveGame.lastRoll);
+            liveGame.waitingForMove = false;
+            this.executeMove(liveGame, livePlayer, bestPiece, liveGame.lastRoll);
+          } else {
+            setTimeout(() => this.executeDiceRoll(liveGame), 1200);
+          }
+        }
+      }, RECONNECT_GRACE_MS));
+
+      // If disconnected player's turn, keep game flowing with assisted autoplay while grace is active.
+      if (game.currentPlayerIndex === playerIdx) {
+        if (game.waitingForMove && game.movablePieces.length > 0) {
+          if (game.turnTimer) {
+            clearTimeout(game.turnTimer);
+            game.turnTimer = null;
+          }
+          setTimeout(() => {
+            const liveGame = this.games.get(game.id);
+            if (!liveGame || liveGame.status !== 'PLAYING') return;
+            const p = liveGame.players[liveGame.currentPlayerIndex];
+            if (!p || p.id !== userId || p.clientId) return;
+            const bestPiece = this.pickBestMove(liveGame, p, liveGame.movablePieces, liveGame.lastRoll);
+            liveGame.waitingForMove = false;
+            this.executeMove(liveGame, p, bestPiece, liveGame.lastRoll);
+          }, 1200);
+        } else if (!game.waitingForMove) {
+          if (game.turnTimer) {
+            clearTimeout(game.turnTimer);
+            game.turnTimer = null;
+          }
+          setTimeout(() => {
+            const liveGame = this.games.get(game.id);
+            if (!liveGame || liveGame.status !== 'PLAYING') return;
+            const p = liveGame.players[liveGame.currentPlayerIndex];
+            if (!p || p.id !== userId || p.clientId) return;
+            this.executeDiceRoll(liveGame);
+          }, 1200);
+        }
+      }
     } else if (game.status === 'PLAYING') {
-      // Replace with bot mid-game
+      // Voluntary leave: replace immediately with bot.
       const player = game.players[playerIdx];
       const usedNames = new Set(game.players.map(p => p.username));
       const botName = BOT_NAMES.find(n => !usedNames.has(n)) || `Bot_${Math.floor(Math.random() * 999)}`;
+
+      const reconnectTimer = this.reconnectTimers.get(userId);
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        this.reconnectTimers.delete(userId);
+      }
 
       player.isBot = true;
       player.id = `bot_${Date.now()}_${playerIdx}`;
       player.username = botName;
       player.clientId = '';
-
+      player.disconnectedAt = null;
+      player.reconnectDeadline = null;
       this.playerGameMap.delete(userId);
 
       const wsClient = this.wsServer.getClient(clientId);
-      if (wsClient) {
-        this.wsServer.unsubscribeFromRoom(wsClient.ws, game.id);
-      }
+      if (wsClient) this.wsServer.unsubscribeFromRoom(wsClient.ws, game.id);
 
       this.broadcastGameState(game);
-
-      // If it was this player's turn, trigger bot play
-      if (game.currentPlayerIndex === playerIdx) {
-        if (game.turnTimer) {
-          clearTimeout(game.turnTimer);
-          game.turnTimer = null;
-        }
-
-        if (game.waitingForMove && game.movablePieces.length > 0) {
-          const bestPiece = this.pickBestMove(game, player, game.movablePieces, game.lastRoll);
-          game.waitingForMove = false;
-          this.executeMove(game, player, bestPiece, game.lastRoll);
-        } else {
-          setTimeout(() => this.executeDiceRoll(game), 1500);
-        }
-      }
 
       // Check if all players are bots now
       if (game.players.every(p => p.isBot)) {
@@ -1262,7 +1386,13 @@ export class LudoGameService {
 
   // ─── Helpers ─────────────────────────────────────────────────────────
 
-  private createGameInstance(betAmount: number, maxPlayers: 2 | 3 | 4, isPrivate: boolean, creatorId: string): LudoGame {
+  private createGameInstance(
+    betAmount: number,
+    maxPlayers: 2 | 3 | 4,
+    isPrivate: boolean,
+    creatorId: string,
+    quickMode = false
+  ): LudoGame {
     const id = 'ludo_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
     const code = this.generateRoomCode();
 
@@ -1279,6 +1409,9 @@ export class LudoGameService {
       finishOrder: [],
       betAmount,
       maxPlayers,
+      quickMode,
+      targetFinishCount: quickMode ? 2 : 4,
+      turnTimeLimitMs: quickMode ? QUICK_TURN_TIMEOUT : TURN_TIMEOUT,
       isPrivate,
       createdAt: Date.now(),
       creatorId,
@@ -1303,6 +1436,8 @@ export class LudoGameService {
         travelled: 0,
         finished: false,
       })),
+      disconnectedAt: null,
+      reconnectDeadline: null,
       finishedCount: 0,
     };
   }
@@ -1340,6 +1475,11 @@ export class LudoGameService {
     // Remove all player mappings
     for (const player of game.players) {
       if (!player.isBot) {
+        const timer = this.reconnectTimers.get(player.id);
+        if (timer) {
+          clearTimeout(timer);
+          this.reconnectTimers.delete(player.id);
+        }
         this.playerGameMap.delete(player.id);
       }
     }
@@ -1394,6 +1534,8 @@ export class LudoGameService {
           username: p.username,
           color: p.color,
           isBot: p.isBot,
+          isConnected: p.isBot ? true : !!p.clientId,
+          reconnectDeadline: p.reconnectDeadline,
           pieces: p.pieces.map(pc => ({
             id: pc.id,
             position: pc.position,
@@ -1411,6 +1553,9 @@ export class LudoGameService {
         finishOrder: game.finishOrder,
         betAmount: game.betAmount,
         maxPlayers: game.maxPlayers,
+        quickMode: game.quickMode,
+        targetFinishCount: game.targetFinishCount,
+        turnTimeLimitMs: game.turnTimeLimitMs,
         isPrivate: game.isPrivate,
       },
     });

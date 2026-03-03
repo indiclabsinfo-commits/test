@@ -1078,6 +1078,21 @@
     border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+.ludo-dice-dock.active-turn {
+    border-color: rgba(0, 231, 1, 0.28);
+    box-shadow: 0 0 0 2px rgba(0, 231, 1, 0.08), 0 10px 20px rgba(0, 0, 0, 0.24);
+    animation: ludo-turn-dock-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes ludo-turn-dock-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 2px rgba(0, 231, 1, 0.08), 0 10px 20px rgba(0, 0, 0, 0.24);
+    }
+    50% {
+        box-shadow: 0 0 0 4px rgba(0, 231, 1, 0.12), 0 10px 22px rgba(0, 0, 0, 0.28);
+    }
+}
+
 .dice-side-chip {
     display: flex;
     flex-direction: column;
@@ -1527,6 +1542,7 @@
     .piece.trail,
     .ludo-dice.can-roll,
     .ludo-dice.rolling,
+    .ludo-dice-dock.active-turn,
     .dice-hint-move,
     .confetti-particle,
     .piece.captured,

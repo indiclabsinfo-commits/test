@@ -138,6 +138,9 @@ export class WebSocketGameServer {
         lastActionAt: new Map(),
       });
 
+      // Attempt stateful rejoin for ongoing Ludo sessions.
+      this.ludoGame.handleReconnect(client);
+
       // Setup event handlers
       ws.on('message', (message: string) => {
         this.handleMessage(clientId, message);
