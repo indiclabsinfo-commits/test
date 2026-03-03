@@ -191,6 +191,8 @@ export const LudoGame: React.FC = () => {
     const [maxPlayers, setMaxPlayers] = useState<2 | 3 | 4>(4);
     const [quickMode, setQuickMode] = useState(false);
     const [menuMode, setMenuMode] = useState<'quick' | 'private' | 'local'>('quick');
+    const [localSetupStep, setLocalSetupStep] = useState<'players' | 'color'>('players');
+    const [localPreferredColor, setLocalPreferredColor] = useState<PlayerColor>('GREEN');
     const [joinCode, setJoinCode] = useState('');
     const [queueTimer, setQueueTimer] = useState(0);
     const [menuError, setMenuError] = useState('');
@@ -209,6 +211,8 @@ export const LudoGame: React.FC = () => {
     const [sparklingPiece, setSparklingPiece] = useState<{color: PlayerColor, pieceId: number} | null>(null);
     const [movingPieceTrail, setMovingPieceTrail] = useState<{color: PlayerColor, pieceId: number} | null>(null);
     const [isLocalMatch, setIsLocalMatch] = useState(false);
+    const [showRollHint, setShowRollHint] = useState(false);
+    const [rollHintCount, setRollHintCount] = useState(0);
 
     const queueTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const turnTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -225,6 +229,13 @@ export const LudoGame: React.FC = () => {
             wsService.connect();
         }
     }, [isAuthenticated, wsStatus]);
+
+    useEffect(() => {
+        if (menuMode === 'local') {
+            setLocalSetupStep('players');
+            setQuickMode(false);
+        }
+    }, [menuMode]);
 
     const addToLog = useCallback((text: string, type: 'normal' | 'kill' | 'finish') => {
         setLog(prev => [{ text, type }, ...prev].slice(0, 10));
@@ -481,7 +492,9 @@ export const LudoGame: React.FC = () => {
 
     const startLocalMatch = () => {
         const colors = LOCAL_COLOR_SLOTS[maxPlayers];
-        const players: ServerPlayer[] = colors.map((color, i) => ({
+        const chosenColor = colors.includes(localPreferredColor) ? localPreferredColor : colors[0];
+        const orderedColors = [chosenColor, ...colors.filter(c => c !== chosenColor)];
+        const players: ServerPlayer[] = orderedColors.map((color, i) => ({
             id: `local_${i + 1}`,
             username: i === 0 ? (user?.username || 'Player 1') : `Player ${i + 1}`,
             color,
@@ -522,6 +535,8 @@ export const LudoGame: React.FC = () => {
         setMenuError('');
         setDiceValue(null);
         setFinishData(null);
+        setRollHintCount(0);
+        setShowRollHint(false);
         startTurnTimer(quickMode ? 18 : 30);
     };
 
@@ -679,6 +694,10 @@ export const LudoGame: React.FC = () => {
     const rollDice = () => {
         if (isRolling || !serverState || serverState.status !== 'PLAYING') return;
         triggerHaptic('medium');
+        if (showRollHint) {
+            setShowRollHint(false);
+            setRollHintCount(prev => prev + 1);
+        }
 
         if (!isLocalMatch) {
             wsService.send({ game: 'ludo', type: 'roll_dice', data: {} });
@@ -749,6 +768,7 @@ export const LudoGame: React.FC = () => {
         setLog([]);
         setFinishData(null);
         setMovingPieceTrail(null);
+        setShowRollHint(false);
         stopTurnTimer();
     };
 
@@ -760,6 +780,7 @@ export const LudoGame: React.FC = () => {
         setDiceValue(null);
         setLog([]);
         setMovingPieceTrail(null);
+        setShowRollHint(false);
         setMatchState('MENU');
     };
 
@@ -823,6 +844,20 @@ export const LudoGame: React.FC = () => {
         }
     }, [matchState, isMyTurn, turnTimeLeft, triggerHaptic]);
 
+    useEffect(() => {
+        if (
+            matchState === 'PLAYING' &&
+            isMyTurn &&
+            canRollDice &&
+            !serverState?.waitingForMove &&
+            rollHintCount < 3
+        ) {
+            setShowRollHint(true);
+            return;
+        }
+        setShowRollHint(false);
+    }, [matchState, isMyTurn, canRollDice, serverState?.waitingForMove, rollHintCount]);
+
     // ─── Render: MENU ──────────────────────────────────────────────────
 
     if (matchState === 'MENU') {
@@ -849,68 +884,107 @@ export const LudoGame: React.FC = () => {
                         </button>
                     </div>
 
-                    {/* Entry Fee */}
-                    <div className="ludo-field">
-                        <label>Entry Fee</label>
-                        <div className="bet-input-row">
-                            <input type="number" value={betAmount} onChange={e => setBetAmount(Math.max(0, Number(e.target.value)))} min={0} />
-                            <div className="bet-actions">
-                                <button className="btn-quick" onClick={() => setBetAmount(p => Math.max(0, Math.floor(p / 2)))}>1/2</button>
-                                <button className="btn-quick" onClick={() => setBetAmount(p => p * 2)}>2x</button>
+                    {menuMode !== 'local' ? (
+                        <>
+                            <div className="ludo-field">
+                                <label>Entry Fee</label>
+                                <div className="bet-input-row">
+                                    <input type="number" value={betAmount} onChange={e => setBetAmount(Math.max(0, Number(e.target.value)))} min={0} />
+                                    <div className="bet-actions">
+                                        <button className="btn-quick" onClick={() => setBetAmount(p => Math.max(0, Math.floor(p / 2)))}>1/2</button>
+                                        <button className="btn-quick" onClick={() => setBetAmount(p => p * 2)}>2x</button>
+                                    </div>
+                                </div>
+                                <div className="ludo-bet-quick">
+                                    {BET_PRESETS.map(amt => (
+                                        <button key={amt} onClick={() => setBetAmount(amt)}
+                                            className={betAmount === amt ? 'selected' : ''}>
+                                            {amt}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                        <div className="ludo-bet-quick">
-                            {BET_PRESETS.map(amt => (
-                                <button key={amt} onClick={() => setBetAmount(amt)}
-                                    className={betAmount === amt ? 'selected' : ''}>
-                                    {amt}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
 
-                    {/* Players */}
-                    <div className="ludo-field">
-                        <label>Players</label>
-                        <div className="ludo-player-select">
-                            {([2, 3, 4] as const).map(n => (
-                                <button key={n} className={maxPlayers === n ? 'selected' : ''} onClick={() => setMaxPlayers(n)}>
-                                    {n}P
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                            <div className="ludo-field">
+                                <label>Players</label>
+                                <div className="ludo-player-select">
+                                    {([2, 3, 4] as const).map(n => (
+                                        <button key={n} className={maxPlayers === n ? 'selected' : ''} onClick={() => setMaxPlayers(n)}>
+                                            {n}P
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
 
-                    <div className="ludo-field">
-                        <label>Game Pace</label>
-                        <div className="ludo-player-select">
-                            <button className={!quickMode ? 'selected' : ''} onClick={() => setQuickMode(false)}>
-                                Classic
-                            </button>
-                            <button className={quickMode ? 'selected' : ''} onClick={() => setQuickMode(true)}>
-                                Quick
-                            </button>
-                        </div>
-                        <div className="pot-row sub" style={{ marginTop: 8 }}>
-                            <span>{quickMode ? '2 pieces to finish · 18s turn timer' : '4 pieces to finish · 30s turn timer'}</span>
-                        </div>
-                    </div>
+                            <div className="ludo-field">
+                                <label>Game Pace</label>
+                                <div className="ludo-player-select">
+                                    <button className={!quickMode ? 'selected' : ''} onClick={() => setQuickMode(false)}>
+                                        Classic
+                                    </button>
+                                    <button className={quickMode ? 'selected' : ''} onClick={() => setQuickMode(true)}>
+                                        Quick
+                                    </button>
+                                </div>
+                                <div className="pot-row sub" style={{ marginTop: 8 }}>
+                                    <span>{quickMode ? '2 pieces to finish · 18s turn timer' : '4 pieces to finish · 30s turn timer'}</span>
+                                </div>
+                            </div>
 
-                    {/* Pot Info */}
-                    <div className="ludo-pot-info">
-                        <div className="pot-row">
-                            <span>Total Pot</span>
-                            <span className="pot-value">{formatIndianNumber(betAmount * maxPlayers)}</span>
+                            <div className="ludo-pot-info">
+                                <div className="pot-row">
+                                    <span>Total Pot</span>
+                                    <span className="pot-value">{formatIndianNumber(betAmount * maxPlayers)}</span>
+                                </div>
+                                <div className="pot-row sub">
+                                    <span>Winner Takes</span>
+                                    <span className="pot-win">{formatIndianNumber(Math.floor(betAmount * maxPlayers * 0.95))}</span>
+                                </div>
+                                <div className="pot-row sub">
+                                    <span>Mode</span>
+                                    <span className="pot-win">{quickMode ? 'Quick' : 'Classic'}</span>
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="ludo-setup-panel">
+                            {localSetupStep === 'players' ? (
+                                <>
+                                    <h3 className="ludo-setup-title">Select Players</h3>
+                                    <div className="ludo-player-select ludo-player-select-large">
+                                        {([2, 3, 4] as const).map(n => (
+                                            <button key={n} className={maxPlayers === n ? 'selected' : ''} onClick={() => setMaxPlayers(n)}>
+                                                {n} Players
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <button className="ludo-action-btn primary" onClick={() => setLocalSetupStep('color')}>
+                                        Next
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <h3 className="ludo-setup-title">Select Your Color</h3>
+                                    <div className="ludo-color-picker">
+                                        {LOCAL_COLOR_SLOTS[maxPlayers].map((color) => (
+                                            <button
+                                                key={color}
+                                                className={`ludo-color-dot ${color.toLowerCase()} ${localPreferredColor === color ? 'selected' : ''}`}
+                                                onClick={() => setLocalPreferredColor(color)}
+                                                aria-label={color}
+                                            >
+                                                {localPreferredColor === color ? '✓' : ''}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="ludo-action-row">
+                                        <button className="ludo-action-btn secondary" onClick={() => setLocalSetupStep('players')}>Back</button>
+                                        <button className="ludo-action-btn primary" onClick={startLocalMatch}>Play</button>
+                                    </div>
+                                </>
+                            )}
                         </div>
-                        <div className="pot-row sub">
-                            <span>Winner Takes</span>
-                            <span className="pot-win">{formatIndianNumber(Math.floor(betAmount * maxPlayers * 0.95))}</span>
-                        </div>
-                        <div className="pot-row sub">
-                            <span>Mode</span>
-                            <span className="pot-win">{quickMode ? 'Quick' : 'Classic'}</span>
-                        </div>
-                    </div>
+                    )}
 
                     {/* Error */}
                     {menuError && <div className="ludo-error-banner">{menuError}</div>}
@@ -941,11 +1015,7 @@ export const LudoGame: React.FC = () => {
                                 </button>
                             </div>
                         </div>
-                    ) : (
-                        <button className="ludo-action-btn primary" onClick={startLocalMatch}>
-                            Start Local Match
-                        </button>
-                    )}
+                    ) : null}
                 </div>
             </div>
         );
@@ -1236,6 +1306,18 @@ export const LudoGame: React.FC = () => {
                                                 exit={{ opacity: 0, y: -20 }}
                                             >
                                                 BONUS!
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                    <AnimatePresence>
+                                        {showRollHint && (
+                                            <motion.div
+                                                className="ludo-roll-hint"
+                                                initial={{ opacity: 0, y: 6 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: -8 }}
+                                            >
+                                                <span className="hint-hand">👆</span> Tap here to roll
                                             </motion.div>
                                         )}
                                     </AnimatePresence>
