@@ -93,6 +93,7 @@ export const AdminPortal: React.FC = () => {
   const [withdrawals, setWithdrawals] = useState<WithdrawalRow[]>([]);
   const [transactions, setTransactions] = useState<TxRow[]>([]);
   const [opsLoading, setOpsLoading] = useState(false);
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
   const [authHint, setAuthHint] = useState('');
 
   const [newLabel, setNewLabel] = useState('Primary UPI');
@@ -226,6 +227,37 @@ export const AdminPortal: React.FC = () => {
       await loadAccounts();
     } catch (err: any) {
       setError(err.message || 'Failed to set primary account');
+    }
+  };
+
+  const approveWithdrawal = async (id: string) => {
+    setError('');
+    setWithdrawingId(id);
+    try {
+      await adminFetch(`/withdrawals/${id}/approve`, { method: 'POST' });
+      await loadOpsData();
+    } catch (err: any) {
+      setError(err.message || 'Failed to approve withdrawal');
+    } finally {
+      setWithdrawingId(null);
+    }
+  };
+
+  const rejectWithdrawal = async (id: string) => {
+    const reason = window.prompt('Reject reason');
+    if (!reason || !reason.trim()) return;
+    setError('');
+    setWithdrawingId(id);
+    try {
+      await adminFetch(`/withdrawals/${id}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: reason.trim() }),
+      });
+      await loadOpsData();
+    } catch (err: any) {
+      setError(err.message || 'Failed to reject withdrawal');
+    } finally {
+      setWithdrawingId(null);
     }
   };
 
@@ -383,6 +415,7 @@ export const AdminPortal: React.FC = () => {
                       <th style={thStyle}>Amount</th>
                       <th style={thStyle}>Status</th>
                       <th style={thStyle}>Time</th>
+                      <th style={thStyle}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -392,9 +425,27 @@ export const AdminPortal: React.FC = () => {
                         <td style={tdStyle}>₹{toMoney(w.amount)}</td>
                         <td style={tdStyle}>{w.status}</td>
                         <td style={tdStyle}>{new Date(w.created_at).toLocaleString()}</td>
+                        <td style={tdStyle}>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button
+                              onClick={() => approveWithdrawal(w.id)}
+                              style={btnPrimarySmall}
+                              disabled={withdrawingId === w.id}
+                            >
+                              {withdrawingId === w.id ? '...' : 'Approve'}
+                            </button>
+                            <button
+                              onClick={() => rejectWithdrawal(w.id)}
+                              style={btnDangerSmall}
+                              disabled={withdrawingId === w.id}
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
-                    {withdrawals.length === 0 && <tr><td style={tdStyle} colSpan={4}>No pending withdrawals.</td></tr>}
+                    {withdrawals.length === 0 && <tr><td style={tdStyle} colSpan={5}>No pending withdrawals.</td></tr>}
                   </tbody>
                 </table>
               </div>
@@ -536,6 +587,16 @@ const btnSecondary: CSSProperties = {
   borderRadius: 8,
   padding: '8px 10px',
   fontWeight: 600,
+  cursor: 'pointer',
+};
+
+const btnDangerSmall: CSSProperties = {
+  background: 'rgba(237, 66, 69, 0.15)',
+  color: '#ff9c9f',
+  border: '1px solid rgba(237, 66, 69, 0.45)',
+  borderRadius: 8,
+  padding: '8px 10px',
+  fontWeight: 700,
   cursor: 'pointer',
 };
 
