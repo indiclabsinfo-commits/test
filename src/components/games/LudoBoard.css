@@ -900,8 +900,8 @@
 /* ─── DICE ───────────────────────────────── */
 
 .ludo-dice {
-    width: 60px;
-    height: 60px;
+    width: 64px;
+    height: 64px;
     border-radius: 12px;
     background: linear-gradient(145deg, #ffffff, #e8e8e8);
     display: flex;
@@ -918,6 +918,11 @@
     flex-shrink: 0;
     will-change: transform;
     touch-action: manipulation;
+}
+
+.ludo-dice-center {
+    width: clamp(66px, 19vw, 86px);
+    height: clamp(66px, 19vw, 86px);
 }
 
 .ludo-dice.can-roll {
@@ -1020,32 +1025,44 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    padding: 10px 12px;
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
     background: var(--bg-secondary, #1a2c38);
     border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
     gap: 8px;
     min-height: 0;
 }
 
-/* ─── DICE AREA ──────────────────────────── */
+/* ─── CENTER DICE DOCK ───────────────────── */
 
-.ludo-dice-area {
-    display: flex;
+.ludo-dice-dock {
+    display: grid;
+    grid-template-columns: minmax(90px, 1fr) auto minmax(90px, 1fr);
     align-items: center;
-    gap: 12px;
-    padding: 8px 0;
+    gap: 8px;
+    padding: 6px 4px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.08));
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.dice-turn-info {
-    flex: 1;
+.dice-side-chip {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
     min-width: 0;
+    font-size: 0.74rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.ludo-dice-center-wrap {
+    position: relative;
+    display: grid;
+    place-items: center;
 }
 
 .dice-hint-move {
-    font-size: 0.7rem;
+    font-size: 0.66rem;
     font-weight: 600;
     color: var(--accent-gold, #ffd700);
     animation: hint-pulse 1.5s ease-in-out infinite;
@@ -1058,7 +1075,10 @@
 
 .dice-bonus-label {
     position: absolute;
-    font-size: 0.75rem;
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.68rem;
     font-weight: 900;
     color: var(--accent-gold, #ffd700);
     text-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
@@ -1067,12 +1087,21 @@
 }
 
 .dice-pot-info {
-    font-size: 0.72rem;
-    font-weight: 700;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-size: 0.66rem;
+    font-weight: 600;
     color: var(--accent-green, #00e701);
     font-variant-numeric: tabular-nums;
-    text-align: right;
     flex-shrink: 0;
+    line-height: 1.1;
+}
+
+.dice-pot-info strong {
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: var(--accent-green, #00e701);
 }
 
 /* ─── COMPACT LOG ────────────────────────── */
@@ -1080,9 +1109,13 @@
 .ludo-log-compact {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
     max-height: 54px;
     overflow: hidden;
+    padding: 6px 8px;
+    border-radius: 10px;
+    background: rgba(7, 19, 31, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .log-line {
@@ -1117,7 +1150,7 @@
     transition: all 0.15s;
     text-transform: uppercase;
     letter-spacing: 0.03em;
-    margin-top: auto;
+    margin-top: 2px;
 }
 
 .ludo-leave-btn:active {
@@ -1344,6 +1377,11 @@
         height: 52px;
     }
 
+    .ludo-dice-center {
+        width: 62px;
+        height: 62px;
+    }
+
     .dice-dot {
         width: 8px;
         height: 8px;
@@ -1367,6 +1405,21 @@
 
     .strip-name {
         font-size: 0.6rem;
+    }
+}
+
+@media (max-width: 380px) {
+    .ludo-dice-dock {
+        grid-template-columns: minmax(80px, 1fr) auto minmax(80px, 1fr);
+        gap: 6px;
+    }
+
+    .dice-side-chip {
+        font-size: 0.68rem;
+    }
+
+    .dice-pot-info strong {
+        font-size: 0.72rem;
     }
 }
 

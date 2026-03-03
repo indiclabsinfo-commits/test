@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useGame } from '../../contexts/GameContext';
 import { wsService } from '../../services/websocket';
-import { playDiceShake, playPieceMove, playCapture, playHomeEntry, playWinSound } from '../../utils/sound';
+import {
+    playDiceShake,
+    playPieceMove,
+    playCapture,
+    playHomeEntry,
+    playWinSound,
+    playTurnStart,
+    playUrgencyTick,
+} from '../../utils/sound';
 import { formatIndianNumber } from '../../utils/format';
 import { motion, AnimatePresence } from 'framer-motion';
 import './LudoBoard.css';
@@ -358,10 +366,14 @@ export const LudoGame: React.FC = () => {
         setTimeout(() => setSparklingPiece(null), 1200);
     }, [addToLog, triggerHaptic]);
 
-    const handleTurnStart = useCallback((_data: any) => {
+    const handleTurnStart = useCallback((data: any) => {
         setTurnTimeLeft(30);
         startTurnTimer();
-    }, []);
+        if (data?.playerId && data.playerId === user?.id) {
+            playTurnStart();
+            triggerHaptic('light');
+        }
+    }, [triggerHaptic, user?.id]);
 
     const handleGameFinished = useCallback((data: any) => {
         setFinishData(data);
@@ -765,6 +777,14 @@ export const LudoGame: React.FC = () => {
     const canRollDice = !!(isMyTurn && !serverState?.waitingForMove && !isRolling);
     const currentPlayer = serverState?.players[serverState.currentPlayerIndex];
 
+    useEffect(() => {
+        if (matchState !== 'PLAYING' || !isMyTurn) return;
+        if (turnTimeLeft > 0 && turnTimeLeft <= 5) {
+            playUrgencyTick();
+            triggerHaptic('light');
+        }
+    }, [matchState, isMyTurn, turnTimeLeft, triggerHaptic]);
+
     // ─── Render: MENU ──────────────────────────────────────────────────
 
     if (matchState === 'MENU') {
@@ -1100,11 +1120,11 @@ export const LudoGame: React.FC = () => {
                         </div>
                     ) : (
                         <>
-                            {/* Dice + Turn info */}
-                            <div className="ludo-dice-area">
-                                <div className="dice-turn-info">
+                            {/* Center Dice Dock for Touch Play */}
+                            <div className="ludo-dice-dock">
+                                <div className="dice-side-chip">
                                     {currentPlayer && (
-                                        <span style={{ color: COLOR_MAP[currentPlayer.color].main, fontWeight: 700, fontSize: '0.8rem' }}>
+                                        <span style={{ color: COLOR_MAP[currentPlayer.color].main }}>
                                             {isLocalMatch
                                                 ? `${currentPlayer.username}'s turn`
                                                 : (currentPlayer.id === user?.id ? 'Your turn' : `${currentPlayer.username}'s turn`)}
@@ -1115,29 +1135,36 @@ export const LudoGame: React.FC = () => {
                                     )}
                                 </div>
 
-                                <motion.div
-                                    className={`ludo-dice ${canRollDice ? 'can-roll' : 'disabled'} ${isRolling ? 'rolling' : ''} ${showSixEffect ? 'dice-six-glow' : ''}`}
-                                    onClick={() => canRollDice && rollDice()}
-                                    whileTap={canRollDice ? { scale: 0.9 } : {}}
-                                >
-                                    {diceValue ? <DiceFace value={diceValue} /> : (
-                                        <span style={{ fontSize: '0.7rem', color: '#999', fontWeight: 600 }}>
-                                            {canRollDice ? 'TAP' : 'WAIT'}
-                                        </span>
-                                    )}
-                                </motion.div>
+                                <div className="ludo-dice-center-wrap">
+                                    <motion.div
+                                        className={`ludo-dice ludo-dice-center ${canRollDice ? 'can-roll' : 'disabled'} ${isRolling ? 'rolling' : ''} ${showSixEffect ? 'dice-six-glow' : ''}`}
+                                        onClick={() => canRollDice && rollDice()}
+                                        whileTap={canRollDice ? { scale: 0.9 } : {}}
+                                    >
+                                        {diceValue ? <DiceFace value={diceValue} /> : (
+                                            <span style={{ fontSize: '0.8rem', color: '#999', fontWeight: 700 }}>
+                                                {canRollDice ? 'TAP' : 'WAIT'}
+                                            </span>
+                                        )}
+                                    </motion.div>
 
-                                <AnimatePresence>
-                                    {showSixEffect && (
-                                        <motion.div className="dice-bonus-label"
-                                            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: -5 }} exit={{ opacity: 0, y: -20 }}>
-                                            BONUS!
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
+                                    <AnimatePresence>
+                                        {showSixEffect && (
+                                            <motion.div
+                                                className="dice-bonus-label"
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: -6 }}
+                                                exit={{ opacity: 0, y: -20 }}
+                                            >
+                                                BONUS!
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
 
                                 <div className="dice-pot-info">
-                                    <span>Pot: {formatIndianNumber(totalPot * 0.95)}</span>
+                                    <span>Pot</span>
+                                    <strong>{formatIndianNumber(totalPot * 0.95)}</strong>
                                 </div>
                             </div>
 
