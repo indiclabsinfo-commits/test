@@ -15,10 +15,42 @@ interface BankAccount {
   created_at: string;
 }
 
+interface GamePnlRow {
+  game_type: string;
+  rounds: string;
+  wagered: string;
+  payout: string;
+  player_net: string;
+  house_net: string;
+}
+
+interface GameTrendRow {
+  day: string;
+  game_type: string;
+  rounds: string;
+  wagered: string;
+  house_net: string;
+}
+
+interface GameStatsPayload {
+  days: number;
+  today: {
+    rounds: string;
+    wagered: string;
+    payout: string;
+    player_net: string;
+    house_net: string;
+  };
+  byGameToday: GamePnlRow[];
+  trend: GameTrendRow[];
+}
+
 export const AdminPortal: React.FC = () => {
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [gameStats, setGameStats] = useState<GameStatsPayload | null>(null);
+  const [gameStatsLoading, setGameStatsLoading] = useState(false);
 
   const [newLabel, setNewLabel] = useState('Primary UPI');
   const [newUpiId, setNewUpiId] = useState('');
@@ -56,9 +88,27 @@ export const AdminPortal: React.FC = () => {
     }
   };
 
+  const loadGameStats = async () => {
+    setGameStatsLoading(true);
+    try {
+      const data = await adminFetch('/stats/games?days=7');
+      setGameStats(data);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load game stats');
+    } finally {
+      setGameStatsLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadAccounts();
+    loadGameStats();
   }, []);
+
+  const toMoney = (value: string | number) => {
+    const n = Number(value || 0) / 100000;
+    return n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  };
 
   const createAccount = async () => {
     if (!newLabel.trim() || !newUpiId.trim()) return;
@@ -124,6 +174,99 @@ export const AdminPortal: React.FC = () => {
             <input type="number" value={newPriority} onChange={e => setNewPriority(Number(e.target.value) || 0)} placeholder="Priority" style={inputStyle} />
           </div>
           <button onClick={createAccount} style={btnPrimary}>Add Account</button>
+        </div>
+
+        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3 style={{ margin: 0 }}>Game Revenue Dashboard (House P&L)</h3>
+            <button onClick={loadGameStats} style={btnSecondary}>{gameStatsLoading ? 'Refreshing...' : 'Refresh'}</button>
+          </div>
+
+          {gameStats && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 12 }}>
+                <div style={metricCard}>
+                  <div style={metricLabel}>Today Rounds</div>
+                  <div style={metricValue}>{Number(gameStats.today.rounds || 0).toLocaleString('en-IN')}</div>
+                </div>
+                <div style={metricCard}>
+                  <div style={metricLabel}>Today Wagered</div>
+                  <div style={metricValue}>₹{toMoney(gameStats.today.wagered)}</div>
+                </div>
+                <div style={metricCard}>
+                  <div style={metricLabel}>Today Payout</div>
+                  <div style={metricValue}>₹{toMoney(gameStats.today.payout)}</div>
+                </div>
+                <div style={metricCard}>
+                  <div style={metricLabel}>Today House Net</div>
+                  <div style={{ ...metricValue, color: '#00e701' }}>₹{toMoney(gameStats.today.house_net)}</div>
+                </div>
+              </div>
+
+              <div style={{ overflowX: 'auto', marginBottom: 12 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ color: 'var(--text-muted)' }}>
+                      <th style={thStyle}>Game</th>
+                      <th style={thStyle}>Rounds</th>
+                      <th style={thStyle}>Wagered</th>
+                      <th style={thStyle}>Payout</th>
+                      <th style={thStyle}>House Net</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gameStats.byGameToday.map((row) => (
+                      <tr key={row.game_type}>
+                        <td style={tdStyle}>{row.game_type}</td>
+                        <td style={tdStyle}>{Number(row.rounds || 0).toLocaleString('en-IN')}</td>
+                        <td style={tdStyle}>₹{toMoney(row.wagered)}</td>
+                        <td style={tdStyle}>₹{toMoney(row.payout)}</td>
+                        <td style={{ ...tdStyle, color: Number(row.house_net) >= 0 ? '#00e701' : '#ff7a7a' }}>
+                          ₹{toMoney(row.house_net)}
+                        </td>
+                      </tr>
+                    ))}
+                    {gameStats.byGameToday.length === 0 && (
+                      <tr><td style={tdStyle} colSpan={5}>No game sessions today.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div>
+                <h4 style={{ margin: '0 0 8px 0' }}>Last {gameStats.days} Days Trend</h4>
+                <div style={{ maxHeight: 220, overflow: 'auto', border: '1px solid var(--border-subtle)', borderRadius: 8 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                    <thead>
+                      <tr style={{ color: 'var(--text-muted)', position: 'sticky', top: 0, background: 'var(--bg-card)' }}>
+                        <th style={thStyle}>Day</th>
+                        <th style={thStyle}>Game</th>
+                        <th style={thStyle}>Rounds</th>
+                        <th style={thStyle}>Wagered</th>
+                        <th style={thStyle}>House Net</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {gameStats.trend.map((row, i) => (
+                        <tr key={`${row.day}-${row.game_type}-${i}`}>
+                          <td style={tdStyle}>{row.day}</td>
+                          <td style={tdStyle}>{row.game_type}</td>
+                          <td style={tdStyle}>{Number(row.rounds || 0).toLocaleString('en-IN')}</td>
+                          <td style={tdStyle}>₹{toMoney(row.wagered)}</td>
+                          <td style={{ ...tdStyle, color: Number(row.house_net) >= 0 ? '#00e701' : '#ff7a7a' }}>
+                            ₹{toMoney(row.house_net)}
+                          </td>
+                        </tr>
+                      ))}
+                      {gameStats.trend.length === 0 && (
+                        <tr><td style={tdStyle} colSpan={5}>No sessions in selected period.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 16 }}>
@@ -207,6 +350,38 @@ const btnSecondary: CSSProperties = {
   padding: '8px 10px',
   fontWeight: 600,
   cursor: 'pointer',
+};
+
+const metricCard: CSSProperties = {
+  background: 'var(--bg-card)',
+  border: '1px solid var(--border-subtle)',
+  borderRadius: 10,
+  padding: '10px 12px',
+};
+
+const metricLabel: CSSProperties = {
+  color: 'var(--text-muted)',
+  fontSize: 12,
+  marginBottom: 4,
+};
+
+const metricValue: CSSProperties = {
+  color: 'var(--text-primary)',
+  fontSize: 20,
+  fontWeight: 800,
+};
+
+const thStyle: CSSProperties = {
+  textAlign: 'left',
+  padding: '8px 10px',
+  borderBottom: '1px solid var(--border-subtle)',
+  fontWeight: 700,
+};
+
+const tdStyle: CSSProperties = {
+  padding: '8px 10px',
+  borderBottom: '1px solid rgba(255,255,255,0.04)',
+  color: 'var(--text-primary)',
 };
 
 export default AdminPortal;

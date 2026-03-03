@@ -215,6 +215,63 @@ router.get('/stats', async (_req, res) => {
   }
 });
 
+// Per-game P&L stats (house perspective)
+router.get('/stats/games', async (req: any, res) => {
+  try {
+    const daysRaw = parseInt(req.query.days, 10);
+    const days = Number.isFinite(daysRaw) ? Math.min(60, Math.max(1, daysRaw)) : 7;
+
+    const [todaySummary, byGameToday, trend] = await Promise.all([
+      query(
+        `SELECT
+            COUNT(*) as rounds,
+            COALESCE(SUM(bet_amount), 0) as wagered,
+            COALESCE(SUM(payout), 0) as payout,
+            COALESCE(SUM(profit), 0) as player_net,
+            COALESCE(SUM(-profit), 0) as house_net
+         FROM game_sessions
+         WHERE created_at >= date_trunc('day', NOW())`
+      ),
+      query(
+        `SELECT
+            game_type,
+            COUNT(*) as rounds,
+            COALESCE(SUM(bet_amount), 0) as wagered,
+            COALESCE(SUM(payout), 0) as payout,
+            COALESCE(SUM(profit), 0) as player_net,
+            COALESCE(SUM(-profit), 0) as house_net
+         FROM game_sessions
+         WHERE created_at >= date_trunc('day', NOW())
+         GROUP BY game_type
+         ORDER BY house_net DESC, rounds DESC`
+      ),
+      query(
+        `SELECT
+            to_char(date_trunc('day', created_at), 'YYYY-MM-DD') as day,
+            game_type,
+            COUNT(*) as rounds,
+            COALESCE(SUM(bet_amount), 0) as wagered,
+            COALESCE(SUM(-profit), 0) as house_net
+         FROM game_sessions
+         WHERE created_at >= date_trunc('day', NOW()) - ($1::int - 1) * interval '1 day'
+         GROUP BY day, game_type
+         ORDER BY day DESC, game_type ASC`,
+        [days]
+      ),
+    ]);
+
+    res.json({
+      days,
+      today: todaySummary.rows[0],
+      byGameToday: byGameToday.rows,
+      trend: trend.rows,
+    });
+  } catch (err) {
+    console.error('Admin game stats error:', err);
+    res.status(500).json({ error: 'Failed to get game stats' });
+  }
+});
+
 // ============================================
 // USER MANAGEMENT
 // ============================================
