@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -45,12 +45,55 @@ interface GameStatsPayload {
   trend: GameTrendRow[];
 }
 
+interface PlatformStatsPayload {
+  users?: { total?: string; real_users?: string; total_balance?: string };
+  deposits?: { total?: string; total_volume?: string; completed?: string; pending?: string };
+  withdrawals?: { total?: string; total_volume?: string; pending?: string; approved?: string };
+  agents?: { total?: string; online?: string };
+  houseWallets?: Array<{ currency: string; balance: string }>;
+}
+
+interface AdminUserRow {
+  id: string;
+  username: string;
+  balance: string;
+  demo_balance: string;
+  role: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+interface WithdrawalRow {
+  id: string;
+  user_id: string;
+  username?: string;
+  amount: string;
+  net_amount?: string;
+  status: string;
+  created_at: string;
+}
+
+interface TxRow {
+  id: string;
+  username: string;
+  type: string;
+  amount: string;
+  status: string;
+  created_at: string;
+}
+
 export const AdminPortal: React.FC = () => {
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [gameStats, setGameStats] = useState<GameStatsPayload | null>(null);
   const [gameStatsLoading, setGameStatsLoading] = useState(false);
+  const [platformStats, setPlatformStats] = useState<PlatformStatsPayload | null>(null);
+  const [users, setUsers] = useState<AdminUserRow[]>([]);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRow[]>([]);
+  const [transactions, setTransactions] = useState<TxRow[]>([]);
+  const [opsLoading, setOpsLoading] = useState(false);
+  const [authHint, setAuthHint] = useState('');
 
   const [newLabel, setNewLabel] = useState('Primary UPI');
   const [newUpiId, setNewUpiId] = useState('');
@@ -58,21 +101,32 @@ export const AdminPortal: React.FC = () => {
   const [newBank, setNewBank] = useState('');
   const [newPriority, setNewPriority] = useState(10);
 
-  const token = useMemo(() => localStorage.getItem('accessToken') || '', []);
-
   const adminFetch = async (path: string, options: RequestInit = {}) => {
-    const res = await fetch(`${API_URL}/admin${path}`, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        ...(options.headers || {}),
-      },
-    });
+    const token = localStorage.getItem('accessToken') || '';
+    try {
+      const res = await fetch(`${API_URL}/admin${path}`, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
+          ...(options.headers || {}),
+        },
+      });
 
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'Request failed');
-    return data;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          setAuthHint('Login as admin/superadmin to access all admin modules.');
+        }
+        throw new Error(data.error || `Request failed (${res.status})`);
+      }
+      return data;
+    } catch (err: any) {
+      if (err?.message?.includes('Failed to fetch')) {
+        throw new Error('Backend API unreachable. Start server on port 3001.');
+      }
+      throw err;
+    }
   };
 
   const loadAccounts = async () => {
@@ -100,9 +154,30 @@ export const AdminPortal: React.FC = () => {
     }
   };
 
+  const loadOpsData = async () => {
+    setOpsLoading(true);
+    try {
+      const [stats, usersRes, withdrawalsRes, txRes] = await Promise.all([
+        adminFetch('/stats'),
+        adminFetch('/users?limit=25&offset=0'),
+        adminFetch('/withdrawals/pending'),
+        adminFetch('/transactions?limit=30'),
+      ]);
+      setPlatformStats(stats);
+      setUsers(usersRes.users || []);
+      setWithdrawals(withdrawalsRes.requests || []);
+      setTransactions(txRes.transactions || []);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load admin operational data');
+    } finally {
+      setOpsLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadAccounts();
     loadGameStats();
+    loadOpsData();
   }, []);
 
   const toMoney = (value: string | number) => {
@@ -162,6 +237,7 @@ export const AdminPortal: React.FC = () => {
           <p style={{ color: 'var(--text-muted)', marginBottom: 0 }}>
             Manage UPI IDs / QR source accounts, switch primary instantly, and keep backup accounts active.
           </p>
+          {authHint && <p style={{ color: '#ffae57', marginTop: 8, marginBottom: 0 }}>{authHint}</p>}
         </div>
 
         <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 16 }}>
@@ -267,6 +343,117 @@ export const AdminPortal: React.FC = () => {
               </div>
             </>
           )}
+        </div>
+
+        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3 style={{ margin: 0 }}>Platform Operations</h3>
+            <button onClick={loadOpsData} style={btnSecondary}>{opsLoading ? 'Refreshing...' : 'Refresh'}</button>
+          </div>
+
+          {platformStats && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10, marginBottom: 14 }}>
+              <div style={metricCard}>
+                <div style={metricLabel}>Users</div>
+                <div style={metricValue}>{Number(platformStats.users?.total || 0).toLocaleString('en-IN')}</div>
+              </div>
+              <div style={metricCard}>
+                <div style={metricLabel}>Real Users</div>
+                <div style={metricValue}>{Number(platformStats.users?.real_users || 0).toLocaleString('en-IN')}</div>
+              </div>
+              <div style={metricCard}>
+                <div style={metricLabel}>Deposit Volume</div>
+                <div style={metricValue}>₹{toMoney(platformStats.deposits?.total_volume || 0)}</div>
+              </div>
+              <div style={metricCard}>
+                <div style={metricLabel}>Withdrawal Volume</div>
+                <div style={metricValue}>₹{toMoney(platformStats.withdrawals?.total_volume || 0)}</div>
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+            <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 10, padding: 10 }}>
+              <h4 style={{ margin: '0 0 8px 0' }}>Pending Withdrawals</h4>
+              <div style={{ maxHeight: 180, overflow: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ color: 'var(--text-muted)' }}>
+                      <th style={thStyle}>User</th>
+                      <th style={thStyle}>Amount</th>
+                      <th style={thStyle}>Status</th>
+                      <th style={thStyle}>Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {withdrawals.map((w) => (
+                      <tr key={w.id}>
+                        <td style={tdStyle}>{w.username || w.user_id.slice(0, 8)}</td>
+                        <td style={tdStyle}>₹{toMoney(w.amount)}</td>
+                        <td style={tdStyle}>{w.status}</td>
+                        <td style={tdStyle}>{new Date(w.created_at).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                    {withdrawals.length === 0 && <tr><td style={tdStyle} colSpan={4}>No pending withdrawals.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 10, padding: 10 }}>
+              <h4 style={{ margin: '0 0 8px 0' }}>Latest Users</h4>
+              <div style={{ maxHeight: 180, overflow: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ color: 'var(--text-muted)' }}>
+                      <th style={thStyle}>Username</th>
+                      <th style={thStyle}>Role</th>
+                      <th style={thStyle}>Real Bal</th>
+                      <th style={thStyle}>Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((u) => (
+                      <tr key={u.id}>
+                        <td style={tdStyle}>{u.username}</td>
+                        <td style={tdStyle}>{u.role}</td>
+                        <td style={tdStyle}>₹{toMoney(u.balance)}</td>
+                        <td style={tdStyle}>{new Date(u.created_at).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                    {users.length === 0 && <tr><td style={tdStyle} colSpan={4}>No users found.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div style={{ border: '1px solid var(--border-subtle)', borderRadius: 10, padding: 10 }}>
+              <h4 style={{ margin: '0 0 8px 0' }}>Latest Transactions</h4>
+              <div style={{ maxHeight: 220, overflow: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ color: 'var(--text-muted)' }}>
+                      <th style={thStyle}>User</th>
+                      <th style={thStyle}>Type</th>
+                      <th style={thStyle}>Amount</th>
+                      <th style={thStyle}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactions.map((t) => (
+                      <tr key={t.id}>
+                        <td style={tdStyle}>{t.username}</td>
+                        <td style={tdStyle}>{t.type}</td>
+                        <td style={tdStyle}>₹{toMoney(t.amount)}</td>
+                        <td style={tdStyle}>{t.status}</td>
+                      </tr>
+                    ))}
+                    {transactions.length === 0 && <tr><td style={tdStyle} colSpan={4}>No transactions found.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 16 }}>
