@@ -1283,6 +1283,23 @@ input, select {
     display: none;
   }
 
+  .app-layout.ludo-focus .main-content,
+  .main-content.ludo-focus-main {
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .app-layout.ludo-focus .app-header {
+    margin-bottom: 0;
+    padding: 6px 10px;
+    background: linear-gradient(180deg, rgba(11, 26, 39, 0.96), rgba(11, 26, 39, 0.82));
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .app-layout.ludo-focus .header-back {
+    font-size: 0.85rem;
+  }
+
   .game-card-image {
     height: 110px;
   }

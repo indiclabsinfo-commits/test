@@ -129,9 +129,10 @@ const GameController = () => {
   }
 
   const activeGameData = activeGameId ? GAMES.find(g => g.id === activeGameId) : null;
+  const isLudoActive = activeGameId === 'ludo';
 
   return (
-    <div className={`app-layout${activeGameId ? ' game-active' : ''}`}>
+    <div className={`app-layout${activeGameId ? ' game-active' : ''}${isLudoActive ? ' ludo-focus' : ''}`}>
       {/* Sidebar */}
       <aside className={`sidebar${sidebarExpanded ? ' expanded' : ''}`}>
         {/* Mobile hamburger */}
@@ -209,7 +210,7 @@ const GameController = () => {
         </div>
       </aside>
 
-      <main className="main-content">
+      <main className={`main-content${isLudoActive ? ' ludo-focus-main' : ''}`}>
         {/* Header */}
         <header className="app-header">
           <div className="header-left" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>

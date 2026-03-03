@@ -1041,9 +1041,10 @@ export const LudoGame: React.FC = () => {
                     })}
                 </div>
 
-                {/* Board */}
-                <div className="ludo-board-container">
-                    <div className="ludo-board">
+                <div className="ludo-play-area">
+                    {/* Board */}
+                    <div className="ludo-board-container">
+                        <div className="ludo-board">
                         <div className="base green"><div className="base-inner">{[0, 1, 2, 3].map(i => <div key={i} className="piece-spot" />)}</div></div>
                         <div className="base yellow" style={{ gridColumn: '10 / span 6' }}><div className="base-inner">{[0, 1, 2, 3].map(i => <div key={i} className="piece-spot" />)}</div></div>
                         <div className="base red" style={{ gridRow: '10 / span 6' }}><div className="base-inner">{[0, 1, 2, 3].map(i => <div key={i} className="piece-spot" />)}</div></div>
@@ -1097,11 +1098,11 @@ export const LudoGame: React.FC = () => {
                                 );
                             })
                         )}
+                        </div>
                     </div>
-                </div>
 
-                {/* Bottom Controls */}
-                <div className="ludo-bottom-panel">
+                    {/* Bottom Controls */}
+                    <div className="ludo-bottom-panel">
                     {matchState === 'FINISHED' && finishData ? (
                         <div className="ludo-finish-panel">
                             <h3 className="finish-title">Game Over!</h3>
@@ -1203,6 +1204,7 @@ export const LudoGame: React.FC = () => {
                             <button className="ludo-leave-btn" onClick={leaveGame}>Leave</button>
                         </>
                     )}
+                    </div>
                 </div>
             </div>
         );
