@@ -193,11 +193,13 @@ export const LudoGame: React.FC = () => {
     const [menuMode, setMenuMode] = useState<'quick' | 'private' | 'local'>('quick');
     const [localSetupStep, setLocalSetupStep] = useState<'players' | 'color'>('players');
     const [localPreferredColor, setLocalPreferredColor] = useState<PlayerColor>('GREEN');
+    const [localHumanCount, setLocalHumanCount] = useState(1);
     const [joinCode, setJoinCode] = useState('');
     const [queueTimer, setQueueTimer] = useState(0);
     const [menuError, setMenuError] = useState('');
 
-    const [diceValue, setDiceValue] = useState<number | null>(null);
+    const [diceByColor, setDiceByColor] = useState<Partial<Record<PlayerColor, number>>>({});
+    const [rollingColor, setRollingColor] = useState<PlayerColor | null>(null);
     const [isRolling, setIsRolling] = useState(false);
     const [showSixEffect, setShowSixEffect] = useState(false);
     const [turnTimeLeft, setTurnTimeLeft] = useState(30);
@@ -211,7 +213,7 @@ export const LudoGame: React.FC = () => {
     const [sparklingPiece, setSparklingPiece] = useState<{color: PlayerColor, pieceId: number} | null>(null);
     const [movingPieceTrail, setMovingPieceTrail] = useState<{color: PlayerColor, pieceId: number} | null>(null);
     const [isLocalMatch, setIsLocalMatch] = useState(false);
-    const [localHumanPlayerId, setLocalHumanPlayerId] = useState<string | null>(null);
+    const [localControlledPlayerIds, setLocalControlledPlayerIds] = useState<string[]>([]);
     const [showRollHint, setShowRollHint] = useState(false);
     const [rollHintCount, setRollHintCount] = useState(0);
 
@@ -235,8 +237,9 @@ export const LudoGame: React.FC = () => {
         if (menuMode === 'local') {
             setLocalSetupStep('players');
             setQuickMode(false);
+            setLocalHumanCount(prev => Math.min(Math.max(1, prev), maxPlayers));
         }
-    }, [menuMode]);
+    }, [menuMode, maxPlayers]);
 
     const addToLog = useCallback((text: string, type: 'normal' | 'kill' | 'finish') => {
         setLog(prev => [{ text, type }, ...prev].slice(0, 10));
@@ -337,7 +340,9 @@ export const LudoGame: React.FC = () => {
 
     const handleDiceResult = useCallback((data: any) => {
         const { roll, playerColor, canMove, skipped, reason } = data;
+        const actorColor = (playerColor || serverState?.currentPlayerColor || 'GREEN') as PlayerColor;
         setIsRolling(true);
+        setRollingColor(actorColor);
         playDiceShake();
 
         if (diceAnimRef.current) {
@@ -348,15 +353,17 @@ export const LudoGame: React.FC = () => {
         let i = 0;
         const maxTicks = 12;
         diceAnimRef.current = setInterval(() => {
-            setDiceValue(Math.floor(Math.random() * 6) + 1);
+            const random = Math.floor(Math.random() * 6) + 1;
+            setDiceByColor(prev => ({ ...prev, [actorColor]: random }));
             i++;
             if (i >= maxTicks) {
                 if (diceAnimRef.current) {
                     clearInterval(diceAnimRef.current);
                     diceAnimRef.current = null;
                 }
-                setDiceValue(roll);
+                setDiceByColor(prev => ({ ...prev, [actorColor]: roll }));
                 setIsRolling(false);
+                setRollingColor(null);
                 if (roll === 6) {
                     setShowSixEffect(true);
                     setTimeout(() => setShowSixEffect(false), 1200);
@@ -370,7 +377,7 @@ export const LudoGame: React.FC = () => {
                 }
             }
         }, 65);
-    }, [addToLog]);
+    }, [addToLog, serverState?.currentPlayerColor]);
 
     const handlePieceMoved = useCallback((data: any) => {
         playPieceMove();
@@ -495,11 +502,12 @@ export const LudoGame: React.FC = () => {
         const colors = LOCAL_COLOR_SLOTS[maxPlayers];
         const chosenColor = colors.includes(localPreferredColor) ? localPreferredColor : colors[0];
         const orderedColors = [chosenColor, ...colors.filter(c => c !== chosenColor)];
+        const humanCount = Math.min(Math.max(1, localHumanCount), maxPlayers);
         const players: ServerPlayer[] = orderedColors.map((color, i) => ({
             id: `local_${i + 1}`,
-            username: i === 0 ? (user?.username || 'Player 1') : `Player ${i + 1}`,
+            username: i < humanCount ? (i === 0 ? (user?.username || 'Player 1') : `Player ${i + 1}`) : `Bot ${i + 1 - humanCount}`,
             color,
-            isBot: false,
+            isBot: i >= humanCount,
             pieces: Array.from({ length: 4 }, (_, pid) => ({
                 id: pid,
                 position: -1,
@@ -511,7 +519,7 @@ export const LudoGame: React.FC = () => {
 
         setIsLocalMatch(true);
         localConsecutiveSixesRef.current = 0;
-        setLocalHumanPlayerId(players[0].id);
+        setLocalControlledPlayerIds(players.filter(p => !p.isBot).map(p => p.id || '').filter(Boolean));
         setMyColor(players[0].color);
         setServerState({
             gameId: `local_${Date.now()}`,
@@ -535,7 +543,8 @@ export const LudoGame: React.FC = () => {
         setLog([{ text: 'Local game started', type: 'finish' }]);
         setMatchState('PLAYING');
         setMenuError('');
-        setDiceValue(null);
+        setDiceByColor({});
+        setRollingColor(null);
         setFinishData(null);
         setRollHintCount(0);
         setShowRollHint(false);
@@ -747,7 +756,7 @@ export const LudoGame: React.FC = () => {
 
         const state = cloneGameState(serverState);
         const player = state.players[state.currentPlayerIndex];
-        const isLocalBotTurn = !!(isLocalMatch && localHumanPlayerId && player.id !== localHumanPlayerId);
+        const isLocalBotTurn = !!(isLocalMatch && player.id && !localControlledPlayerIds.includes(player.id));
         const roll = Math.floor(Math.random() * 6) + 1;
         state.lastRoll = roll;
 
@@ -809,11 +818,12 @@ export const LudoGame: React.FC = () => {
             wsService.send({ game: 'ludo', type: 'leave_game', data: {} });
         }
         setIsLocalMatch(false);
-        setLocalHumanPlayerId(null);
+        setLocalControlledPlayerIds([]);
         setMatchState('MENU');
         setServerState(null);
         setMyColor(null);
-        setDiceValue(null);
+        setDiceByColor({});
+        setRollingColor(null);
         setLog([]);
         setFinishData(null);
         setMovingPieceTrail(null);
@@ -823,11 +833,12 @@ export const LudoGame: React.FC = () => {
 
     const playAgain = () => {
         setIsLocalMatch(false);
-        setLocalHumanPlayerId(null);
+        setLocalControlledPlayerIds([]);
         setFinishData(null);
         setServerState(null);
         setMyColor(null);
-        setDiceValue(null);
+        setDiceByColor({});
+        setRollingColor(null);
         setLog([]);
         setMovingPieceTrail(null);
         setShowRollHint(false);
@@ -880,8 +891,10 @@ export const LudoGame: React.FC = () => {
     // ─── Derived State ─────────────────────────────────────────────────
 
     const isMyTurn = !!(serverState?.status === 'PLAYING' && (
-        (isLocalMatch ? (!!localHumanPlayerId && serverState.players[serverState.currentPlayerIndex]?.id === localHumanPlayerId) :
-        false) ||
+        (isLocalMatch ? (
+            !!serverState.players[serverState.currentPlayerIndex]?.id &&
+            localControlledPlayerIds.includes(serverState.players[serverState.currentPlayerIndex].id as string)
+        ) : false) ||
         (user && serverState.players[serverState.currentPlayerIndex]?.id === user.id)
     ));
     const canRollDice = !!(isMyTurn && !serverState?.waitingForMove && !isRolling);
@@ -912,9 +925,9 @@ export const LudoGame: React.FC = () => {
 
     useEffect(() => {
         if (!isLocalMatch || !serverState || serverState.status !== 'PLAYING' || isRolling) return;
-        if (!localHumanPlayerId) return;
+        if (localControlledPlayerIds.length === 0) return;
         const current = serverState.players[serverState.currentPlayerIndex];
-        if (!current || current.id === localHumanPlayerId) return;
+        if (!current || !current.id || localControlledPlayerIds.includes(current.id)) return;
         if (serverState.waitingForMove) return;
 
         const t = setTimeout(() => rollDice(), 900);
@@ -922,7 +935,7 @@ export const LudoGame: React.FC = () => {
     }, [
         isLocalMatch,
         serverState,
-        localHumanPlayerId,
+        localControlledPlayerIds,
         isRolling,
     ]);
 
@@ -1021,10 +1034,24 @@ export const LudoGame: React.FC = () => {
                                     <h3 className="ludo-setup-title">Select Players</h3>
                                     <div className="ludo-player-select ludo-player-select-large">
                                         {([2, 3, 4] as const).map(n => (
-                                            <button key={n} className={maxPlayers === n ? 'selected' : ''} onClick={() => setMaxPlayers(n)}>
+                                            <button key={n} className={maxPlayers === n ? 'selected' : ''} onClick={() => {
+                                                setMaxPlayers(n);
+                                                setLocalHumanCount(prev => Math.min(Math.max(1, prev), n));
+                                            }}>
                                                 {n} Players
                                             </button>
                                         ))}
+                                    </div>
+                                    <h3 className="ludo-setup-title" style={{ marginTop: 10 }}>Humans On This Device</h3>
+                                    <div className="ludo-player-select ludo-player-select-large">
+                                        {Array.from({ length: maxPlayers }).map((_, i) => {
+                                            const n = i + 1;
+                                            return (
+                                                <button key={n} className={localHumanCount === n ? 'selected' : ''} onClick={() => setLocalHumanCount(n)}>
+                                                    {n} Human{n > 1 ? 's' : ''}
+                                                </button>
+                                            );
+                                        })}
                                     </div>
                                     <button className="ludo-action-btn primary" onClick={() => setLocalSetupStep('color')}>
                                         Next
@@ -1048,6 +1075,9 @@ export const LudoGame: React.FC = () => {
                                     <div className="ludo-action-row">
                                         <button className="ludo-action-btn secondary" onClick={() => setLocalSetupStep('players')}>Back</button>
                                         <button className="ludo-action-btn primary" onClick={startLocalMatch}>Play</button>
+                                    </div>
+                                    <div className="pot-row sub" style={{ marginTop: 8 }}>
+                                        <span>{localHumanCount} human{localHumanCount > 1 ? 's' : ''} + {maxPlayers - localHumanCount} bot{maxPlayers - localHumanCount === 1 ? '' : 's'}</span>
                                     </div>
                                 </>
                             )}
@@ -1102,6 +1132,9 @@ export const LudoGame: React.FC = () => {
                     <h2 className="ludo-title" style={{ marginTop: '20px' }}>Finding Match...</h2>
                     <p className="ludo-subtitle">
                         {maxPlayers} players, {formatIndianNumber(betAmount)} entry · {quickMode ? 'Quick' : 'Classic'}
+                    </p>
+                    <p className="ludo-subtitle" style={{ fontSize: '0.8rem' }}>
+                        Bots auto-fill empty seats after ~8 seconds
                     </p>
                     <div className="ludo-queue-timer">{mins}:{secs.toString().padStart(2, '0')}</div>
                     <button className="ludo-action-btn secondary" onClick={cancelMatch}>Cancel</button>
@@ -1198,12 +1231,23 @@ export const LudoGame: React.FC = () => {
         const totalPot = displayBet * players.length;
         const finishTarget = serverState.targetFinishCount || 4;
         const turnSeconds = Math.max(8, Math.floor((serverState.turnTimeLimitMs || 30000) / 1000));
+        const isDuelPresentation = serverState.maxPlayers === 2;
         const myHudPlayer = isLocalMatch
             ? players[0]
             : players.find(p => p.id === user?.id) || null;
         const opponentHudPlayer = isLocalMatch
             ? players.find(p => p.id !== myHudPlayer?.id) || currentPlayer || null
-            : null;
+            : (players.find(p => p.id !== myHudPlayer?.id) || currentPlayer || null);
+        const myHudDiceValue = myHudPlayer ? diceByColor[myHudPlayer.color] ?? null : null;
+        const opponentHudDiceValue = opponentHudPlayer ? diceByColor[opponentHudPlayer.color] ?? null : null;
+        const activeDiceValue = currentPlayer ? diceByColor[currentPlayer.color] ?? null : null;
+        const opponentCanRoll = !!(
+            matchState === 'PLAYING' &&
+            opponentHudPlayer &&
+            currentPlayer?.color === opponentHudPlayer.color &&
+            !serverState.waitingForMove &&
+            !isRolling
+        );
 
         return (
             <div className="ludo-game-screen">
@@ -1211,6 +1255,7 @@ export const LudoGame: React.FC = () => {
                 {showConfetti && <Confetti />}
 
                 {/* Player Strip */}
+                {!isDuelPresentation && (
                 <div className="ludo-player-strip">
                     {players.map((player, idx) => {
                         const isActive = idx === serverState.currentPlayerIndex;
@@ -1237,6 +1282,7 @@ export const LudoGame: React.FC = () => {
                         );
                     })}
                 </div>
+                )}
 
                 <div className="ludo-play-area">
                     {/* Board */}
@@ -1290,39 +1336,59 @@ export const LudoGame: React.FC = () => {
                                             }
                                         }}
                                         layout
-                                        transition={{ type: "spring", stiffness: 300, damping: 30, mass: 0.8 }}
+                                        initial={false}
+                                        whileTap={isMovable ? { scale: 0.9 } : undefined}
+                                        transition={{ type: 'spring', stiffness: 340, damping: 24, mass: 0.75 }}
                                     />
                                 );
                             })
                         )}
                         </div>
 
-                        {matchState === 'PLAYING' && isLocalMatch && myHudPlayer && (
+                        {matchState === 'PLAYING' && myHudPlayer && (isLocalMatch || isDuelPresentation) && (
                             <>
                                 <div className="ludo-board-hud top">
                                     <div className="hud-token" style={{ background: COLOR_MAP[(opponentHudPlayer?.color || currentPlayer?.color || 'GREEN') as PlayerColor].gradient }} />
                                     <motion.div
-                                        className={`ludo-dice hud-dice ${!isMyTurn && !isRolling ? 'can-roll' : 'disabled'} ${isRolling ? 'rolling' : ''}`}
+                                        className={`ludo-dice hud-dice ${opponentCanRoll ? 'can-roll' : 'disabled'} ${isRolling && rollingColor === opponentHudPlayer?.color ? 'rolling' : ''}`}
                                     >
-                                        {diceValue ? <DiceFace value={diceValue} /> : <span className="hud-dice-wait">...</span>}
+                                        {opponentHudDiceValue ? <DiceFace value={opponentHudDiceValue} /> : <span className="hud-dice-wait">...</span>}
                                     </motion.div>
+                                    {isDuelPresentation && (
+                                        <div className="hud-label">{opponentHudPlayer?.username || 'Opponent'}</div>
+                                    )}
                                 </div>
 
                                 <div className="ludo-board-hud bottom">
                                     <div className="hud-token" style={{ background: COLOR_MAP[myHudPlayer.color].gradient }} />
                                     <motion.div
-                                        className={`ludo-dice hud-dice ${canRollDice ? 'can-roll' : 'disabled'} ${isRolling ? 'rolling' : ''} ${showSixEffect ? 'dice-six-glow' : ''}`}
+                                        className={`ludo-dice hud-dice ${canRollDice ? 'can-roll' : 'disabled'} ${isRolling && rollingColor === myHudPlayer.color ? 'rolling' : ''} ${showSixEffect && rollingColor === myHudPlayer.color ? 'dice-six-glow' : ''}`}
                                         onClick={() => canRollDice && rollDice()}
                                         whileTap={canRollDice ? { scale: 0.9 } : {}}
                                     >
-                                        {diceValue ? <DiceFace value={diceValue} /> : (
+                                        {myHudDiceValue ? <DiceFace value={myHudDiceValue} /> : (
                                             <span className="hud-dice-wait">{canRollDice ? 'TAP' : 'WAIT'}</span>
                                         )}
                                     </motion.div>
                                     <div className="hud-turn-arrow">◀</div>
+                                    {isDuelPresentation && (
+                                        <div className="hud-label">You</div>
+                                    )}
                                 </div>
                             </>
                         )}
+                        <AnimatePresence>
+                            {isDuelPresentation && matchState === 'PLAYING' && isMyTurn && serverState.waitingForMove && (
+                                <motion.div
+                                    className="ludo-move-hint"
+                                    initial={{ opacity: 0, y: 8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -6 }}
+                                >
+                                    <span className="hint-hand">👆</span> Select your token to move
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
 
                     {/* Bottom Controls */}
@@ -1368,6 +1434,20 @@ export const LudoGame: React.FC = () => {
                             </div>
                             <button className="ludo-action-btn primary" onClick={playAgain}>Play Again</button>
                         </div>
+                    ) : isDuelPresentation ? (
+                        <>
+                            <div className="ludo-local-status">
+                                <span>
+                                    {currentPlayer
+                                        ? `${currentPlayer.id === user?.id ? 'Your' : `${currentPlayer.username}'s`} turn`
+                                        : 'Turn in progress'}
+                                </span>
+                                <strong>Pot {formatIndianNumber(totalPot * 0.95)}</strong>
+                            </div>
+                            <button className="ludo-leave-btn" onClick={leaveGame}>
+                                Leave Match
+                            </button>
+                        </>
                     ) : (
                         <>
                             {!isLocalMatch ? (
@@ -1385,11 +1465,11 @@ export const LudoGame: React.FC = () => {
 
                                     <div className="ludo-dice-center-wrap">
                                         <motion.div
-                                            className={`ludo-dice ludo-dice-center ${canRollDice ? 'can-roll' : 'disabled'} ${isRolling ? 'rolling' : ''} ${showSixEffect ? 'dice-six-glow' : ''}`}
+                                            className={`ludo-dice ludo-dice-center ${canRollDice ? 'can-roll' : 'disabled'} ${isRolling && rollingColor === currentPlayer?.color ? 'rolling' : ''} ${showSixEffect && rollingColor === currentPlayer?.color ? 'dice-six-glow' : ''}`}
                                             onClick={() => canRollDice && rollDice()}
                                             whileTap={canRollDice ? { scale: 0.9 } : {}}
                                         >
-                                            {diceValue ? <DiceFace value={diceValue} /> : (
+                                            {activeDiceValue ? <DiceFace value={activeDiceValue} /> : (
                                                 <span style={{ fontSize: '0.8rem', color: '#999', fontWeight: 700 }}>
                                                     {canRollDice ? 'TAP' : 'WAIT'}
                                                 </span>
