@@ -10,6 +10,7 @@ import {
     playTurnStart,
     playUrgencyTick,
 } from '../../utils/sound';
+import soundManager from '../../utils/soundManager';
 import { formatIndianNumber } from '../../utils/format';
 import { motion, AnimatePresence } from 'framer-motion';
 import './LudoBoard.css';
@@ -181,7 +182,7 @@ const Confetti: React.FC = () => {
 // ─── Main Component ────────────────────────────────────────────────────
 
 export const LudoGame: React.FC = () => {
-    const { user, isAuthenticated, wsStatus } = useGame();
+    const { user, isAuthenticated, wsStatus, activeBalance, isDemoMode } = useGame();
 
     const [matchState, setMatchState] = useState<MatchState>('MENU');
     const [serverState, setServerState] = useState<ServerGameState | null>(null);
@@ -216,12 +217,14 @@ export const LudoGame: React.FC = () => {
     const [localControlledPlayerIds, setLocalControlledPlayerIds] = useState<string[]>([]);
     const [showRollHint, setShowRollHint] = useState(false);
     const [rollHintCount, setRollHintCount] = useState(0);
+    const [soundEnabled, setSoundEnabled] = useState(() => soundManager.getSettings().enabled);
 
     const queueTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const turnTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const diceAnimRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const localConsecutiveSixesRef = useRef(0);
     const isLocalMatchRef = useRef(false);
+    const boardRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
         isLocalMatchRef.current = isLocalMatch;
@@ -241,6 +244,31 @@ export const LudoGame: React.FC = () => {
         }
     }, [menuMode, maxPlayers]);
 
+    const deviceProfile = useMemo(() => {
+        const nav = navigator as Navigator & { deviceMemory?: number };
+        const cores = nav.hardwareConcurrency || 8;
+        const memory = nav.deviceMemory || 4;
+        return {
+            isLowEnd: cores <= 4 || memory <= 2,
+            diceAnimDurationMs: cores <= 4 || memory <= 2 ? 400 : 780,
+        };
+    }, []);
+
+    useEffect(() => {
+        const prevBody = document.body.style.overscrollBehavior;
+        const prevHtml = document.documentElement.style.overscrollBehavior;
+        document.body.style.overscrollBehavior = 'none';
+        document.documentElement.style.overscrollBehavior = 'none';
+        return () => {
+            document.body.style.overscrollBehavior = prevBody;
+            document.documentElement.style.overscrollBehavior = prevHtml;
+        };
+    }, []);
+
+    const truncatePlayerName = (name: string) => (
+        name.length > 10 ? `${name.slice(0, 10)}...` : name
+    );
+
     const addToLog = useCallback((text: string, type: 'normal' | 'kill' | 'finish') => {
         setLog(prev => [{ text, type }, ...prev].slice(0, 10));
     }, []);
@@ -252,9 +280,14 @@ export const LudoGame: React.FC = () => {
     }, []);
 
     // Haptic feedback helper
-    const triggerHaptic = useCallback((type: 'light' | 'medium' | 'heavy' = 'light') => {
+    const triggerHaptic = useCallback((type: 'light' | 'medium' | 'heavy' | 'capture' = 'light') => {
         if ('vibrate' in navigator) {
-            const patterns = { light: 10, medium: 20, heavy: 30 };
+            const patterns: Record<'light' | 'medium' | 'heavy' | 'capture', number | number[]> = {
+                light: 10,
+                medium: 50,
+                heavy: 200,
+                capture: [30, 20, 30],
+            };
             navigator.vibrate(patterns[type]);
         }
     }, []);
@@ -351,7 +384,8 @@ export const LudoGame: React.FC = () => {
         }
 
         let i = 0;
-        const maxTicks = 12;
+        const tickMs = deviceProfile.isLowEnd ? 40 : 65;
+        const maxTicks = Math.max(6, Math.round(deviceProfile.diceAnimDurationMs / tickMs));
         diceAnimRef.current = setInterval(() => {
             const random = Math.floor(Math.random() * 6) + 1;
             setDiceByColor(prev => ({ ...prev, [actorColor]: random }));
@@ -376,8 +410,8 @@ export const LudoGame: React.FC = () => {
                     addToLog(`${playerColor} rolled ${roll}`, 'normal');
                 }
             }
-        }, 65);
-    }, [addToLog, serverState?.currentPlayerColor]);
+        }, tickMs);
+    }, [addToLog, deviceProfile.diceAnimDurationMs, deviceProfile.isLowEnd, serverState?.currentPlayerColor]);
 
     const handlePieceMoved = useCallback((data: any) => {
         playPieceMove();
@@ -388,7 +422,7 @@ export const LudoGame: React.FC = () => {
 
     const handlePieceCaptured = useCallback((data: any) => {
         playCapture();
-        triggerHaptic('heavy');
+        triggerHaptic('capture');
         addToLog(`${data.capturedBy} captured ${data.capturedPlayer}'s piece!`, 'kill');
 
         // Trigger capture animation
@@ -426,9 +460,11 @@ export const LudoGame: React.FC = () => {
         // Trigger celebration
         playWinSound();
         triggerHaptic('heavy');
-        setShowConfetti(true);
-        setTimeout(() => setShowConfetti(false), 3000);
-    }, [addToLog, triggerHaptic]);
+        if (!deviceProfile.isLowEnd) {
+            setShowConfetti(true);
+            setTimeout(() => setShowConfetti(false), 3000);
+        }
+    }, [addToLog, deviceProfile.isLowEnd, triggerHaptic]);
 
     // ─── Timers ────────────────────────────────────────────────────────
 
@@ -1229,6 +1265,7 @@ export const LudoGame: React.FC = () => {
         const players = serverState.players;
         const displayBet = serverState.betAmount / INTERNAL_MULTIPLIER;
         const totalPot = displayBet * players.length;
+        const payoutPot = Math.floor(totalPot * 0.95);
         const finishTarget = serverState.targetFinishCount || 4;
         const turnSeconds = Math.max(8, Math.floor((serverState.turnTimeLimitMs || 30000) / 1000));
         const isDuelPresentation = serverState.maxPlayers === 2;
@@ -1248,11 +1285,135 @@ export const LudoGame: React.FC = () => {
             !serverState.waitingForMove &&
             !isRolling
         );
+        const turnLabel = currentPlayer
+            ? (isLocalMatch
+                ? `${currentPlayer.username}'s turn`
+                : (currentPlayer.id === user?.id ? 'Your turn' : `${currentPlayer.username}'s turn`))
+            : 'Turn in progress';
+        const turnColor = currentPlayer ? COLOR_MAP[currentPlayer.color].main : '#8ea7bf';
+        const mobileOpponents = players.filter(player => player.color !== myHudPlayer?.color);
+        const roomLabel = serverState.code || (isLocalMatch ? 'LOCAL' : 'MATCH');
+        const handleToggleSound = () => {
+            const nextEnabled = !soundEnabled;
+            soundManager.setEnabled(nextEnabled);
+            setSoundEnabled(nextEnabled);
+        };
+        const handleBoardTap = (event: React.MouseEvent<HTMLDivElement>) => {
+            if (!boardRef.current || !serverState.waitingForMove || !isMyTurn) return;
+            if ((event.target as HTMLElement).closest('.piece')) return;
+
+            const movablePieces = players.flatMap((player) =>
+                player.pieces
+                    .filter((piece) =>
+                        serverState.movablePieces.includes(piece.id) &&
+                        !piece.finished &&
+                        (isLocalMatch ? player.color === currentPlayer?.color : player.color === myColor)
+                    )
+                    .map((piece) => ({ player, piece }))
+            );
+
+            if (movablePieces.length === 0) return;
+
+            const rect = boardRef.current.getBoundingClientRect();
+            const cellSize = rect.width / 15;
+            const tapColumn = Math.max(1, Math.min(15, Math.round((event.clientX - rect.left) / cellSize) + 1));
+            const tapRow = Math.max(1, Math.min(15, Math.round((event.clientY - rect.top) / cellSize) + 1));
+
+            const nearest = movablePieces
+                .map(({ player, piece }) => {
+                    const coords = getPieceStyle(
+                        player.color,
+                        piece.position,
+                        piece.travelled,
+                        piece.id
+                    );
+                    const row = Number(coords.gridRow) || 1;
+                    const column = Number(coords.gridColumn) || 1;
+                    return { pieceId: piece.id, distance: Math.abs(row - tapRow) + Math.abs(column - tapColumn) };
+                })
+                .sort((a, b) => a.distance - b.distance)[0];
+
+            if (nearest && nearest.distance <= 2) {
+                movePiece(nearest.pieceId);
+            }
+        };
 
         return (
-            <div className="ludo-game-screen">
+            <div className={`ludo-game-screen${deviceProfile.isLowEnd ? ' low-end' : ''}`}>
                 {/* Confetti Effect */}
-                {showConfetti && <Confetti />}
+                {showConfetti && !deviceProfile.isLowEnd && <Confetti />}
+
+                <div className="ludo-rotate-warning">
+                    <div className="rotate-phone-glyph">
+                        <span />
+                    </div>
+                    <strong>Rotate back to portrait</strong>
+                    <p>Ludo is locked for vertical mobile play.</p>
+                </div>
+
+                <div className="ludo-mobile-topbar">
+                    <div className="ludo-mobile-room">
+                        <span className="mobile-top-label">Room</span>
+                        <strong>{roomLabel}</strong>
+                    </div>
+                    <div className="ludo-mobile-prize">
+                        <div className="mobile-secured-mark">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="11" width="18" height="10" rx="2" />
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+                            <span>Secured</span>
+                        </div>
+                        <div className="mobile-prize-value">{formatIndianNumber(payoutPot)}</div>
+                    </div>
+                    <div className="ludo-mobile-actions">
+                        <div className="ludo-mobile-balance">
+                            <span className="mobile-top-label">{isDemoMode ? 'Demo' : 'Wallet'}</span>
+                            <strong>{formatIndianNumber(activeBalance)}</strong>
+                        </div>
+                        <button className="ludo-mobile-icon-btn" onClick={handleToggleSound} aria-label={soundEnabled ? 'Mute sound' : 'Enable sound'}>
+                            {soundEnabled ? (
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                                    <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+                                    <path d="M19 5a9 9 0 0 1 0 14" />
+                                </svg>
+                            ) : (
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                                    <line x1="23" y1="9" x2="17" y2="15" />
+                                    <line x1="17" y1="9" x2="23" y2="15" />
+                                </svg>
+                            )}
+                        </button>
+                        <button className="ludo-mobile-icon-btn leave" onClick={leaveGame} aria-label="Leave match">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                                <polyline points="10 17 15 12 10 7" />
+                                <line x1="15" y1="12" x2="3" y2="12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div className="ludo-mobile-opponents">
+                    {mobileOpponents.map(player => {
+                        const colors = COLOR_MAP[player.color];
+                        const isActive = currentPlayer?.color === player.color;
+                        return (
+                            <div key={`mobile-${player.color}`} className={`ludo-mobile-player-card${isActive ? ' active' : ''}`}>
+                                <div className="mobile-player-token" style={{ background: colors.gradient }} />
+                                <div className="mobile-player-copy">
+                                    <strong>{truncatePlayerName(player.username)}</strong>
+                                    <span>{player.finishedCount}/{finishTarget} home</span>
+                                </div>
+                                <div className="mobile-player-status">
+                                    <span className="mobile-player-die">{diceByColor[player.color] ?? '-'}</span>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
 
                 {/* Player Strip */}
                 {!isDuelPresentation && (
@@ -1287,7 +1448,14 @@ export const LudoGame: React.FC = () => {
                 <div className="ludo-play-area">
                     {/* Board */}
                     <div className="ludo-board-container">
-                        <div className="ludo-board">
+                        {matchState === 'PLAYING' && (
+                            <div className={`ludo-turn-pill ${isMyTurn ? 'you' : 'opponent'}`}>
+                                <span className="turn-pill-dot" style={{ background: turnColor }} />
+                                <span className="turn-pill-label">{turnLabel}</span>
+                                <span className="turn-pill-time">{turnTimeLeft}s</span>
+                            </div>
+                        )}
+                        <div ref={boardRef} onClick={handleBoardTap} className={`ludo-board ${isDuelPresentation ? 'duel-board' : ''}`}>
                         <div className="base green"><div className="base-inner">{[0, 1, 2, 3].map(i => <div key={i} className="piece-spot" />)}</div></div>
                         <div className="base yellow" style={{ gridColumn: '10 / span 6' }}><div className="base-inner">{[0, 1, 2, 3].map(i => <div key={i} className="piece-spot" />)}</div></div>
                         <div className="base red" style={{ gridRow: '10 / span 6' }}><div className="base-inner">{[0, 1, 2, 3].map(i => <div key={i} className="piece-spot" />)}</div></div>
@@ -1390,6 +1558,36 @@ export const LudoGame: React.FC = () => {
                             )}
                         </AnimatePresence>
                     </div>
+
+                    {matchState === 'PLAYING' && (
+                    <div className="ludo-mobile-bottom-bar">
+                        <div className={`ludo-mobile-self-card${isMyTurn ? ' active' : ''}`}>
+                            <div className="mobile-player-token you" style={{ background: myHudPlayer ? COLOR_MAP[myHudPlayer.color].gradient : COLOR_MAP.RED.gradient }} />
+                            <div className="mobile-player-copy">
+                                <strong>{truncatePlayerName(myHudPlayer?.username || 'You')}</strong>
+                                <span>{myHudPlayer?.finishedCount || 0}/{finishTarget} home</span>
+                            </div>
+                            <div className="mobile-player-status">
+                                <span className="mobile-player-turn">{isMyTurn ? 'Your turn' : turnLabel}</span>
+                            </div>
+                        </div>
+
+                        <div className="ludo-mobile-dice-zone">
+                            <motion.div
+                                className={`ludo-dice ludo-dice-center mobile-primary-dice ${canRollDice ? 'can-roll' : 'disabled'} ${isRolling && rollingColor === currentPlayer?.color ? 'rolling' : ''} ${showSixEffect && rollingColor === currentPlayer?.color ? 'dice-six-glow' : ''}`}
+                                onClick={() => canRollDice && rollDice()}
+                                whileTap={canRollDice ? { scale: 0.92 } : {}}
+                            >
+                                {activeDiceValue ? <DiceFace value={activeDiceValue} /> : (
+                                    <span className="hud-dice-wait">{canRollDice ? 'ROLL' : 'WAIT'}</span>
+                                )}
+                            </motion.div>
+                            <div className="mobile-dice-caption">
+                                {isMyTurn && serverState.waitingForMove ? 'Choose token' : (canRollDice ? 'Tap to roll' : 'Stand by')}
+                            </div>
+                        </div>
+                    </div>
+                    )}
 
                     {/* Bottom Controls */}
                     <div className="ludo-bottom-panel">
@@ -1536,7 +1734,15 @@ export const LudoGame: React.FC = () => {
 
     return (
         <div className="ludo-mobile-screen">
-            <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Loading...</p>
+            <div className="ludo-loading-shell">
+                <div className="ludo-loading-top shimmer-block" />
+                <div className="ludo-loading-grid">
+                    <div className="shimmer-block" />
+                    <div className="shimmer-block" />
+                </div>
+                <div className="ludo-loading-board shimmer-block" />
+                <div className="ludo-loading-bottom shimmer-block" />
+            </div>
         </div>
     );
 };

@@ -96,7 +96,7 @@
 body {
   margin: 0;
   min-width: 320px;
-  min-height: 100vh;
+  min-height: 100dvh;
   background-color: var(--bg-deepest);
   color: var(--text-primary);
   font-family: var(--font-main);
@@ -104,6 +104,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.5;
+  overscroll-behavior: none;
 }
 
 html, body {
@@ -116,7 +117,13 @@ html, body {
   padding: 0;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 100dvh;
+  height: 100dvh;
+  padding:
+    env(safe-area-inset-top, 0px)
+    env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px)
+    env(safe-area-inset-left, 0px);
 }
 
 /* ============================================
@@ -285,6 +292,7 @@ button {
   transition: all var(--duration-fast) var(--ease-out);
   position: relative;
   overflow: hidden;
+  touch-action: manipulation;
 }
 
 button:disabled {
@@ -785,6 +793,25 @@ input, select {
   background: var(--accent-blue-hover);
 }
 
+.notice-strip {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 214, 74, 0.3);
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(255, 214, 74, 0.12), rgba(255, 214, 74, 0.04));
+  margin-bottom: 10px;
+  overflow-x: auto;
+}
+
+.notice-item {
+  white-space: nowrap;
+  font-size: 0.82rem;
+  color: #ffd84d;
+  font-weight: 600;
+}
+
 /* ============================================
    LOBBY STYLES
    ============================================ */
@@ -1198,7 +1225,7 @@ input, select {
 @media (max-width: 768px) {
   #root {
     height: auto;
-    min-height: 100vh;
+    min-height: 100dvh;
   }
 
   .app-layout {
@@ -1226,7 +1253,7 @@ input, select {
   }
 
   .sidebar.expanded {
-    max-height: 100vh;
+    max-height: 100dvh;
     flex-direction: column;
     align-items: stretch;
     position: fixed;
@@ -1290,10 +1317,11 @@ input, select {
   }
 
   .app-layout.ludo-focus .app-header {
-    margin-bottom: 0;
-    padding: 6px 10px;
-    background: linear-gradient(180deg, rgba(11, 26, 39, 0.96), rgba(11, 26, 39, 0.82));
-    border-bottom: 1px solid var(--border-subtle);
+    display: none;
+  }
+
+  .app-layout.ludo-focus .notice-strip {
+    display: none;
   }
 
   .app-layout.ludo-focus .header-back {
@@ -1385,6 +1413,13 @@ input, select {
 @media (max-width: 480px) {
   body {
     font-size: 14px;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    font-size: 16px;
   }
 
   .main-content {

@@ -2,12 +2,48 @@
 // Generates synthetic SFX to avoid asset dependencies
 
 let audioCtx: AudioContext | null = null;
+let masterGain: GainNode | null = null;
+let compressor: DynamicsCompressorNode | null = null;
+
+const isSoundEnabled = () => {
+    try {
+        const raw = localStorage.getItem('soundSettings');
+        if (!raw) return true;
+        const parsed = JSON.parse(raw);
+        return parsed.enabled !== false;
+    } catch {
+        return true;
+    }
+};
 
 const getCtx = () => {
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
     return audioCtx;
+};
+
+const getMasterNode = () => {
+    const ctx = getCtx();
+    if (!masterGain || !compressor) {
+        compressor = ctx.createDynamicsCompressor();
+        compressor.threshold.value = -20;
+        compressor.knee.value = 18;
+        compressor.ratio.value = 2.2;
+        compressor.attack.value = 0.003;
+        compressor.release.value = 0.2;
+
+        masterGain = ctx.createGain();
+        masterGain.gain.value = 0.7;
+
+        compressor.connect(masterGain);
+        masterGain.connect(ctx.destination);
+    }
+    return compressor;
+};
+
+const connectToOutput = (node: AudioNode) => {
+    node.connect(getMasterNode());
 };
 
 // Helper for white noise
@@ -25,6 +61,7 @@ const createNoiseBuffer = () => {
 let noiseBuffer: AudioBuffer | null = null;
 
 export const playClick = () => {
+    if (!isSoundEnabled()) return;
     const ctx = getCtx();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
@@ -43,6 +80,7 @@ export const playClick = () => {
 };
 
 export const playBet = () => {
+    if (!isSoundEnabled()) return;
     // Coin sound (High pitched metallic clink)
     const ctx = getCtx();
     const t = ctx.currentTime;
@@ -63,6 +101,7 @@ export const playBet = () => {
 };
 
 export const playWin = () => {
+    if (!isSoundEnabled()) return;
     const ctx = getCtx();
     const t = ctx.currentTime;
 
@@ -86,6 +125,7 @@ export const playWin = () => {
 };
 
 export const playLoss = () => {
+    if (!isSoundEnabled()) return;
     const ctx = getCtx();
     const t = ctx.currentTime;
 
@@ -108,6 +148,7 @@ export const playLoss = () => {
 // --- Game Specific Sounds ---
 
 export const playDiceShake = () => {
+    if (!isSoundEnabled()) return;
     const ctx = getCtx();
     const t = ctx.currentTime;
 
@@ -130,13 +171,14 @@ export const playDiceShake = () => {
 
         src.connect(filter);
         filter.connect(gain);
-        gain.connect(ctx.destination);
+        connectToOutput(gain);
         src.start(start);
         src.stop(start + 0.05);
     }
 };
 
 export const playCardFlip = () => {
+    if (!isSoundEnabled()) return;
     const ctx = getCtx();
     const t = ctx.currentTime;
     if (!noiseBuffer) noiseBuffer = createNoiseBuffer();
@@ -160,6 +202,7 @@ export const playCardFlip = () => {
 };
 
 export const playWheelTick = () => {
+    if (!isSoundEnabled()) return;
     const ctx = getCtx();
     const t = ctx.currentTime;
 
@@ -179,6 +222,7 @@ export const playWheelTick = () => {
 };
 
 export const playExplosion = () => {
+    if (!isSoundEnabled()) return;
     const ctx = getCtx();
     const t = ctx.currentTime;
     if (!noiseBuffer) noiseBuffer = createNoiseBuffer();
@@ -207,26 +251,41 @@ export const playSpinTick = playWheelTick; // Alias
 // --- Ludo Specific Sounds ---
 
 export const playPieceMove = () => {
+    if (!isSoundEnabled()) return;
     // Soft woodblock click for piece movement
     const ctx = getCtx();
     const t = ctx.currentTime;
 
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
+    const click = ctx.createOscillator();
+    const clickGain = ctx.createGain();
 
-    osc.frequency.value = 500;
-    osc.type = 'square';
+    osc.frequency.setValueAtTime(460, t);
+    osc.frequency.exponentialRampToValueAtTime(300, t + 0.06);
+    osc.type = 'triangle';
 
-    gain.gain.setValueAtTime(0.06, t);
+    gain.gain.setValueAtTime(0.055, t);
     gain.gain.exponentialRampToValueAtTime(0.01, t + 0.08);
 
+    click.frequency.setValueAtTime(1400, t);
+    click.frequency.exponentialRampToValueAtTime(700, t + 0.03);
+    click.type = 'square';
+    clickGain.gain.setValueAtTime(0.012, t);
+    clickGain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    click.connect(clickGain);
+    connectToOutput(gain);
+    connectToOutput(clickGain);
     osc.start(t);
     osc.stop(t + 0.08);
+    click.start(t);
+    click.stop(t + 0.03);
 };
 
 export const playCapture = () => {
+    if (!isSoundEnabled()) return;
     // Whoosh + impact sound for capturing opponent
     const ctx = getCtx();
     const t = ctx.currentTime;
@@ -239,11 +298,11 @@ export const playCapture = () => {
     sweep.frequency.exponentialRampToValueAtTime(200, t + 0.3);
     sweep.type = 'sawtooth';
 
-    sweepGain.gain.setValueAtTime(0.12, t);
+    sweepGain.gain.setValueAtTime(0.1, t);
     sweepGain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
 
     sweep.connect(sweepGain);
-    sweepGain.connect(ctx.destination);
+    connectToOutput(sweepGain);
     sweep.start(t);
     sweep.stop(t + 0.3);
 
@@ -258,12 +317,13 @@ export const playCapture = () => {
     impactGain.gain.exponentialRampToValueAtTime(0.01, t + 0.45);
 
     impact.connect(impactGain);
-    impactGain.connect(ctx.destination);
+    connectToOutput(impactGain);
     impact.start(t + 0.25);
     impact.stop(t + 0.45);
 };
 
 export const playHomeEntry = () => {
+    if (!isSoundEnabled()) return;
     // Chime sound for entering home stretch
     const ctx = getCtx();
     const t = ctx.currentTime;
@@ -277,17 +337,18 @@ export const playHomeEntry = () => {
         osc.type = 'sine';
 
         const start = t + (i * 0.05);
-        gain.gain.setValueAtTime(0.08, start);
+        gain.gain.setValueAtTime(0.065, start);
         gain.gain.exponentialRampToValueAtTime(0.01, start + 0.6);
 
         osc.connect(gain);
-        gain.connect(ctx.destination);
+        connectToOutput(gain);
         osc.start(start);
         osc.stop(start + 0.6);
     });
 };
 
 export const playWinSound = () => {
+    if (!isSoundEnabled()) return;
     // Victorious fanfare (extended version of playWin with more notes)
     const ctx = getCtx();
     const t = ctx.currentTime;
@@ -303,11 +364,11 @@ export const playWinSound = () => {
         osc.frequency.value = freq;
         osc.type = 'triangle';
 
-        gain.gain.setValueAtTime(0.1, start);
+        gain.gain.setValueAtTime(0.08, start);
         gain.gain.exponentialRampToValueAtTime(0.01, start + 0.5);
 
         osc.connect(gain);
-        gain.connect(ctx.destination);
+        connectToOutput(gain);
         osc.start(start);
         osc.stop(start + 0.5);
     });
@@ -322,11 +383,11 @@ export const playWinSound = () => {
             osc.frequency.value = freq;
             osc.type = 'sine';
 
-            gain.gain.setValueAtTime(0.06, start);
+            gain.gain.setValueAtTime(0.04, start);
             gain.gain.exponentialRampToValueAtTime(0.01, start + 0.8);
 
             osc.connect(gain);
-            gain.connect(ctx.destination);
+            connectToOutput(gain);
             osc.start(start);
             osc.stop(start + 0.8);
         });
@@ -334,6 +395,7 @@ export const playWinSound = () => {
 };
 
 export const playTurnStart = () => {
+    if (!isSoundEnabled()) return;
     const ctx = getCtx();
     const t = ctx.currentTime;
 
@@ -345,17 +407,18 @@ export const playTurnStart = () => {
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(freq, start);
 
-        gain.gain.setValueAtTime(0.06, start);
+        gain.gain.setValueAtTime(0.05, start);
         gain.gain.exponentialRampToValueAtTime(0.01, start + 0.2);
 
         osc.connect(gain);
-        gain.connect(ctx.destination);
+        connectToOutput(gain);
         osc.start(start);
         osc.stop(start + 0.2);
     });
 };
 
 export const playUrgencyTick = () => {
+    if (!isSoundEnabled()) return;
     const ctx = getCtx();
     const t = ctx.currentTime;
     const osc = ctx.createOscillator();
