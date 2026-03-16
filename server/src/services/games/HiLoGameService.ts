@@ -1,7 +1,7 @@
 import { Client, GameMessage } from '../WebSocketGameServer.js';
 import { query } from '../../config/database.js';
 import { ProvablyFair } from '../../utils/provablyFair.js';
-import { DEFAULT_RTP_FACTOR } from '../../config/gameEconomy.js';
+import { economyRuntimeService } from '../EconomyRuntimeService.js';
 
 // HiLo: Card prediction game
 // Guess if next card is higher or lower than current
@@ -27,6 +27,7 @@ interface HiLoState {
   finished: boolean;
   lastGuess?: 'higher' | 'lower' | 'equal';
   result?: 'WIN' | 'LOSS' | 'EQUAL';
+  rtpFactor: number;
 }
 
 export class HiLoGameService {
@@ -135,6 +136,7 @@ export class HiLoGameService {
         baseBet: amount,
         started: true,
         finished: false,
+        rtpFactor: await economyRuntimeService.getRtpFactor('hilo'),
       };
 
       this.activeGames.set(client.userId!, gameState);
@@ -192,7 +194,7 @@ export class HiLoGameService {
     return targetCards / totalCards;
   }
 
-  private calculateMultiplier(currentRank: number, remainingCards: Card[]): { higher: number; lower: number } {
+  private calculateMultiplier(currentRank: number, remainingCards: Card[], rtpFactor: number): { higher: number; lower: number } {
     const totalCards = remainingCards.length;
     if (totalCards === 0) return { higher: 1.0, lower: 1.0 };
 
@@ -200,8 +202,8 @@ export class HiLoGameService {
     const lowerCards = remainingCards.filter(c => c.rank < currentRank).length;
 
     // Multiplier = (total / winning) * RTP factor
-    const higher = higherCards > 0 ? (totalCards / higherCards) * DEFAULT_RTP_FACTOR : 0;
-    const lower = lowerCards > 0 ? (totalCards / lowerCards) * DEFAULT_RTP_FACTOR : 0;
+    const higher = higherCards > 0 ? (totalCards / higherCards) * rtpFactor : 0;
+    const lower = lowerCards > 0 ? (totalCards / lowerCards) * rtpFactor : 0;
 
     return { higher, lower };
   }
@@ -252,7 +254,7 @@ export class HiLoGameService {
       }
     } else {
       // Calculate new multiplier
-      const multipliers = this.calculateMultiplier(nextCard.rank, gameState.cardsRemaining);
+      const multipliers = this.calculateMultiplier(nextCard.rank, gameState.cardsRemaining, gameState.rtpFactor);
       gameState.currentMultiplier = guess === 'higher' ? multipliers.higher : multipliers.lower;
     }
 

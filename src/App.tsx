@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { GameProvider, useGame } from './contexts/GameContext';
 import { AuthModal } from './components/auth/AuthModal';
 import { WalletModal } from './components/wallet/WalletModal';
@@ -70,8 +70,13 @@ const GameController = () => {
   const [walletInitialTab, setWalletInitialTab] = useState<'deposit' | 'withdraw' | 'history'>('deposit');
   const [walletInitialDepositMethod, setWalletInitialDepositMethod] = useState<'select' | 'agent' | 'qr' | 'crypto'>('select');
   const [walletAutoQRAmountInr, setWalletAutoQRAmountInr] = useState<number | undefined>(undefined);
+  const [notices, setNotices] = useState<Array<{ id: string; title: string; message: string }>>([]);
 
   const handleJoin = (gameId: string) => {
+    if (!isAuthenticated) {
+      setIsAuthModalOpen(true);
+      return;
+    }
     joinGame(gameId);
   };
 
@@ -92,6 +97,21 @@ const GameController = () => {
   const handleBackToLobby = () => {
     leaveGame();
   };
+
+  useEffect(() => {
+    let mounted = true;
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    fetch(`${API_URL}/notices/active`)
+      .then(r => r.json())
+      .then(data => {
+        if (!mounted) return;
+        setNotices(Array.isArray(data?.notices) ? data.notices.slice(0, 3) : []);
+      })
+      .catch(() => {
+        if (mounted) setNotices([]);
+      });
+    return () => { mounted = false; };
+  }, []);
 
   const gameMap: Record<string, ReactNode> = {
     dice: <DiceGame />,
@@ -267,6 +287,16 @@ const GameController = () => {
             </div>
           </div>
         </header>
+
+        {notices.length > 0 && (
+          <div className="notice-strip">
+            {notices.map(n => (
+              <span key={n.id} className="notice-item">
+                <strong>{n.title}:</strong> {n.message}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Content */}
         {content}

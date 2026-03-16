@@ -5,6 +5,7 @@ import { query } from '../config/database.js';
 import { withdrawalService } from '../services/WithdrawalService.js';
 import { agentService } from '../services/AgentService.js';
 import { bankAccountService } from '../services/BankAccountService.js';
+import { economyRuntimeService } from '../services/EconomyRuntimeService.js';
 
 const router = Router();
 
@@ -67,6 +68,53 @@ router.post('/withdrawals/:id/reject', [
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to reject withdrawal' });
+  }
+});
+
+// ============================================
+// QR DEPOSIT MANAGEMENT
+// ============================================
+
+router.get('/deposits/qr/pending', async (_req, res) => {
+  try {
+    const result = await query(
+      `SELECT d.id, d.user_id, u.username, d.amount, d.status, d.utr_number, d.created_at, d.user_paid_at
+       FROM deposit_orders d
+       JOIN users u ON u.id = d.user_id
+       WHERE d.method = 'qr' AND d.status IN ('assigned', 'user_paid', 'pending')
+       ORDER BY d.created_at ASC
+       LIMIT 100`
+    );
+    res.json({ orders: result.rows });
+  } catch {
+    res.status(500).json({ error: 'Failed to load pending QR deposits' });
+  }
+});
+
+router.post('/deposits/qr/:id/approve', async (req: any, res) => {
+  try {
+    const paymentId = `manual_${Date.now()}_${req.userId?.slice?.(0, 8) || 'admin'}`;
+    const result = await bankAccountService.processWebhook(req.params.id, paymentId, 'success');
+    if (!result.success) {
+      return res.status(400).json({ error: 'Order not found or already processed' });
+    }
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ error: 'Failed to approve QR deposit' });
+  }
+});
+
+router.post('/deposits/qr/:id/reject', [
+  body('reason').optional().trim().isLength({ min: 3, max: 200 }),
+], async (req: any, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ error: 'Invalid reason' });
+  try {
+    const result = await bankAccountService.rejectQRDeposit(req.params.id, req.body.reason);
+    if (!result.success) return res.status(400).json({ error: result.error });
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ error: 'Failed to reject QR deposit' });
   }
 });
 
@@ -172,6 +220,166 @@ router.post('/bank-accounts/:id/primary', async (req: any, res: Response) => {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to set primary bank account' });
+  }
+});
+
+// ============================================
+// ECONOMY / RTP MANAGEMENT
+// ============================================
+
+router.get('/economy/configs', async (_req, res) => {
+  try {
+    const configs = await economyRuntimeService.listConfigs();
+    res.json({ configs });
+  } catch {
+    res.status(500).json({ error: 'Failed to list economy configs' });
+  }
+});
+
+router.put('/economy/configs/:gameType', [
+  body('rtpFactor').isFloat({ min: 0.7, max: 0.99 }),
+  body('enabled').optional().isBoolean(),
+  body('startsAt').optional({ nullable: true }).isString(),
+  body('endsAt').optional({ nullable: true }).isString(),
+  body('note').optional({ nullable: true }).isString(),
+], async (req: any, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ error: 'Invalid input' });
+
+  try {
+    await economyRuntimeService.upsertConfig(req.params.gameType, {
+      rtpFactor: Number(req.body.rtpFactor),
+      enabled: req.body.enabled,
+      startsAt: req.body.startsAt ?? null,
+      endsAt: req.body.endsAt ?? null,
+      note: req.body.note ?? null,
+      updatedBy: req.userId || null,
+    });
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ error: 'Failed to update economy config' });
+  }
+});
+
+router.get('/economy/ludo-payouts', async (_req, res) => {
+  try {
+    const configs = await economyRuntimeService.listLudoPayoutConfigs();
+    res.json({ configs });
+  } catch {
+    res.status(500).json({ error: 'Failed to list ludo payout configs' });
+  }
+});
+
+router.put('/economy/ludo-payouts/:playerCount', [
+  body('rankSplits').isArray({ min: 2, max: 4 }),
+  body('rankSplits.*').isFloat({ min: 0, max: 1 }),
+], async (req: any, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ error: 'Invalid input' });
+  try {
+    const playerCount = Number(req.params.playerCount);
+    const rankSplits = req.body.rankSplits as number[];
+    const normalized = await economyRuntimeService.upsertLudoPayoutConfig(playerCount, rankSplits, req.userId || null);
+    res.json({ success: true, playerCount, rankSplits: normalized });
+  } catch (err: any) {
+    res.status(400).json({ error: err?.message || 'Failed to update ludo payout config' });
+  }
+});
+
+router.get('/economy/ludo-preview', async (req, res) => {
+  try {
+    const playerCountRaw = Number(req.query.playerCount || 4);
+    const playerCount = [2, 3, 4].includes(playerCountRaw) ? playerCountRaw : 4;
+    const entryFee = Math.max(1, Math.floor(Number(req.query.entryFee || 100)));
+    const matchesPerDay = Math.max(1, Math.floor(Number(req.query.matchesPerDay || 20)));
+
+    const rtp = await economyRuntimeService.getRtpFactor('ludo');
+    const houseEdge = Math.max(0, 1 - rtp);
+    const splits = await economyRuntimeService.getLudoPayoutSplits(playerCount);
+
+    const totalPool = entryFee * playerCount;
+    const houseFee = Math.floor(totalPool * houseEdge);
+    const prizePool = totalPool - houseFee;
+
+    const rankPayouts: number[] = [];
+    let distributed = 0;
+    for (let i = 0; i < playerCount; i++) {
+      const isLast = i === playerCount - 1;
+      const payout = isLast
+        ? Math.max(0, prizePool - distributed)
+        : Math.floor(prizePool * (splits[i] || 0));
+      distributed += payout;
+      rankPayouts.push(payout);
+    }
+
+    res.json({
+      playerCount,
+      entryFee,
+      matchesPerDay,
+      rtp,
+      houseEdge,
+      totalPool,
+      houseFee,
+      prizePool,
+      rankSplits: splits,
+      rankPayouts,
+      housePerMatch: houseFee,
+      housePerDay: houseFee * matchesPerDay,
+      positionSummary: rankPayouts.map((amount, idx) => ({ position: idx + 1, amount })),
+    });
+  } catch {
+    res.status(500).json({ error: 'Failed to generate ludo preview' });
+  }
+});
+
+// ============================================
+// NOTICES / ADS MANAGEMENT
+// ============================================
+
+router.get('/notices', async (_req, res) => {
+  try {
+    const notices = await economyRuntimeService.listNotices(true);
+    res.json({ notices });
+  } catch {
+    res.status(500).json({ error: 'Failed to list notices' });
+  }
+});
+
+router.post('/notices', [
+  body('title').trim().isLength({ min: 3, max: 160 }),
+  body('message').trim().isLength({ min: 3, max: 4000 }),
+  body('startsAt').optional({ nullable: true }).isString(),
+  body('endsAt').optional({ nullable: true }).isString(),
+  body('isActive').optional().isBoolean(),
+], async (req: any, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ error: 'Invalid input' });
+  try {
+    const result = await economyRuntimeService.createNotice({
+      title: req.body.title,
+      message: req.body.message,
+      startsAt: req.body.startsAt ?? null,
+      endsAt: req.body.endsAt ?? null,
+      isActive: req.body.isActive ?? true,
+      createdBy: req.userId || null,
+    });
+    res.json({ success: true, noticeId: result.id });
+  } catch {
+    res.status(500).json({ error: 'Failed to create notice' });
+  }
+});
+
+router.put('/notices/:id', [
+  body('isActive').isBoolean(),
+], async (req: any, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ error: 'Invalid input' });
+  try {
+    const ok = await economyRuntimeService.updateNotice(req.params.id, { isActive: req.body.isActive });
+    if (!ok) return res.status(404).json({ error: 'Notice not found' });
+    res.json({ success: true });
+  } catch {
+    res.status(500).json({ error: 'Failed to update notice' });
   }
 });
 

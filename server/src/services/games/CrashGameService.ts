@@ -2,7 +2,7 @@ import { Client, GameMessage } from '../WebSocketGameServer.js';
 import { query } from '../../config/database.js';
 import { ProvablyFair } from '../../utils/provablyFair.js';
 import { redisClient } from '../../config/redis.js';
-import { DEFAULT_HOUSE_EDGE } from '../../config/gameEconomy.js';
+import { economyRuntimeService } from '../EconomyRuntimeService.js';
 
 interface CrashBet {
   userId: string;
@@ -38,7 +38,7 @@ export class CrashGameService {
 
   constructor(wsServer: any) {
     this.wsServer = wsServer;
-    this.startNewRound();
+    void this.startNewRound();
   }
 
   public async handleMessage(client: Client, msg: GameMessage): Promise<void> {
@@ -248,14 +248,15 @@ export class CrashGameService {
     });
   }
 
-  private startNewRound(): void {
+  private async startNewRound(): Promise<void> {
     const seedPair = ProvablyFair.generateSeedPair();
     const nonce = Date.now();
+    const houseEdge = await economyRuntimeService.getHouseEdge('crash');
     const crashPoint = ProvablyFair.generateCrashPoint(
       seedPair.serverSeed,
       seedPair.clientSeed,
       nonce,
-      DEFAULT_HOUSE_EDGE
+      houseEdge
     );
 
     this.currentRound = {
@@ -388,7 +389,7 @@ export class CrashGameService {
     });
 
     // Start new round after 3 seconds
-    setTimeout(() => this.startNewRound(), 3000);
+    setTimeout(() => { void this.startNewRound(); }, 3000);
   }
 
   private async sendHistory(client: Client): Promise<void> {

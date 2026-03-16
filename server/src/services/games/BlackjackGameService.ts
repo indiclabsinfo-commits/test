@@ -1,6 +1,7 @@
 import { Client, GameMessage } from '../WebSocketGameServer.js';
 import { query } from '../../config/database.js';
 import { ProvablyFair } from '../../utils/provablyFair.js';
+import { economyRuntimeService } from '../EconomyRuntimeService.js';
 
 // Blackjack: Classic card game
 // Player vs Dealer, standard rules
@@ -18,6 +19,8 @@ const VALUES: Record<string, number> = {
   '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10,
   'J': 10, 'Q': 10, 'K': 10, 'A': 11
 };
+
+const BLACKJACK_BASELINE_RTP = 0.995;
 
 interface BlackjackState {
   playerHands: Card[][];
@@ -84,6 +87,19 @@ export class BlackjackGameService {
       value: VALUES[rank],
       display: `${rank}${suit[0].toUpperCase()}`
     };
+  }
+
+  private async getPayoutScale(): Promise<number> {
+    const rtpFactor = await economyRuntimeService.getRtpFactor('blackjack');
+    return Math.max(0.7, Math.min(1.2, rtpFactor / BLACKJACK_BASELINE_RTP));
+  }
+
+  private getStandardWinPayout(bet: number, payoutScale: number): number {
+    return bet + Math.floor(bet * payoutScale);
+  }
+
+  private getBlackjackPayout(bet: number, payoutScale: number): number {
+    return bet + Math.floor(bet * 1.5 * payoutScale);
   }
 
   private calculateHandValue(hand: Card[]): { total: number; soft: boolean; bust: boolean } {
@@ -212,7 +228,8 @@ export class BlackjackGameService {
           } else {
             // Player blackjack pays 3:2
             result = 'WIN';
-            payout = Math.floor(amount * 2.5);
+            const payoutScale = await this.getPayoutScale();
+            payout = this.getBlackjackPayout(amount, payoutScale);
           }
           gameState.finished = true;
           await this.finalizeGame(client, gameState, payout, result, sessionResult.rows[0].id);
@@ -475,6 +492,7 @@ export class BlackjackGameService {
     // Calculate payouts for each hand
     let totalPayout = 0;
     const dealerBust = dealerValue.bust;
+    const payoutScale = await this.getPayoutScale();
     
     for (let i = 0; i < gameState.playerHands.length; i++) {
       const hand = gameState.playerHands[i];
@@ -488,7 +506,7 @@ export class BlackjackGameService {
       
       if (dealerBust || handValue.total > dealerValue.total) {
         // Win
-        totalPayout += bet * 2;
+        totalPayout += this.getStandardWinPayout(bet, payoutScale);
       } else if (handValue.total === dealerValue.total) {
         // Push - return bet
         totalPayout += bet;

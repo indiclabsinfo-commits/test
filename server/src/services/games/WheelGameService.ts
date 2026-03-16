@@ -1,6 +1,7 @@
 import { Client, GameMessage } from '../WebSocketGameServer.js';
 import { query } from '../../config/database.js';
 import { ProvablyFair } from '../../utils/provablyFair.js';
+import { economyRuntimeService } from '../EconomyRuntimeService.js';
 
 // Wheel: Fortune wheel with configurable segments
 // Similar to Stake's Wheel game
@@ -10,6 +11,8 @@ interface WheelSegment {
   color: string;
   probability: number;
 }
+
+const WHEEL_BASELINE_RTP = 0.95;
 
 // Low Risk Wheel (~5% house edge)
 const LOW_RISK_WHEEL: WheelSegment[] = [
@@ -62,10 +65,13 @@ export class WheelGameService {
       return;
     }
 
-    const wheel = riskLevel === 'low' ? LOW_RISK_WHEEL : 
+    const wheel = riskLevel === 'low' ? LOW_RISK_WHEEL :
                   riskLevel === 'high' ? HIGH_RISK_WHEEL : MEDIUM_RISK_WHEEL;
 
     try {
+      const rtpFactor = await economyRuntimeService.getRtpFactor('wheel');
+      const adjustedWheel = this.adjustWheelForRtp(wheel, rtpFactor);
+
       // Check balance
       const balanceCheck = await query(
         'SELECT balance FROM wallets WHERE user_id = $1 FOR UPDATE',
@@ -89,7 +95,7 @@ export class WheelGameService {
       let cumulative = 0;
       let result: WheelSegment = wheel[0];
       
-      for (const segment of wheel) {
+      for (const segment of adjustedWheel) {
         cumulative += segment.probability;
         if (random <= cumulative) {
           result = segment;
@@ -157,7 +163,7 @@ export class WheelGameService {
         );
 
         // Calculate wheel position for animation
-        const wheelPosition = this.calculateWheelPosition(wheel, result);
+        const wheelPosition = this.calculateWheelPosition(adjustedWheel, result);
 
         // Send result
         this.wsServer.sendToClient(client.ws, {
@@ -207,6 +213,40 @@ export class WheelGameService {
     
     // Convert to degrees (0-360)
     return position * 360;
+  }
+
+  private adjustWheelForRtp(wheel: WheelSegment[], rtpFactor: number): WheelSegment[] {
+    const baseExpected = wheel.reduce((sum, segment) => sum + segment.probability * segment.multiplier, 0);
+    const safeBase = baseExpected > 0 ? baseExpected : WHEEL_BASELINE_RTP;
+    const winProbability = wheel
+      .filter((segment) => segment.multiplier > 0)
+      .reduce((sum, segment) => sum + segment.probability, 0);
+    const maxScale = winProbability > 0 ? 1 / winProbability : 1;
+    const scale = Math.max(0, Math.min(maxScale, rtpFactor / safeBase));
+
+    const adjusted = wheel.map((segment) =>
+      segment.multiplier > 0
+        ? { ...segment, probability: segment.probability * scale }
+        : { ...segment, probability: segment.probability }
+    );
+
+    const adjustedWinProb = adjusted
+      .filter((segment) => segment.multiplier > 0)
+      .reduce((sum, segment) => sum + segment.probability, 0);
+    const remaining = Math.max(0, 1 - adjustedWinProb);
+
+    const baseLoseProb = wheel
+      .filter((segment) => segment.multiplier === 0)
+      .reduce((sum, segment) => sum + segment.probability, 0);
+
+    return adjusted.map((segment) => {
+      if (segment.multiplier !== 0) return segment;
+      const weight = baseLoseProb > 0 ? segment.probability / baseLoseProb : 0;
+      return {
+        ...segment,
+        probability: remaining * weight,
+      };
+    });
   }
 
   private async getNextNonce(userId: string): Promise<number> {

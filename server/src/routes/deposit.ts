@@ -92,6 +92,27 @@ router.post('/qr/create', [
   }
 });
 
+router.post('/qr/:id/paid', [
+  body('utrNumber').optional().trim().isLength({ min: 6, max: 30 }),
+], async (req: any, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ error: 'Invalid UTR number' });
+  }
+
+  try {
+    const { bankAccountService } = await import('../services/BankAccountService.js');
+    const result = await bankAccountService.markQRPaid(req.params.id, req.userId, req.body.utrNumber);
+    if (!result.success) {
+      return res.status(400).json({ error: result.error });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Mark QR paid error:', err);
+    res.status(500).json({ error: 'Failed to mark payment' });
+  }
+});
+
 // ============================================
 // CRYPTO DEPOSIT
 // ============================================

@@ -2,6 +2,7 @@ import { Client, GameMessage } from '../WebSocketGameServer.js';
 import { query } from '../../config/database.js';
 import { ProvablyFair } from '../../utils/provablyFair.js';
 import { pool } from '../../config/database.js';
+import { economyRuntimeService } from '../EconomyRuntimeService.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────
 
@@ -42,6 +43,8 @@ interface LudoGame {
   quickMode: boolean;
   targetFinishCount: number;
   turnTimeLimitMs: number;
+  houseEdge: number;
+  rankPayoutSplits: number[];
   isPrivate: boolean;
   createdAt: number;
   creatorId: string;
@@ -88,9 +91,8 @@ const BOT_NAMES = [
 const TURN_TIMEOUT = 30000; // 30 seconds per turn
 const QUICK_TURN_TIMEOUT = 18000; // 18 seconds in quick mode
 const QUEUE_CHECK_INTERVAL = 5000;
-const QUEUE_BOT_FILL_TIMEOUT = 30000;
+const QUEUE_BOT_FILL_TIMEOUT = 8000;
 const RECONNECT_GRACE_MS = 45000;
-const LUDO_HOUSE_EDGE = 0.05;
 
 // ─── Service ─────────────────────────────────────────────────────────────
 
@@ -266,7 +268,17 @@ export class LudoGameService {
   }
 
   private async createMatchedGame(entries: QueueEntry[], betAmount: number, maxPlayers: 2 | 3 | 4, quickMode: boolean): Promise<void> {
-    const game = this.createGameInstance(betAmount, maxPlayers, false, entries[0].userId, quickMode);
+    const houseEdge = await economyRuntimeService.getHouseEdge('ludo');
+    const rankPayoutSplits = await economyRuntimeService.getLudoPayoutSplits(maxPlayers);
+    const game = this.createGameInstance(
+      betAmount,
+      maxPlayers,
+      false,
+      entries[0].userId,
+      quickMode,
+      houseEdge,
+      rankPayoutSplits
+    );
     const colorSlots = this.getColorSlots(maxPlayers);
 
     // Add human players
@@ -347,7 +359,17 @@ export class LudoGameService {
       }
     }
 
-    const game = this.createGameInstance(internalBet, clampedPlayers, true, client.userId!, !!quickMode);
+    const houseEdge = await economyRuntimeService.getHouseEdge('ludo');
+    const rankPayoutSplits = await economyRuntimeService.getLudoPayoutSplits(clampedPlayers);
+    const game = this.createGameInstance(
+      internalBet,
+      clampedPlayers,
+      true,
+      client.userId!,
+      !!quickMode,
+      houseEdge,
+      rankPayoutSplits
+    );
     const colorSlots = this.getColorSlots(clampedPlayers);
 
     const player = this.createPlayer(client.userId!, client.id, client.username || 'Player', colorSlots[0], false);
@@ -958,7 +980,7 @@ export class LudoGameService {
   private calculateSettlement(game: LudoGame): LudoSettlement {
     const paidPlayers = game.players.filter(p => !p.isBot).map(p => p.id);
     const totalPool = game.betAmount * paidPlayers.length;
-    const houseFee = Math.floor(totalPool * LUDO_HOUSE_EDGE);
+    const houseFee = Math.floor(totalPool * game.houseEdge);
     const prizePool = totalPool - houseFee;
     const payouts: Record<string, number> = {};
 
@@ -966,13 +988,24 @@ export class LudoGameService {
       return { paidPlayers, totalPool, houseFee, prizePool, winnerId: null, payouts };
     }
 
-    // Award prize to the best-ranked human who actually paid entry.
-    const winnerId = game.finishOrder.find(id => paidPlayers.includes(id)) || null;
+    const rankedPaidPlayers = game.finishOrder.filter(id => paidPlayers.includes(id));
+    const winnerId = rankedPaidPlayers[0] || null;
     if (!winnerId) {
       return { paidPlayers, totalPool, houseFee, prizePool, winnerId: null, payouts };
     }
 
-    payouts[winnerId] = prizePool;
+    let distributed = 0;
+    const paidRankCount = Math.min(rankedPaidPlayers.length, game.rankPayoutSplits.length);
+    for (let i = 0; i < paidRankCount; i++) {
+      const playerId = rankedPaidPlayers[i];
+      const isLastPaidRank = i === paidRankCount - 1;
+      const payout = isLastPaidRank
+        ? Math.max(0, prizePool - distributed)
+        : Math.floor(prizePool * (game.rankPayoutSplits[i] || 0));
+      payouts[playerId] = payout;
+      distributed += payout;
+    }
+
     return { paidPlayers, totalPool, houseFee, prizePool, winnerId, payouts };
   }
 
@@ -1391,7 +1424,9 @@ export class LudoGameService {
     maxPlayers: 2 | 3 | 4,
     isPrivate: boolean,
     creatorId: string,
-    quickMode = false
+    quickMode = false,
+    houseEdge = 0.05,
+    rankPayoutSplits: number[] = [1, 0]
   ): LudoGame {
     const id = 'ludo_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
     const code = this.generateRoomCode();
@@ -1412,6 +1447,8 @@ export class LudoGameService {
       quickMode,
       targetFinishCount: quickMode ? 2 : 4,
       turnTimeLimitMs: quickMode ? QUICK_TURN_TIMEOUT : TURN_TIMEOUT,
+      houseEdge,
+      rankPayoutSplits,
       isPrivate,
       createdAt: Date.now(),
       creatorId,
@@ -1556,6 +1593,8 @@ export class LudoGameService {
         quickMode: game.quickMode,
         targetFinishCount: game.targetFinishCount,
         turnTimeLimitMs: game.turnTimeLimitMs,
+        houseEdge: game.houseEdge,
+        rankPayoutSplits: game.rankPayoutSplits,
         isPrivate: game.isPrivate,
       },
     });

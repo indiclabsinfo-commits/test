@@ -135,6 +135,11 @@ class APIService {
     return response.data;
   }
 
+  async markQRDepositPaid(orderId: string, utrNumber?: string) {
+    const response = await this.api.post(`/deposit/qr/${orderId}/paid`, { utrNumber });
+    return response.data;
+  }
+
   async getCryptoAddress(currency: string) {
     const response = await this.api.get(`/deposit/crypto/address?currency=${currency}`);
     return response.data;

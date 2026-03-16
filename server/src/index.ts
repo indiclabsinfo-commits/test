@@ -10,6 +10,8 @@ import rateLimit from 'express-rate-limit';
 import { pool } from './config/database.js';
 import { connectRedis } from './config/redis.js';
 import { WebSocketGameServer } from './services/WebSocketGameServer.js';
+import { withdrawalService } from './services/WithdrawalService.js';
+import { balanceSyncService } from './services/BalanceSyncService.js';
 
 // Import routes
 import authRoutes from './routes/auth.js';
@@ -20,6 +22,7 @@ import depositRoutes, { webhookRouter } from './routes/deposit.js';
 import withdrawalRoutes from './routes/withdrawal.js';
 import adminRoutes from './routes/admin.js';
 import userRoutes from './routes/user.js';
+import noticesRoutes from './routes/notices.js';
 
 dotenv.config();
 
@@ -129,6 +132,7 @@ app.use('/api/webhook', webhookRouter);
 app.use('/api/withdrawal', withdrawalRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/notices', noticesRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -151,6 +155,8 @@ const shutdown = async () => {
   // Close WebSocket server
   wsGameServer.shutdown();
   wss.close();
+
+  withdrawalService.stop();
 
   // Close database connections
   await pool.end();
@@ -195,6 +201,12 @@ const startServer = async () => {
 
     // Connect to Redis
     await connectRedis();
+
+    // Keep users.balance and INR wallet balance aligned for all game/payment flows.
+    await balanceSyncService.ensureInitialized();
+
+    // Start background withdrawal processor.
+    withdrawalService.start();
 
     // Start HTTP server
     httpServer.listen(PORT, () => {

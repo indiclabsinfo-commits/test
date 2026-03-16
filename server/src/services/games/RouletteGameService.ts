@@ -1,6 +1,7 @@
 import { Client, GameMessage } from '../WebSocketGameServer.js';
 import { query } from '../../config/database.js';
 import { ProvablyFair } from '../../utils/provablyFair.js';
+import { economyRuntimeService } from '../EconomyRuntimeService.js';
 
 // Roulette: European single-zero wheel
 // 37 pockets: 0, 1-36
@@ -51,6 +52,8 @@ const PAYOUTS: Record<RouletteBetType, number> = {
   LOW: 1,
   HIGH: 1,
 };
+
+const ROULETTE_BASELINE_RTP = 37 / 38;
 
 export class RouletteGameService {
   private wsServer: any;
@@ -223,6 +226,8 @@ export class RouletteGameService {
       // Calculate wins
       let totalWin = 0;
       const betResults = [];
+      const rtpFactor = await economyRuntimeService.getRtpFactor('roulette');
+      const payoutScale = Math.max(0.5, Math.min(1.25, rtpFactor / ROULETTE_BASELINE_RTP));
 
       for (const bet of userBets) {
         let won = false;
@@ -277,7 +282,7 @@ export class RouletteGameService {
             break;
         }
 
-        const payout = won ? bet.amount * (PAYOUTS[bet.type] + 1) : 0;
+        const payout = won ? Math.floor(bet.amount * (PAYOUTS[bet.type] + 1) * payoutScale) : 0;
         totalWin += payout;
 
         betResults.push({

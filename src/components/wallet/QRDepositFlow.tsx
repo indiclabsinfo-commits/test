@@ -16,6 +16,7 @@ export const QRDepositFlow: React.FC<Props> = ({ onBack, autoCreateAmountInr }) 
   const [error, setError] = useState('');
   const [timeLeft, setTimeLeft] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [markingPaid, setMarkingPaid] = useState(false);
 
   const PRESETS = [500, 1000, 2000, 5000];
 
@@ -95,6 +96,18 @@ export const QRDepositFlow: React.FC<Props> = ({ onBack, autoCreateAmountInr }) 
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
+  };
+
+  const handleMarkPaid = async () => {
+    if (!order?.id) return;
+    setMarkingPaid(true);
+    try {
+      await apiService.markQRDepositPaid(order.id);
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to mark payment');
+    } finally {
+      setMarkingPaid(false);
+    }
   };
 
   const formatTime = (secs: number) => {
@@ -186,6 +199,10 @@ export const QRDepositFlow: React.FC<Props> = ({ onBack, autoCreateAmountInr }) 
           <div className="wallet-status pending">
             Waiting for payment confirmation...
           </div>
+
+          <button className="wallet-action-btn" onClick={handleMarkPaid} disabled={markingPaid} style={{ marginTop: '10px' }}>
+            {markingPaid ? 'Submitting...' : "I've Paid - Mark for Admin Review"}
+          </button>
 
           <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
             Payment will be auto-detected. If not credited within 10 minutes, contact support.

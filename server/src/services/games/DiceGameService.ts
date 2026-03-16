@@ -1,7 +1,7 @@
 import { Client, GameMessage } from '../WebSocketGameServer.js';
 import { query } from '../../config/database.js';
 import { ProvablyFair } from '../../utils/provablyFair.js';
-import { DEFAULT_RTP_FACTOR } from '../../config/gameEconomy.js';
+import { economyRuntimeService } from '../EconomyRuntimeService.js';
 
 export class DiceGameService {
   private wsServer: any;
@@ -68,7 +68,8 @@ export class DiceGameService {
 
       const win = isRollOver ? result > numericTarget : result < numericTarget;
       const winChance = isRollOver ? (10000 - numericTarget) / 10000 : numericTarget / 10000;
-      const multiplier = win ? (DEFAULT_RTP_FACTOR / winChance) : 0;
+      const rtpFactor = await economyRuntimeService.getRtpFactor('dice');
+      const multiplier = win ? (rtpFactor / winChance) : 0;
       const payout = win ? Math.floor(betAmount * multiplier) : 0;
 
       if (win) {

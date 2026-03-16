@@ -121,7 +121,7 @@ export class BankAccountService {
 
     const orderResult = await query(
       `SELECT id, user_id, amount, bank_account_id FROM deposit_orders
-       WHERE id = $1 AND status IN ('assigned', 'pending') FOR UPDATE`,
+       WHERE id = $1 AND method = 'qr' AND status IN ('assigned', 'pending', 'user_paid') FOR UPDATE`,
       [orderId]
     );
 
@@ -171,6 +171,39 @@ export class BankAccountService {
       console.error('QR webhook processing error:', err);
       return { success: false };
     }
+  }
+
+  async markQRPaid(orderId: string, userId: string, utrNumber?: string): Promise<{ success: boolean; error?: string }> {
+    const result = await query(
+      `UPDATE deposit_orders
+       SET status = 'user_paid',
+           utr_number = COALESCE($1, utr_number),
+           user_paid_at = NOW(),
+           updated_at = NOW()
+       WHERE id = $2 AND user_id = $3 AND method = 'qr' AND status = 'assigned'
+       RETURNING id`,
+      [utrNumber || null, orderId, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return { success: false, error: 'QR order not found or not in payable state' };
+    }
+    return { success: true };
+  }
+
+  async rejectQRDeposit(orderId: string, reason?: string): Promise<{ success: boolean; error?: string }> {
+    const result = await query(
+      `UPDATE deposit_orders
+       SET status = 'rejected', rejection_reason = $1, updated_at = NOW()
+       WHERE id = $2 AND method = 'qr' AND status IN ('pending', 'assigned', 'user_paid')
+       RETURNING id`,
+      [reason || 'Rejected by admin', orderId]
+    );
+
+    if (result.rows.length === 0) {
+      return { success: false, error: 'Order not found or already finalized' };
+    }
+    return { success: true };
   }
 
   // Reset daily counters for accounts that haven't been reset today

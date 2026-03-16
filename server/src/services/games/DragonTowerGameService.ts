@@ -1,6 +1,7 @@
 import { Client, GameMessage } from '../WebSocketGameServer.js';
 import { query } from '../../config/database.js';
 import { ProvablyFair } from '../../utils/provablyFair.js';
+import { economyRuntimeService } from '../EconomyRuntimeService.js';
 
 // Dragon Tower: Climbing game
 // 4 rows, 3 columns per row
@@ -23,9 +24,11 @@ interface DragonTowerState {
   serverSeed: string;
   clientSeed: string;
   nonce: number;
+  payoutScale: number;
 }
 
 const MULTIPLIERS = [1.48, 2.21, 3.31, 4.96, 7.44, 11.16, 16.74, 25.11, 37.66, 56.49];
+const DRAGON_TOWER_BASELINE_RTP = 0.95;
 
 export class DragonTowerGameService {
   private wsServer: any;
@@ -90,6 +93,16 @@ export class DragonTowerGameService {
     return rows;
   }
 
+  private async getPayoutScale(): Promise<number> {
+    const rtpFactor = await economyRuntimeService.getRtpFactor('dragon_tower');
+    return Math.max(0.7, Math.min(1.2, rtpFactor / DRAGON_TOWER_BASELINE_RTP));
+  }
+
+  private adjustedMultiplier(rowIndex: number, payoutScale: number): number {
+    const base = MULTIPLIERS[rowIndex] ?? 1;
+    return Number((base * payoutScale).toFixed(2));
+  }
+
   private async handlePlaceBet(client: Client, data: any): Promise<void> {
     const { betId, amount, clientSeed, difficulty = 'MEDIUM' } = data;
 
@@ -120,6 +133,7 @@ export class DragonTowerGameService {
 
       // Create tower
       const rows = this.generateTower(combinedSeed, difficultyLevel);
+      const payoutScale = await this.getPayoutScale();
 
       // Deduct bet
       await query(
@@ -138,6 +152,7 @@ export class DragonTowerGameService {
         serverSeed,
         clientSeed,
         nonce,
+        payoutScale,
       };
 
       this.activeGames.set(client.userId!, gameState);
@@ -156,7 +171,7 @@ export class DragonTowerGameService {
           rows: rows.map(r => ({ tiles: r.tiles.map(() => '?'), revealed: r.revealed })),
           currentRow: 0,
           currentMultiplier: 1.0,
-          nextMultiplier: MULTIPLIERS[0],
+          nextMultiplier: this.adjustedMultiplier(0, payoutScale),
           difficulty,
           balance: newBalance.rows[0].balance,
           serverSeedHash,
@@ -231,7 +246,7 @@ export class DragonTowerGameService {
     } else {
       // Safe - can continue
       gameState.currentRow++;
-      gameState.currentMultiplier = MULTIPLIERS[gameState.currentRow - 1];
+      gameState.currentMultiplier = this.adjustedMultiplier(gameState.currentRow - 1, gameState.payoutScale);
 
       // Check if reached top (win automatically)
       if (gameState.currentRow >= gameState.rows.length) {
@@ -250,7 +265,7 @@ export class DragonTowerGameService {
           result: 'CONTINUE',
           currentRow: gameState.currentRow,
           currentMultiplier: gameState.currentMultiplier,
-          nextMultiplier: MULTIPLIERS[gameState.currentRow],
+          nextMultiplier: this.adjustedMultiplier(gameState.currentRow, gameState.payoutScale),
           canCashout: true,
         },
       });

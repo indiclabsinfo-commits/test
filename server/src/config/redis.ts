@@ -20,11 +20,15 @@ redisClient.on('connect', () => {
 });
 
 export const connectRedis = async () => {
+  const redisOptional = (process.env.REDIS_OPTIONAL || 'true').toLowerCase() === 'true';
   try {
     await redisClient.connect();
   } catch (error) {
     console.error('Failed to connect to Redis:', error);
-    throw error;
+    if (!redisOptional) {
+      throw error;
+    }
+    console.warn('Continuing without Redis (REDIS_OPTIONAL=true)');
   }
 };
 

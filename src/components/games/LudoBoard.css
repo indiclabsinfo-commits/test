@@ -1014,6 +1014,7 @@
     transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), filter 0.18s ease;
     border: none;
     transform: translateZ(0);
+    transform-origin: center bottom;
     touch-action: manipulation;
 }
 
@@ -1081,21 +1082,25 @@
 }
 
 .piece.trail {
-    animation: piece-trail-pop 0.4s ease-out;
+    animation: piece-trail-pop 0.58s cubic-bezier(0.22, 0.9, 0.2, 1);
     will-change: transform;
 }
 
 @keyframes piece-trail-pop {
     0% {
-        transform: scale(1);
+        transform: translateY(0) scale(1) rotateZ(0deg);
         filter: brightness(1);
     }
-    45% {
-        transform: scale(1.2);
-        filter: brightness(1.35) drop-shadow(0 0 12px rgba(255, 255, 255, 0.5));
+    28% {
+        transform: translateY(-14px) scale(1.15) rotateZ(5deg);
+        filter: brightness(1.26) drop-shadow(0 14px 10px rgba(0, 0, 0, 0.22));
+    }
+    62% {
+        transform: translateY(-6px) scale(1.08) rotateZ(-4deg);
+        filter: brightness(1.18) drop-shadow(0 9px 9px rgba(0, 0, 0, 0.16));
     }
     100% {
-        transform: scale(1);
+        transform: translateY(0) scale(1) rotateZ(0deg);
         filter: brightness(1);
     }
 }
@@ -1124,15 +1129,15 @@
     height: 64px;
     border-radius: 12px;
     background:
-        linear-gradient(155deg, #ffffff 0%, #eef3f8 40%, #d7e0ea 100%);
+        linear-gradient(145deg, #ffffff 0%, #eef5fc 38%, #dbe4ee 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     position: relative;
     box-shadow:
-        0 10px 16px rgba(0, 0, 0, 0.28),
-        0 3px 0 #aeb8c5,
+        0 12px 18px rgba(0, 0, 0, 0.28),
+        0 4px 0 #aeb8c5,
         inset 0 1px 0 rgba(255, 255, 255, 0.92),
         inset 0 -8px 10px rgba(16, 33, 53, 0.1);
     transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, filter 0.2s ease;
@@ -1143,30 +1148,37 @@
     flex-shrink: 0;
     touch-action: manipulation;
     transform-style: preserve-3d;
+    transform: perspective(260px) rotateX(10deg) rotateY(-12deg);
 }
 
 .ludo-dice::before {
     content: '';
     position: absolute;
-    left: 8%;
-    right: 8%;
-    bottom: -8px;
-    height: 10px;
-    border-radius: 0 0 10px 10px;
-    background: linear-gradient(180deg, rgba(164, 176, 193, 0.78), rgba(112, 126, 147, 0.58));
-    filter: blur(0.2px);
+    top: 7px;
+    right: -10px;
+    width: 14px;
+    height: calc(100% - 14px);
+    border-radius: 0 10px 10px 0;
+    background: linear-gradient(180deg, #cad4df 0%, #aab6c5 100%);
+    transform: skewY(-18deg);
+    transform-origin: left center;
+    opacity: 0.96;
     z-index: -1;
 }
 
 .ludo-dice::after {
     content: '';
     position: absolute;
-    inset: -6px;
-    border-radius: 14px;
-    border: 2px solid rgba(255, 255, 255, 0.16);
-    opacity: 0;
-    transform: scale(0.94);
-    transition: opacity 0.2s ease, transform 0.2s ease;
+    left: 7px;
+    right: 10px;
+    bottom: -10px;
+    height: 14px;
+    border-radius: 0 0 12px 12px;
+    background: linear-gradient(180deg, #c5d0dc 0%, #8f9db0 100%);
+    transform: skewX(-22deg);
+    transform-origin: top center;
+    opacity: 0.95;
+    z-index: -2;
 }
 
 .ludo-dice-center {
@@ -1177,28 +1189,23 @@
 .ludo-dice.can-roll {
     cursor: pointer;
     box-shadow:
-        0 4px 12px rgba(0, 0, 0, 0.25),
+        0 14px 20px rgba(0, 0, 0, 0.26),
         0 0 0 3px rgba(255, 215, 0, 0.4),
-        0 0 16px rgba(255, 215, 0, 0.15),
+        0 0 20px rgba(255, 215, 0, 0.18),
         inset 0 1px 0 rgba(255, 255, 255, 0.8);
     animation: dice-ready 1.5s ease-in-out infinite;
     filter: saturate(1.05);
     will-change: transform;
 }
 
-.ludo-dice.can-roll::after {
-    opacity: 1;
-    transform: scale(1);
-}
-
 .ludo-dice.can-roll:active {
-    transform: scale(0.9);
+    transform: perspective(260px) rotateX(10deg) rotateY(-12deg) scale(0.92);
 }
 
 .ludo-dice.rolling {
     animation: dice-roll 0.9s cubic-bezier(0.16, 0.84, 0.44, 1);
     box-shadow:
-        0 10px 26px rgba(0, 0, 0, 0.35),
+        0 18px 28px rgba(0, 0, 0, 0.35),
         0 0 0 4px rgba(120, 144, 156, 0.25),
         inset 0 1px 0 rgba(255, 255, 255, 0.8),
         inset 0 -2px 4px rgba(0, 0, 0, 0.05);
@@ -1211,16 +1218,16 @@
 }
 
 @keyframes dice-ready {
-    0%, 100% { transform: translateY(0) scale(1) rotate(0deg); }
-    50% { transform: translateY(-2px) scale(1.035) rotate(-2deg); }
+    0%, 100% { transform: perspective(260px) rotateX(10deg) rotateY(-12deg) translateY(0) scale(1); }
+    50% { transform: perspective(260px) rotateX(13deg) rotateY(-15deg) translateY(-3px) scale(1.04); }
 }
 
 @keyframes dice-roll {
-    0% { transform: translateY(0) rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1); }
-    22% { transform: translateY(-7px) rotateX(180deg) rotateY(140deg) rotateZ(105deg) scale(0.94); }
-    48% { transform: translateY(2px) rotateX(360deg) rotateY(280deg) rotateZ(210deg) scale(1.03); }
-    74% { transform: translateY(-3px) rotateX(540deg) rotateY(430deg) rotateZ(310deg) scale(0.98); }
-    100% { transform: translateY(0) rotateX(720deg) rotateY(560deg) rotateZ(360deg) scale(1); }
+    0% { transform: perspective(260px) rotateX(10deg) rotateY(-12deg) translateY(0) scale(1); }
+    22% { transform: perspective(260px) rotateX(210deg) rotateY(120deg) rotateZ(100deg) translateY(-8px) scale(0.95); }
+    48% { transform: perspective(260px) rotateX(420deg) rotateY(250deg) rotateZ(210deg) translateY(3px) scale(1.04); }
+    74% { transform: perspective(260px) rotateX(610deg) rotateY(400deg) rotateZ(320deg) translateY(-4px) scale(0.98); }
+    100% { transform: perspective(260px) rotateX(730deg) rotateY(540deg) rotateZ(360deg) translateY(0) scale(1); }
 }
 
 .dice-face {
@@ -1229,8 +1236,10 @@
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     grid-template-rows: repeat(3, 1fr);
-    padding: 8px;
+    padding: 9px;
     gap: 1px;
+    position: relative;
+    z-index: 2;
 }
 
 .dice-dot {
@@ -2256,17 +2265,547 @@
     }
 }
 
+/* ============================================
+   ENHANCED STYLES - Premium Feel & Animations
+   ============================================ */
+
+/* ─── BOARD EFFECTS LAYER ────────────────── */
+
+.ludo-board-effects-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 80;
+}
+
+.ludo-board-effects-layer .emoji-reaction-btn,
+.ludo-board-effects-layer .emoji-picker,
+.ludo-board-effects-layer .emoji-pick-btn {
+    pointer-events: auto;
+}
+
+/* ─── ENHANCED DICE ROLL ─────────────────── */
+
+.ludo-dice.rolling-enhanced {
+    animation: dice-tumble-enhanced 0.85s cubic-bezier(0.16, 0.84, 0.44, 1);
+    box-shadow:
+        0 18px 28px rgba(0, 0, 0, 0.35),
+        0 0 0 4px rgba(120, 144, 156, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.05);
+    will-change: transform;
+}
+
+@keyframes dice-tumble-enhanced {
+    0% {
+        transform: perspective(260px) rotateX(10deg) rotateY(-12deg) scale(1);
+    }
+    10% {
+        transform: perspective(260px) rotateX(80deg) rotateY(40deg) rotateZ(30deg) scale(0.9) translateY(-8px);
+    }
+    22% {
+        transform: perspective(260px) rotateX(200deg) rotateY(140deg) rotateZ(80deg) scale(0.95) translateY(3px);
+    }
+    36% {
+        transform: perspective(260px) rotateX(340deg) rotateY(260deg) rotateZ(150deg) scale(1.02) translateY(-5px);
+    }
+    52% {
+        transform: perspective(260px) rotateX(490deg) rotateY(380deg) rotateZ(240deg) scale(0.97) translateY(4px);
+    }
+    68% {
+        transform: perspective(260px) rotateX(610deg) rotateY(470deg) rotateZ(310deg) scale(1.01) translateY(-3px);
+    }
+    82% {
+        transform: perspective(260px) rotateX(690deg) rotateY(520deg) rotateZ(345deg) scale(1.0) translateY(1px);
+    }
+    100% {
+        transform: perspective(260px) rotateX(730deg) rotateY(540deg) rotateZ(360deg) scale(1) translateY(0);
+    }
+}
+
+/* Dice reveal flash */
+.ludo-dice.dice-revealed {
+    animation: dice-land-flash 0.35s ease-out;
+}
+
+@keyframes dice-land-flash {
+    0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.6), 0 4px 0 #aeb8c5; }
+    40% { box-shadow: 0 0 20px 6px rgba(255, 255, 255, 0.4), 0 4px 0 #aeb8c5; }
+    100% { box-shadow: 0 12px 18px rgba(0, 0, 0, 0.28), 0 4px 0 #aeb8c5; }
+}
+
+/* Enhanced six glow */
+.ludo-dice.dice-six-glow-enhanced {
+    animation: six-glow-burst-enhanced 0.8s ease-in-out 2 !important;
+}
+
+@keyframes six-glow-burst-enhanced {
+    0% {
+        box-shadow:
+            0 0 0 4px rgba(255, 215, 0, 0.5),
+            0 0 20px rgba(255, 215, 0, 0.4),
+            0 4px 12px rgba(0, 0, 0, 0.25);
+        filter: brightness(1);
+    }
+    50% {
+        box-shadow:
+            0 0 0 10px rgba(255, 215, 0, 0.3),
+            0 0 40px rgba(255, 215, 0, 0.6),
+            0 0 60px rgba(255, 165, 0, 0.3),
+            0 4px 12px rgba(0, 0, 0, 0.25);
+        filter: brightness(1.15);
+    }
+    100% {
+        box-shadow:
+            0 0 0 4px rgba(255, 215, 0, 0.5),
+            0 0 20px rgba(255, 215, 0, 0.4),
+            0 4px 12px rgba(0, 0, 0, 0.25);
+        filter: brightness(1);
+    }
+}
+
+/* ─── ENHANCED PIECE ANIMATIONS ──────────── */
+
+/* Enhanced captured piece: shatter effect */
+.piece.captured-enhanced {
+    animation: piece-shatter-enhanced 0.7s cubic-bezier(0.6, 0, 0.4, 1) forwards;
+    z-index: 50;
+    filter: brightness(1.5) saturate(1.3);
+}
+
+@keyframes piece-shatter-enhanced {
+    0% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+        filter: brightness(1);
+    }
+    15% {
+        transform: scale(1.5) rotate(8deg);
+        filter: brightness(2.5);
+        box-shadow: 0 0 30px rgba(255, 255, 255, 0.6);
+    }
+    30% {
+        transform: scale(1.3) rotate(-5deg);
+        filter: brightness(2) saturate(1.5);
+    }
+    100% {
+        transform: scale(0.05) rotate(200deg) translateY(-250px);
+        opacity: 0;
+        filter: brightness(3) blur(3px);
+    }
+}
+
+/* Attacker power pulse after capture */
+.piece.attacker-pulse {
+    animation: attacker-power-enhanced 0.8s ease-out;
+    z-index: 35;
+}
+
+@keyframes attacker-power-enhanced {
+    0% {
+        box-shadow:
+            0 0 0 0 rgba(255, 215, 0, 0.7),
+            0 4px 10px rgba(0, 0, 0, 0.3);
+        transform: scale(1);
+        filter: brightness(1);
+    }
+    25% {
+        box-shadow:
+            0 0 0 16px rgba(255, 215, 0, 0.3),
+            0 0 35px rgba(255, 215, 0, 0.5),
+            0 4px 10px rgba(0, 0, 0, 0.3);
+        transform: scale(1.3);
+        filter: brightness(1.3);
+    }
+    50% {
+        box-shadow:
+            0 0 0 24px rgba(255, 215, 0, 0),
+            0 0 20px rgba(255, 215, 0, 0.25),
+            0 4px 10px rgba(0, 0, 0, 0.3);
+        transform: scale(1.15);
+        filter: brightness(1.15);
+    }
+    100% {
+        box-shadow:
+            0 0 0 0 transparent,
+            0 4px 10px rgba(0, 0, 0, 0.3);
+        transform: scale(1);
+        filter: brightness(1);
+    }
+}
+
+/* Enhanced home sparkle */
+.piece.sparkling-enhanced {
+    animation: sparkle-enhanced 0.6s ease-in-out 2;
+    z-index: 30;
+}
+
+@keyframes sparkle-enhanced {
+    0%, 100% {
+        transform: scale(1);
+        filter: brightness(1);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+    50% {
+        transform: scale(1.35);
+        filter: brightness(2) drop-shadow(0 0 20px gold);
+        box-shadow:
+            0 0 20px rgba(255, 215, 0, 0.6),
+            0 0 40px rgba(255, 215, 0, 0.3),
+            0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+}
+
+.piece.sparkling-enhanced::before {
+    content: '' !important;
+    position: absolute !important;
+    top: -24px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: 20px !important;
+    height: 20px !important;
+    background: radial-gradient(circle, rgba(255, 215, 0, 0.8), transparent 70%) !important;
+    border-radius: 50% !important;
+    animation: sparkle-particle-float 1s ease-out forwards !important;
+    pointer-events: none !important;
+    inset: auto !important;
+    box-shadow: none !important;
+}
+
+@keyframes sparkle-particle-float {
+    0% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-40px) scale(0.3); }
+}
+
+/* Enhanced piece glow (movable pieces) */
+.piece.glow {
+    z-index: 20;
+    animation: piece-glow-pulse-enhanced 1s infinite alternate;
+    filter: brightness(1.15);
+    will-change: transform;
+}
+
+@keyframes piece-glow-pulse-enhanced {
+    from {
+        transform: scale(1.08);
+        box-shadow:
+            0 0 10px rgba(255, 215, 0, 0.5),
+            0 0 20px rgba(255, 215, 0, 0.25),
+            0 3px 8px rgba(0, 0, 0, 0.3);
+    }
+    to {
+        transform: scale(1.22);
+        box-shadow:
+            0 0 16px rgba(255, 215, 0, 0.7),
+            0 0 32px rgba(255, 215, 0, 0.35),
+            0 0 48px rgba(255, 215, 0, 0.15),
+            0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+}
+
+/* ─── ENHANCED BOARD AESTHETICS ──────────── */
+
+/* Subtle glow on path cells */
+.cell {
+    border: 0.5px solid rgba(139, 69, 19, 0.15);
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: inset 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+/* Home path cells with subtle inner glow */
+.path-green,
+.path-yellow,
+.path-red,
+.path-blue {
+    box-shadow:
+        inset 0 0 8px rgba(0, 0, 0, 0.12),
+        inset 0 0 20px rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Home center enhanced glow */
+.home-center::after {
+    animation: center-core-pulse-enhanced 2s ease-in-out infinite;
+}
+
+@keyframes center-core-pulse-enhanced {
+    0%, 100% {
+        box-shadow:
+            0 0 10px rgba(212, 160, 23, 0.4),
+            0 0 20px rgba(212, 160, 23, 0.2),
+            inset 0 1px 3px rgba(255, 255, 255, 0.6);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow:
+            0 0 18px rgba(255, 216, 107, 0.7),
+            0 0 36px rgba(255, 216, 107, 0.35),
+            inset 0 1px 3px rgba(255, 255, 255, 0.7);
+        transform: scale(1.05);
+    }
+}
+
+/* Board with premium polish */
+.ludo-board {
+    box-shadow:
+        0 0 0 2px #8b5e3c,
+        0 0 0 4px #4a2508,
+        0 8px 32px rgba(0, 0, 0, 0.55),
+        0 2px 8px rgba(0, 0, 0, 0.3),
+        inset 0 0 30px rgba(139, 69, 19, 0.08);
+}
+
+/* ─── ENHANCED WIN SCREEN ────────────────── */
+
+.ludo-finish-panel.enhanced {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 4px 0;
+    align-items: center;
+}
+
+.ludo-winner-spotlight.enhanced {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 215, 0, 0.35);
+    background: radial-gradient(circle at top, rgba(255, 215, 0, 0.18), rgba(255, 215, 0, 0.04));
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.1);
+}
+
+.finish-row.winner {
+    border-color: rgba(255, 215, 0, 0.4);
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.08), rgba(255, 215, 0, 0.02));
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.08);
+}
+
+.finish-medal.silver {
+    color: #C0C0C0;
+}
+
+.finish-medal.bronze {
+    color: #CD7F32;
+}
+
+.play-again-btn {
+    margin-top: 4px;
+    animation: play-again-pulse 2s ease-in-out infinite;
+}
+
+@keyframes play-again-pulse {
+    0%, 100% {
+        box-shadow: 0 4px 16px rgba(0, 231, 1, 0.25);
+    }
+    50% {
+        box-shadow:
+            0 4px 16px rgba(0, 231, 1, 0.4),
+            0 0 30px rgba(0, 231, 1, 0.15);
+    }
+}
+
+/* ─── ENHANCED TURN INDICATOR ────────────── */
+
+.ludo-mobile-self-card.active {
+    border-color: rgba(126, 249, 169, 0.5) !important;
+    box-shadow: 0 0 0 3px rgba(126, 249, 169, 0.15) !important;
+    animation: self-card-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes self-card-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 2px rgba(126, 249, 169, 0.12);
+    }
+    50% {
+        box-shadow:
+            0 0 0 4px rgba(126, 249, 169, 0.2),
+            0 0 20px rgba(126, 249, 169, 0.08);
+    }
+}
+
+/* ─── MOBILE DICE ZONE ENHANCEMENT ───────── */
+
+@media (max-width: 768px) {
+    .ludo-mobile-dice-zone {
+        position: relative;
+        overflow: visible;
+    }
+
+    .ludo-mobile-dice-zone .ludo-dice.can-roll {
+        animation: dice-ready-mobile 1.2s ease-in-out infinite;
+    }
+
+    @keyframes dice-ready-mobile {
+        0%, 100% {
+            transform: perspective(260px) rotateX(10deg) rotateY(-12deg) translateY(0) scale(1);
+            box-shadow:
+                0 14px 20px rgba(0, 0, 0, 0.26),
+                0 0 0 3px rgba(255, 215, 0, 0.4),
+                0 0 20px rgba(255, 215, 0, 0.18);
+        }
+        50% {
+            transform: perspective(260px) rotateX(14deg) rotateY(-16deg) translateY(-4px) scale(1.05);
+            box-shadow:
+                0 18px 24px rgba(0, 0, 0, 0.3),
+                0 0 0 5px rgba(255, 215, 0, 0.5),
+                0 0 30px rgba(255, 215, 0, 0.25);
+        }
+    }
+
+    .mobile-dice-caption {
+        transition: color 0.3s;
+    }
+
+    .ludo-mobile-self-card.active .mobile-player-turn {
+        color: #7ef9a9;
+        font-weight: 700;
+    }
+}
+
+/* ─── SMOOTH SCREEN TRANSITIONS ──────────── */
+
+.ludo-mobile-screen {
+    animation: screen-fade-in 0.3s ease-out;
+}
+
+@keyframes screen-fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.ludo-game-screen {
+    animation: game-screen-enter 0.35s ease-out;
+}
+
+@keyframes game-screen-enter {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* ─── MENU ENHANCEMENT ───────────────────── */
+
+.ludo-tab-bar {
+    position: relative;
+    overflow: hidden;
+}
+
+.ludo-tab {
+    position: relative;
+    z-index: 1;
+    transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ludo-tab.active {
+    color: #fff;
+    transform: scale(1);
+}
+
+.ludo-tab:active {
+    transform: scale(0.96);
+}
+
+.ludo-bet-quick button {
+    transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ludo-bet-quick button:active {
+    transform: scale(0.92);
+}
+
+.ludo-player-select button {
+    transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ludo-player-select button:active {
+    transform: scale(0.95);
+}
+
+/* ─── QUEUE SCREEN ENHANCEMENT ───────────── */
+
+.ludo-queue-spinner {
+    width: 52px;
+    height: 52px;
+    border-width: 4px;
+    border-color: rgba(255, 255, 255, 0.06);
+    border-top-color: var(--accent-green, #00e701);
+    border-right-color: rgba(0, 231, 1, 0.3);
+    box-shadow: 0 0 20px rgba(0, 231, 1, 0.1);
+}
+
+.ludo-queue-timer {
+    font-size: 2.2rem;
+    background: linear-gradient(135deg, #fff, #b1bad3);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* ─── ERROR STATE FRIENDLY ───────────────── */
+
+.ludo-error-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: error-slide-in 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ludo-error-banner::before {
+    content: '!';
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    border-radius: 50%;
+    background: rgba(237, 66, 69, 0.2);
+    display: grid;
+    place-items: center;
+    font-weight: 900;
+    font-size: 0.7rem;
+}
+
+/* ─── OPPONENT CARDS - ACTIVE TURN GLOW ──── */
+
+@media (max-width: 768px) {
+    .ludo-mobile-player-card.active {
+        border-color: rgba(255, 215, 0, 0.4) !important;
+        box-shadow:
+            0 0 0 2px rgba(255, 215, 0, 0.1),
+            0 4px 16px rgba(0, 0, 0, 0.2);
+        animation: opponent-active-pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes opponent-active-pulse {
+        0%, 100% {
+            box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.1);
+        }
+        50% {
+            box-shadow:
+                0 0 0 4px rgba(255, 215, 0, 0.15),
+                0 0 16px rgba(255, 215, 0, 0.06);
+        }
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .ludo-strip-player.active,
     .piece.glow,
     .piece.trail,
     .ludo-dice.can-roll,
     .ludo-dice.rolling,
+    .ludo-dice.rolling-enhanced,
     .ludo-dice-dock.active-turn,
     .dice-hint-move,
     .confetti-particle,
     .piece.captured,
-    .piece.sparkling {
+    .piece.captured-enhanced,
+    .piece.sparkling,
+    .piece.sparkling-enhanced,
+    .piece.attacker-pulse,
+    .play-again-btn,
+    .ludo-mobile-self-card.active,
+    .ludo-mobile-player-card.active {
         animation: none !important;
     }
 

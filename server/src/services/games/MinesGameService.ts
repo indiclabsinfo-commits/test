@@ -1,7 +1,7 @@
 import { Client, GameMessage } from '../WebSocketGameServer.js';
 import { query } from '../../config/database.js';
 import { ProvablyFair } from '../../utils/provablyFair.js';
-import { DEFAULT_RTP_FACTOR } from '../../config/gameEconomy.js';
+import { economyRuntimeService } from '../EconomyRuntimeService.js';
 
 interface MinesSession {
   userId: string;
@@ -15,6 +15,7 @@ interface MinesSession {
   clientSeed: string;
   nonce: number;
   active: boolean;
+  rtpFactor: number;
 }
 
 export class MinesGameService {
@@ -116,6 +117,7 @@ export class MinesGameService {
         clientSeed: seedPair.clientSeed,
         nonce: Date.now(),
         active: true,
+        rtpFactor: await economyRuntimeService.getRtpFactor('mines'),
       };
 
       this.sessions.set(client.userId, session);
@@ -176,7 +178,8 @@ export class MinesGameService {
       session.currentMultiplier = this.calculateMultiplier(
         session.revealedTiles.length,
         session.mineCount,
-        session.gridSize
+        session.gridSize,
+        session.rtpFactor
       );
 
       this.wsServer.sendToClient(client.id, {
@@ -208,7 +211,7 @@ export class MinesGameService {
     this.sessions.delete(client.userId);
   }
 
-  private calculateMultiplier(revealed: number, mines: number, total: number): number {
+  private calculateMultiplier(revealed: number, mines: number, total: number, rtpFactor: number): number {
     const safe = total - mines;
     let multiplier = 1.0;
 
@@ -216,7 +219,7 @@ export class MinesGameService {
     for (let i = 0; i < revealed; i++) {
       multiplier *= (total - i) / (safe - i);
     }
-    return Number((multiplier * DEFAULT_RTP_FACTOR).toFixed(2));
+    return Number((multiplier * rtpFactor).toFixed(2));
   }
 }
 

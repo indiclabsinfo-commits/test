@@ -1,6 +1,7 @@
 import { Client, GameMessage } from '../WebSocketGameServer.js';
 import { query } from '../../config/database.js';
 import { ProvablyFair } from '../../utils/provablyFair.js';
+import { economyRuntimeService } from '../EconomyRuntimeService.js';
 
 // Keno: Lottery-style game where players pick numbers
 // 20 balls drawn from 80, player picks 1-10 numbers
@@ -90,7 +91,9 @@ export class KenoGameService {
       // Calculate payout
       const numPicks = selectedNumbers.length;
       const payoutTable = KENO_PAYOUTS[numPicks];
-      const multiplier = payoutTable?.[matchCount] || 0;
+      const baseMultiplier = payoutTable?.[matchCount] || 0;
+      const rtpFactor = await economyRuntimeService.getRtpFactor('keno');
+      const multiplier = Number((baseMultiplier * rtpFactor).toFixed(4));
       const payout = Math.floor(amount * multiplier);
       const won = payout > 0;
       const profit = payout - amount;

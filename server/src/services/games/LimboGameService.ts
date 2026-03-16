@@ -2,7 +2,7 @@ import { Client, GameMessage } from '../WebSocketGameServer.js';
 import { query } from '../../config/database.js';
 import { ProvablyFair } from '../../utils/provablyFair.js';
 import { redisClient } from '../../config/redis.js';
-import { DEFAULT_RTP_FACTOR } from '../../config/gameEconomy.js';
+import { economyRuntimeService } from '../EconomyRuntimeService.js';
 
 // Limbo: Predict if result will exceed target multiplier
 // Uses global house edge policy
@@ -65,7 +65,8 @@ export class LimboGameService {
         ProvablyFair.generateHash(serverSeed, clientSeed, nonce)
       );
       
-      const resultMultiplier = DEFAULT_RTP_FACTOR / (1 - random);
+      const rtpFactor = await economyRuntimeService.getRtpFactor('limbo');
+      const resultMultiplier = rtpFactor / (1 - random);
       const finalMultiplier = Math.min(100000, Math.max(1, resultMultiplier));
       
       const won = finalMultiplier >= targetMultiplier;

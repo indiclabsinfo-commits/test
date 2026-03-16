@@ -77,7 +77,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return saved || generateClientSeed();
   });
 
-  const activeBalance = isDemoMode ? demoBalance : balance;
+  const activeBalance = isAuthenticated ? (isDemoMode ? demoBalance : balance) : 0;
 
   const applyUserData = (userData: any) => {
     const realBal = (userData.balance || 0) / 100000;
@@ -231,8 +231,9 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const joinGame = useCallback((gameId: string) => {
+    if (!isAuthenticated) return;
     setActiveGameId(gameId);
-  }, []);
+  }, [isAuthenticated]);
 
   const leaveGame = useCallback(() => {
     if (activeGameId) {
@@ -244,9 +245,10 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const placeBet = (amount: number, gameData?: any) => {
     if (amount <= 0) return false;
+    if (!isAuthenticated) return false;
 
     // Strict path: authenticated active game bets are backend-confirmed only.
-    if (activeGameId && isAuthenticated) {
+    if (activeGameId) {
       return (async () => {
         if (activeBalance < amount) {
           return { success: false, error: 'Insufficient balance' };
@@ -276,28 +278,14 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       })();
     }
-
-    // Legacy local fallback path for unauthenticated/demo UI simulations.
-    if (activeBalance < amount) return false;
-    if (isDemoMode) {
-      setDemoBalance(prev => prev - amount);
-    } else {
-      setBalance(prev => prev - amount);
-    }
-    return true;
+    return false;
   };
 
   const collectWinnings = (amount: number) => {
     if (amount <= 0) return;
 
     // Backend-controlled game sessions should settle from server events only.
-    if (activeGameId && isAuthenticated) return;
-
-    if (isDemoMode) {
-      setDemoBalance(prev => prev + amount);
-    } else {
-      setBalance(prev => prev + amount);
-    }
+    if (!isAuthenticated || activeGameId) return;
   };
 
   const cashout = async (gameData?: any) => {

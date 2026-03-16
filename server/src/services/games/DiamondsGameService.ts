@@ -1,7 +1,7 @@
 import { Client, GameMessage } from '../WebSocketGameServer.js';
 import { query } from '../../config/database.js';
 import { ProvablyFair } from '../../utils/provablyFair.js';
-import { DEFAULT_RTP_FACTOR } from '../../config/gameEconomy.js';
+import { economyRuntimeService } from '../EconomyRuntimeService.js';
 
 // Diamonds: Match 3 gems slot-like game
 // 5x3 grid, match gems for multipliers
@@ -47,7 +47,7 @@ export class DiamondsGameService {
     }
   }
 
-  private generateSpin(seed: string): SpinResult {
+  private generateSpin(seed: string, rtpFactor: number): SpinResult {
     const grid: string[][] = [];
     
     // Generate 5x3 grid (5 columns, 3 rows)
@@ -73,7 +73,7 @@ export class DiamondsGameService {
     }
     
     // Apply global house edge policy
-    totalMultiplier = Math.floor(totalMultiplier * DEFAULT_RTP_FACTOR * 100) / 100;
+    totalMultiplier = Math.floor(totalMultiplier * rtpFactor * 100) / 100;
     
     return { grid, matches, totalMultiplier };
   }
@@ -159,7 +159,8 @@ export class DiamondsGameService {
       const nonce = await this.getNextNonce(client.userId!);
       const combinedSeed = ProvablyFair.generateHash(serverSeed, clientSeed, nonce);
 
-      const spinResult = this.generateSpin(combinedSeed);
+      const rtpFactor = await economyRuntimeService.getRtpFactor('diamonds');
+      const spinResult = this.generateSpin(combinedSeed, rtpFactor);
 
       // Calculate payout
       const won = spinResult.totalMultiplier > 0;
