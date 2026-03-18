@@ -14,6 +14,12 @@ import {
     playSixRolled,
     playStreakSound,
     playEmojiPop,
+    playHopSound,
+    playLandingSound,
+    playCaptureReturn,
+    playDiceLandThud,
+    playPieceEntryPop,
+    playThreeSixesForfeit,
 } from '../../utils/sound';
 import soundManager from '../../utils/soundManager';
 import { formatIndianNumber } from '../../utils/format';
@@ -30,10 +36,15 @@ import {
     TrophyAnimation,
     UrgencyVignette,
     NearMissFlash,
+    PieceEntryBurst,
+    DiceSixBurst,
+    ScreenEdgeGlow,
+    BoardFlash,
+    MovePreviewGhost,
 } from './ludo/LudoEffects';
 import './LudoBoard.css';
 
-// ─── Constants & Types ─────────────────────────────────────────────────
+// ---- Constants & Types ----
 
 type PlayerColor = 'RED' | 'GREEN' | 'YELLOW' | 'BLUE';
 type MatchState = 'MENU' | 'QUEUING' | 'WAITING_ROOM' | 'PLAYING' | 'FINISHED';
@@ -107,16 +118,16 @@ const LOCAL_COLOR_SLOTS: Record<2 | 3 | 4, PlayerColor[]> = {
 };
 
 const COLOR_MAP: Record<PlayerColor, { main: string; gradient: string; glow: string }> = {
-    GREEN: { main: '#2ecc40', gradient: 'linear-gradient(135deg, #2ecc40, #1a9c2a)', glow: 'rgba(46, 204, 64, 0.4)' },
-    YELLOW: { main: '#f5d000', gradient: 'linear-gradient(135deg, #ffe066, #e6b800)', glow: 'rgba(230, 184, 0, 0.4)' },
-    BLUE: { main: '#3498db', gradient: 'linear-gradient(135deg, #5dade2, #2471a3)', glow: 'rgba(52, 152, 219, 0.4)' },
-    RED: { main: '#e74c3c', gradient: 'linear-gradient(135deg, #ff4d4d, #cc0000)', glow: 'rgba(231, 76, 60, 0.4)' },
+    GREEN: { main: '#02A04B', gradient: 'linear-gradient(135deg, #02C853, #02A04B)', glow: 'rgba(2, 160, 75, 0.4)' },
+    YELLOW: { main: '#FFE013', gradient: 'linear-gradient(135deg, #FFEE58, #FFD600)', glow: 'rgba(255, 224, 19, 0.4)' },
+    BLUE: { main: '#22409A', gradient: 'linear-gradient(135deg, #3F51B5, #22409A)', glow: 'rgba(34, 64, 154, 0.4)' },
+    RED: { main: '#EB1C24', gradient: 'linear-gradient(135deg, #FF3D3D, #EB1C24)', glow: 'rgba(235, 28, 36, 0.4)' },
 };
 
 const BET_PRESETS = [50, 100, 500, 1000];
 const INTERNAL_MULTIPLIER = 100000;
 
-// ─── Sub-Components ────────────────────────────────────────────────────
+// ---- Sub-Components ----
 
 const TimerRing: React.FC<{ timeLeft: number; maxTime: number; color: string }> = ({ timeLeft, maxTime, color }) => {
     const radius = 11;
@@ -168,7 +179,7 @@ const DiceFace: React.FC<{ value: number }> = ({ value }) => {
     );
 };
 
-// ─── Main Component ────────────────────────────────────────────────────
+// ---- Main Component ----
 
 export const LudoGame: React.FC = () => {
     const { user, isAuthenticated, wsStatus, activeBalance, isDemoMode } = useGame();
@@ -200,9 +211,18 @@ export const LudoGame: React.FC = () => {
     // Animation states
     const [showConfetti, setShowConfetti] = useState(false);
     const [capturingPiece, setCapturingPiece] = useState<{color: PlayerColor, pieceId: number} | null>(null);
+    const [captureFlyback, setCaptureFlyback] = useState<{color: PlayerColor, pieceId: number, fromPos: {r: number, c: number}, toPos: {r: number, c: number}} | null>(null);
     const [attackerPiece, setAttackerPiece] = useState<{color: PlayerColor, pieceId: number} | null>(null);
     const [sparklingPiece, setSparklingPiece] = useState<{color: PlayerColor, pieceId: number} | null>(null);
     const [movingPieceTrail, setMovingPieceTrail] = useState<{color: PlayerColor, pieceId: number} | null>(null);
+    // Cell-by-cell hopping animation
+    const [hoppingPiece, setHoppingPiece] = useState<{
+        color: PlayerColor;
+        pieceId: number;
+        currentStep: { r: number; c: number };
+        isHopping: boolean;
+    } | null>(null);
+    const hoppingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [isLocalMatch, setIsLocalMatch] = useState(false);
     const [localControlledPlayerIds, setLocalControlledPlayerIds] = useState<string[]>([]);
     const [showRollHint, setShowRollHint] = useState(false);
@@ -220,6 +240,14 @@ export const LudoGame: React.FC = () => {
     const [emojiReactions, setEmojiReactions] = useState<Array<{id: string, emoji: string, fromTop: boolean}>>([]);
     const [diceRevealed, setDiceRevealed] = useState(false);
     const [consecutiveSixes, setConsecutiveSixes] = useState(0);
+
+    // New effect states
+    const [pieceEntryEffect, setPieceEntryEffect] = useState<{x: number, y: number, color: string} | null>(null);
+    const [diceSixBurstPos, setDiceSixBurstPos] = useState<{x: number, y: number} | null>(null);
+    const [boardFlashColor, setBoardFlashColor] = useState<string | null>(null);
+    const [showBoardFlash, setShowBoardFlash] = useState(false);
+    const [movePreview, setMovePreview] = useState<{row: number, col: number, color: string} | null>(null);
+    const [dicePressed, setDicePressed] = useState(false);
 
     const queueTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const turnTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -283,20 +311,144 @@ export const LudoGame: React.FC = () => {
         setTimeout(() => setMovingPieceTrail(null), 620);
     }, []);
 
-    // Haptic feedback helper
-    const triggerHaptic = useCallback((type: 'light' | 'medium' | 'heavy' | 'capture' = 'light') => {
+    // Flash the board briefly for major events
+    const triggerBoardFlash = useCallback((color: string) => {
+        if (deviceProfile.isLowEnd) return;
+        setBoardFlashColor(color);
+        setShowBoardFlash(true);
+        setTimeout(() => setShowBoardFlash(false), 400);
+    }, [deviceProfile.isLowEnd]);
+
+    // Compute all intermediate cell coords for a piece moving N steps
+    const getPathSteps = useCallback((
+        playerColor: PlayerColor,
+        oldTravelled: number,
+        newTravelled: number,
+        wasInBase: boolean
+    ): { r: number; c: number }[] => {
+        const steps: { r: number; c: number }[] = [];
+        const startOffset = START_OFFSETS[playerColor];
+
+        if (wasInBase) {
+            // Coming out of base: piece goes to start position
+            steps.push(PATH_COORDS[startOffset]);
+            return steps;
+        }
+
+        for (let t = oldTravelled + 1; t <= newTravelled; t++) {
+            if (t >= 51 && t <= 55) {
+                // Home stretch
+                const homeIdx = t - 51;
+                const coord = HOME_PATHS[playerColor][Math.min(homeIdx, 4)];
+                if (coord) steps.push(coord);
+            } else if (t === 56) {
+                // Reached home center
+                steps.push({ r: 8, c: 8 });
+            } else if (t < 51) {
+                const absPos = (startOffset + t) % 52;
+                const coord = PATH_COORDS[absPos];
+                if (coord) steps.push(coord);
+            }
+        }
+        return steps;
+    }, []);
+
+    // Animate cell-by-cell hopping with per-step sound and squash-stretch
+    const animateHop = useCallback((
+        color: PlayerColor,
+        pieceId: number,
+        steps: { r: number; c: number }[],
+        onComplete?: () => void
+    ) => {
+        if (steps.length === 0) {
+            onComplete?.();
+            return;
+        }
+
+        const HOP_MS = 120; // ms per hop
+        const MAX_DURATION = 1500; // cap total
+        const hopDuration = Math.min(HOP_MS, MAX_DURATION / steps.length);
+        let stepIdx = 0;
+
+        const doStep = () => {
+            if (stepIdx >= steps.length) {
+                // Final landing -- satisfying thud
+                playLandingSound();
+                setHoppingPiece(null);
+                onComplete?.();
+                return;
+            }
+
+            const coord = steps[stepIdx];
+            // Per-cell hop sound with pitch variation built into playHopSound
+            playHopSound();
+
+            setHoppingPiece({
+                color,
+                pieceId,
+                currentStep: coord,
+                isHopping: true,
+            });
+
+            stepIdx++;
+            hoppingRef.current = setTimeout(doStep, hopDuration);
+        };
+
+        doStep();
+    }, []);
+
+    // Get base position for a piece (for fly-back animation)
+    const getBasePosition = useCallback((color: PlayerColor, pieceId: number): { r: number; c: number } => {
+        const baseMap: Record<PlayerColor, { r: number; c: number }> = {
+            GREEN: { r: 1, c: 1 }, YELLOW: { r: 1, c: 10 }, RED: { r: 10, c: 1 }, BLUE: { r: 10, c: 10 }
+        };
+        const b = baseMap[color];
+        const offsets = [[2, 2], [2, 4], [4, 2], [4, 4]];
+        return { r: b.r + offsets[pieceId][0], c: b.c + offsets[pieceId][1] };
+    }, []);
+
+    // Haptic feedback helper with celebration pattern
+    const triggerHaptic = useCallback((type: 'light' | 'medium' | 'heavy' | 'capture' | 'celebration' = 'light') => {
         if ('vibrate' in navigator) {
-            const patterns: Record<'light' | 'medium' | 'heavy' | 'capture', number | number[]> = {
+            const patterns: Record<string, number | number[]> = {
                 light: 10,
-                medium: 50,
-                heavy: 200,
-                capture: [30, 20, 30],
+                medium: 40,
+                heavy: 80,
+                capture: [30, 15, 50, 15, 30],
+                celebration: [20, 10, 20, 10, 40, 10, 80],
             };
-            navigator.vibrate(patterns[type]);
+            navigator.vibrate(patterns[type] ?? 10);
         }
     }, []);
 
-    // ─── WebSocket Message Handler ─────────────────────────────────────
+    // Compute landing position for move preview ghost
+    const getLandingPosition = useCallback((
+        playerColor: PlayerColor,
+        piece: ServerPiece,
+        roll: number
+    ): { r: number; c: number } | null => {
+        if (piece.finished) return null;
+        const startOffset = START_OFFSETS[playerColor];
+
+        if (piece.position === -1) {
+            // Coming out of base
+            if (roll !== 6) return null;
+            return PATH_COORDS[startOffset];
+        }
+
+        const newTravelled = piece.travelled + roll;
+        if (newTravelled > 56) return null;
+
+        if (newTravelled === 56) return { r: 8, c: 8 };
+        if (newTravelled >= 51) {
+            const homeIdx = newTravelled - 51;
+            return HOME_PATHS[playerColor][Math.min(homeIdx, 4)] || null;
+        }
+        const absPos = (startOffset + newTravelled) % 52;
+        return PATH_COORDS[absPos] || null;
+    }, []);
+
+    // ---- WebSocket Message Handler ----
 
     useEffect(() => {
         const unsub = wsService.onMessage((msg: any) => {
@@ -361,6 +513,10 @@ export const LudoGame: React.FC = () => {
                 clearInterval(diceAnimRef.current);
                 diceAnimRef.current = null;
             }
+            if (hoppingRef.current) {
+                clearTimeout(hoppingRef.current);
+                hoppingRef.current = null;
+            }
         };
     }, []);
 
@@ -381,6 +537,7 @@ export const LudoGame: React.FC = () => {
         setIsRolling(true);
         setRollingColor(actorColor);
         setDiceRevealed(false);
+        setMovePreview(null);
         playDiceShakeEnhanced();
 
         if (diceAnimRef.current) {
@@ -388,26 +545,33 @@ export const LudoGame: React.FC = () => {
             diceAnimRef.current = null;
         }
 
+        // Dice face cycling animation -- shows faces cycling through
         let i = 0;
         const tickMs = deviceProfile.isLowEnd ? 40 : 55;
         const maxTicks = Math.max(8, Math.round(deviceProfile.diceAnimDurationMs / tickMs));
+        // Sequence: cycle through faces avoiding spoiler near end
+        const cycleOrder = [1, 4, 2, 5, 3, 6];
+
         diceAnimRef.current = setInterval(() => {
-            // Avoid showing the final number during animation for dramatic reveal
-            let random = Math.floor(Math.random() * 6) + 1;
-            if (i > maxTicks - 3 && random === roll) {
-                random = (roll % 6) + 1; // Avoid early spoiler
+            // Use cycling order for more visual variety
+            let displayVal = cycleOrder[i % cycleOrder.length];
+            // Avoid showing the final number during last few ticks for dramatic reveal
+            if (i > maxTicks - 4 && displayVal === roll) {
+                displayVal = cycleOrder[(i + 1) % cycleOrder.length];
             }
-            setDiceByColor(prev => ({ ...prev, [actorColor]: random }));
+            setDiceByColor(prev => ({ ...prev, [actorColor]: displayVal }));
             i++;
             if (i >= maxTicks) {
                 if (diceAnimRef.current) {
                     clearInterval(diceAnimRef.current);
                     diceAnimRef.current = null;
                 }
+                // Final reveal -- land thud sound
                 setDiceByColor(prev => ({ ...prev, [actorColor]: roll }));
                 setIsRolling(false);
                 setRollingColor(null);
                 setDiceRevealed(true);
+                playDiceLandThud();
 
                 if (roll === 6) {
                     setShowSixEffect(true);
@@ -415,6 +579,9 @@ export const LudoGame: React.FC = () => {
                     triggerHaptic('heavy');
                     if (!deviceProfile.isLowEnd) {
                         triggerShake('light');
+                        // Golden burst around dice
+                        setDiceSixBurstPos({ x: 0, y: 0 });
+                        setTimeout(() => setDiceSixBurstPos(null), 600);
                     }
                     setConsecutiveSixes(prev => {
                         const next = prev + 1;
@@ -437,6 +604,7 @@ export const LudoGame: React.FC = () => {
 
                 if (skipped && reason === 'three_sixes') {
                     addToLog(`${playerColor} rolled 3 sixes! Turn skipped.`, 'normal');
+                    playThreeSixesForfeit();
                 } else if (!canMove) {
                     addToLog(`${playerColor} rolled ${roll}. No moves.`, 'normal');
                 } else {
@@ -447,18 +615,55 @@ export const LudoGame: React.FC = () => {
     }, [addToLog, deviceProfile.diceAnimDurationMs, deviceProfile.isLowEnd, serverState?.currentPlayerColor, triggerHaptic, triggerShake]);
 
     const handlePieceMoved = useCallback((data: any) => {
-        playPieceMove();
         triggerHaptic('light');
-        flashMovedPiece(data.playerColor, data.pieceId);
         if (data.captured) addToLog(`${data.playerColor} captured a piece!`, 'kill');
+
+        // Cell-by-cell hopping animation
+        const color = data.playerColor as PlayerColor;
+        const pieceId = data.pieceId as number;
+        const oldTravelled = data.oldTravelled ?? 0;
+        const newTravelled = data.newTravelled ?? oldTravelled;
+        const wasInBase = data.wasInBase ?? false;
+
+        // Piece entry effect when coming out of base
+        if (wasInBase && boardRef.current) {
+            playPieceEntryPop();
+            const startOffset = START_OFFSETS[color];
+            const startCoord = PATH_COORDS[startOffset];
+            if (startCoord) {
+                const rect = boardRef.current.getBoundingClientRect();
+                const cellSize = rect.width / 15;
+                setPieceEntryEffect({
+                    x: startCoord.c * cellSize - cellSize / 2,
+                    y: startCoord.r * cellSize - cellSize / 2,
+                    color: COLOR_MAP[color].main,
+                });
+                setTimeout(() => setPieceEntryEffect(null), 500);
+            }
+        }
+
+        const steps = getPathSteps(color, oldTravelled, newTravelled, wasInBase);
+
+        if (steps.length > 0) {
+            animateHop(color, pieceId, steps, () => {
+                flashMovedPiece(color, pieceId);
+            });
+        } else {
+            playPieceMove();
+            flashMovedPiece(color, pieceId);
+        }
+
+        // Clear move preview
+        setMovePreview(null);
 
         // Reset capture streak on a non-capture move
         if (!data.captured) {
             captureStreakRef.current = 0;
         }
-    }, [addToLog, triggerHaptic, flashMovedPiece]);
+    }, [addToLog, triggerHaptic, flashMovedPiece, getPathSteps, animateHop]);
 
     const handlePieceCaptured = useCallback((data: any) => {
+        // Dramatic pause built into timing: capture sound starts immediately
         playCaptureEnhanced();
         triggerHaptic('capture');
         addToLog(`${data.capturedBy} captured ${data.capturedPlayer}'s piece!`, 'kill');
@@ -468,9 +673,34 @@ export const LudoGame: React.FC = () => {
             triggerShake('medium');
         }
 
-        // Trigger enhanced capture animation on victim
-        setCapturingPiece({ color: data.capturedPlayer, pieceId: data.capturedPieceId });
-        setTimeout(() => setCapturingPiece(null), 800);
+        // Board flash in attacker's color
+        const attackerColor = COLOR_MAP[data.capturedBy as PlayerColor]?.main || '#fff';
+        triggerBoardFlash(attackerColor);
+
+        // Fly-back animation: captured piece flies back to base with delay
+        const capturedColor = data.capturedPlayer as PlayerColor;
+        const capturedPieceId = data.capturedPieceId as number;
+
+        // Get the current position of the captured piece
+        const capturePos = data.capturePosition ?? -1;
+        let fromCoord = { r: 8, c: 8 }; // fallback center
+        if (capturePos >= 0 && capturePos < PATH_COORDS.length) {
+            fromCoord = PATH_COORDS[capturePos];
+        }
+
+        const toCoord = getBasePosition(capturedColor, capturedPieceId);
+
+        // Delay the flyback slightly for dramatic impact
+        setTimeout(() => {
+            playCaptureReturn();
+            setCaptureFlyback({
+                color: capturedColor,
+                pieceId: capturedPieceId,
+                fromPos: fromCoord,
+                toPos: toCoord,
+            });
+            setTimeout(() => setCaptureFlyback(null), 800);
+        }, 300);
 
         // Attacker power pulse
         if (data.attackerPieceId !== undefined) {
@@ -480,15 +710,15 @@ export const LudoGame: React.FC = () => {
 
         // Capture explosion at the point of capture
         if (boardRef.current) {
-            const capturedColor = COLOR_MAP[data.capturedPlayer as PlayerColor]?.main || '#ff0000';
-            // Place explosion roughly at center of board as fallback
+            const capturedColorHex = COLOR_MAP[capturedColor]?.main || '#ff0000';
             const rect = boardRef.current.getBoundingClientRect();
+            const cellSize = rect.width / 15;
             setCaptureExplosionPos({
-                x: rect.width / 2,
-                y: rect.height / 2,
-                color: capturedColor,
+                x: fromCoord.c * cellSize - cellSize / 2,
+                y: fromCoord.r * cellSize - cellSize / 2,
+                color: capturedColorHex,
             });
-            setTimeout(() => setCaptureExplosionPos(null), 600);
+            setTimeout(() => setCaptureExplosionPos(null), 700);
         }
 
         // Track capture streak
@@ -500,13 +730,17 @@ export const LudoGame: React.FC = () => {
             playStreakSound();
             setTimeout(() => setShowStreakOverlay(false), 2000);
         }
-    }, [addToLog, triggerHaptic, triggerShake, deviceProfile.isLowEnd]);
+    }, [addToLog, triggerHaptic, triggerShake, deviceProfile.isLowEnd, getBasePosition, triggerBoardFlash]);
 
     const handlePieceHome = useCallback((data: any) => {
         playHomeEntryEnhanced();
-        triggerHaptic('heavy');
+        triggerHaptic('celebration');
         const finishTarget = serverState?.targetFinishCount || 4;
         addToLog(`${data.playerColor} got a piece home! (${data.finishedCount}/${finishTarget})`, 'finish');
+
+        // Board flash in the player's color
+        const homeColor = COLOR_MAP[data.playerColor as PlayerColor]?.main || '#FFD700';
+        triggerBoardFlash(homeColor);
 
         // Trigger sparkle animation
         setSparklingPiece({ color: data.playerColor, pieceId: data.pieceId });
@@ -516,9 +750,9 @@ export const LudoGame: React.FC = () => {
         if (boardRef.current && !deviceProfile.isLowEnd) {
             const rect = boardRef.current.getBoundingClientRect();
             setHomeCelebrationPos({ x: rect.width / 2, y: rect.height / 2 });
-            setTimeout(() => setHomeCelebrationPos(null), 1200);
+            setTimeout(() => setHomeCelebrationPos(null), 1400);
         }
-    }, [addToLog, triggerHaptic, serverState?.targetFinishCount, deviceProfile.isLowEnd]);
+    }, [addToLog, triggerHaptic, serverState?.targetFinishCount, deviceProfile.isLowEnd, triggerBoardFlash]);
 
     const handleTurnStart = useCallback((data: any) => {
         const turnSecs = Math.max(8, Math.floor((data?.turnTimeLimitMs || serverState?.turnTimeLimitMs || 30000) / 1000));
@@ -541,15 +775,14 @@ export const LudoGame: React.FC = () => {
 
         // Trigger enhanced celebration
         playWinSoundEnhanced();
-        triggerHaptic('heavy');
+        triggerHaptic('celebration');
         if (!deviceProfile.isLowEnd) {
             setShowConfetti(true);
-            // Keep confetti for longer on win screen
-            setTimeout(() => setShowConfetti(false), 5000);
+            setTimeout(() => setShowConfetti(false), 6000);
         }
     }, [addToLog, deviceProfile.isLowEnd, triggerHaptic]);
 
-    // ─── Timers ────────────────────────────────────────────────────────
+    // ---- Timers ----
 
     const startQueueTimer = () => {
         setQueueTimer(0);
@@ -573,7 +806,7 @@ export const LudoGame: React.FC = () => {
         if (turnTimerRef.current) { clearInterval(turnTimerRef.current); turnTimerRef.current = null; }
     };
 
-    // ─── Actions ───────────────────────────────────────────────────────
+    // ---- Actions ----
 
     const cloneGameState = (state: ServerGameState): ServerGameState => ({
         ...state,
@@ -721,6 +954,8 @@ export const LudoGame: React.FC = () => {
 
         const startOffset = START_OFFSETS[player.color];
         let captured = false;
+        const oldTravelled = piece.travelled;
+        const wasInBase = piece.position === -1;
 
         if (piece.position === -1) {
             if (roll !== 6) return;
@@ -761,11 +996,39 @@ export const LudoGame: React.FC = () => {
             }
         }
 
-        playPieceMove();
-        flashMovedPiece(player.color, piece.id);
+        // Cell-by-cell hopping animation for local moves
+        const steps = getPathSteps(player.color, oldTravelled, piece.travelled, wasInBase);
+        const hopDelay = Math.min(120, 1500 / Math.max(steps.length, 1)) * steps.length + 200;
+
+        // Piece entry effect when coming out of base
+        if (wasInBase && boardRef.current) {
+            playPieceEntryPop();
+            const startCoord = PATH_COORDS[startOffset];
+            if (startCoord) {
+                const rect = boardRef.current.getBoundingClientRect();
+                const cellSize = rect.width / 15;
+                setPieceEntryEffect({
+                    x: startCoord.c * cellSize - cellSize / 2,
+                    y: startCoord.r * cellSize - cellSize / 2,
+                    color: COLOR_MAP[player.color].main,
+                });
+                setTimeout(() => setPieceEntryEffect(null), 500);
+            }
+        }
+
+        if (steps.length > 0) {
+            animateHop(player.color, piece.id, steps, () => {
+                flashMovedPiece(player.color, piece.id);
+            });
+        } else {
+            playPieceMove();
+            flashMovedPiece(player.color, piece.id);
+        }
+
         state.waitingForMove = false;
         state.movablePieces = [];
         setServerState(state);
+        setMovePreview(null);
 
         if (finishLocalIfNeeded(state)) return;
 
@@ -778,7 +1041,7 @@ export const LudoGame: React.FC = () => {
                 return next;
             });
             if (!bonusTurn) addToLog(`${player.color} turn ended`, 'normal');
-        }, 350);
+        }, Math.max(350, hopDelay));
     };
 
     const pickLocalBotMove = (state: ServerGameState, player: ServerPlayer, movable: number[], roll: number): number => {
@@ -875,7 +1138,7 @@ export const LudoGame: React.FC = () => {
 
         const state = cloneGameState(serverState);
         const player = state.players[state.currentPlayerIndex];
-        const isLocalBotTurn = !!(isLocalMatch && player.id && !localControlledPlayerIds.includes(player.id));
+        const isLocalBotTurn = !!(isLocalMatch && player.id && !localControlledPlayerIds.includes(player.id as string));
         const roll = Math.floor(Math.random() * 6) + 1;
         state.lastRoll = roll;
 
@@ -901,8 +1164,16 @@ export const LudoGame: React.FC = () => {
             reason: skipped ? 'three_sixes' : undefined,
         });
 
+        // Auto-move: if only one piece can move, auto-select with brief highlight
         if (movable.length === 1 && !skipped) {
-            setTimeout(() => executeLocalMove(movable[0], roll), 500);
+            setTimeout(() => {
+                // Brief highlight of the auto-selected piece
+                setMovingPieceTrail({ color: player.color, pieceId: movable[0] });
+                setTimeout(() => {
+                    setMovingPieceTrail(null);
+                    executeLocalMove(movable[0], roll);
+                }, 250);
+            }, 500);
             return;
         }
 
@@ -936,8 +1207,10 @@ export const LudoGame: React.FC = () => {
         setMovingPieceTrail(null);
         setShowRollHint(false);
         setCapturingPiece(null);
+        setCaptureFlyback(null);
         setAttackerPiece(null);
         setSparklingPiece(null);
+        setHoppingPiece(null);
         setCaptureStreak(0);
         setShowStreakOverlay(false);
         setCaptureExplosionPos(null);
@@ -946,7 +1219,17 @@ export const LudoGame: React.FC = () => {
         setShowTurnBanner(false);
         setShowConfetti(false);
         setConsecutiveSixes(0);
+        setPieceEntryEffect(null);
+        setDiceSixBurstPos(null);
+        setBoardFlashColor(null);
+        setShowBoardFlash(false);
+        setMovePreview(null);
+        setDicePressed(false);
         captureStreakRef.current = 0;
+        if (hoppingRef.current) {
+            clearTimeout(hoppingRef.current);
+            hoppingRef.current = null;
+        }
     }, []);
 
     const leaveGame = () => {
@@ -979,7 +1262,7 @@ export const LudoGame: React.FC = () => {
         setMatchState('MENU');
     };
 
-    // ─── Piece Rendering ──────────────────────────────────────────────
+    // ---- Piece Rendering ----
 
     const getPieceStyle = (color: PlayerColor, pos: number, traveled: number, pieceId: number) => {
         // Validate bounds
@@ -1004,13 +1287,11 @@ export const LudoGame: React.FC = () => {
 
         // In home stretch (pos === -2 OR travelled >= 51)
         if (pos === -2 || traveled >= 51) {
-            // Home stretch: travelled 51-56 maps to HOME_PATHS[0-5]
             const homeIdx = traveled - 51;
             if (homeIdx >= 0 && homeIdx <= 5) {
                 const coord = HOME_PATHS[color][Math.min(homeIdx, 4)];
                 return { gridRow: coord.r, gridColumn: coord.c };
             }
-            // Fallback for out-of-bounds
             return { gridRow: 8, gridColumn: 8, opacity: 0.5 };
         }
 
@@ -1022,7 +1303,7 @@ export const LudoGame: React.FC = () => {
         return { gridRow: 1, gridColumn: 1, display: 'none' as const };
     };
 
-    // ─── Derived State ─────────────────────────────────────────────────
+    // ---- Derived State ----
 
     const isMyTurn = !!(serverState?.status === 'PLAYING' && (
         (isLocalMatch ? (
@@ -1034,10 +1315,11 @@ export const LudoGame: React.FC = () => {
     const canRollDice = !!(isMyTurn && !serverState?.waitingForMove && !isRolling);
     const currentPlayer = serverState?.players[serverState.currentPlayerIndex];
 
+    // Urgency tick with escalating pitch
     useEffect(() => {
         if (matchState !== 'PLAYING' || !isMyTurn) return;
         if (turnTimeLeft > 0 && turnTimeLeft <= 5) {
-            playUrgencyTick();
+            playUrgencyTick(turnTimeLeft);
             triggerHaptic('light');
         }
     }, [matchState, isMyTurn, turnTimeLeft, triggerHaptic]);
@@ -1073,7 +1355,7 @@ export const LudoGame: React.FC = () => {
         isRolling,
     ]);
 
-    // ─── Render: MENU ──────────────────────────────────────────────────
+    // ---- Render: MENU ----
 
     if (matchState === 'MENU') {
         return (
@@ -1142,7 +1424,7 @@ export const LudoGame: React.FC = () => {
                                     </button>
                                 </div>
                                 <div className="pot-row sub" style={{ marginTop: 8 }}>
-                                    <span>{quickMode ? '2 pieces to finish · 18s turn timer' : '4 pieces to finish · 30s turn timer'}</span>
+                                    <span>{quickMode ? '2 pieces to finish \u00B7 18s turn timer' : '4 pieces to finish \u00B7 30s turn timer'}</span>
                                 </div>
                             </div>
 
@@ -1202,7 +1484,7 @@ export const LudoGame: React.FC = () => {
                                                 onClick={() => setLocalPreferredColor(color)}
                                                 aria-label={color}
                                             >
-                                                {localPreferredColor === color ? '✓' : ''}
+                                                {localPreferredColor === color ? '\u2713' : ''}
                                             </button>
                                         ))}
                                     </div>
@@ -1253,7 +1535,7 @@ export const LudoGame: React.FC = () => {
         );
     }
 
-    // ─── Render: QUEUING ──────────────────────────────────────────────
+    // ---- Render: QUEUING ----
 
     if (matchState === 'QUEUING') {
         const mins = Math.floor(queueTimer / 60);
@@ -1265,7 +1547,7 @@ export const LudoGame: React.FC = () => {
                     <div className="ludo-queue-spinner" />
                     <h2 className="ludo-title" style={{ marginTop: '20px' }}>Finding Match...</h2>
                     <p className="ludo-subtitle">
-                        {maxPlayers} players, {formatIndianNumber(betAmount)} entry · {quickMode ? 'Quick' : 'Classic'}
+                        {maxPlayers} players, {formatIndianNumber(betAmount)} entry \u00B7 {quickMode ? 'Quick' : 'Classic'}
                     </p>
                     <p className="ludo-subtitle" style={{ fontSize: '0.8rem' }}>
                         Bots auto-fill empty seats after ~8 seconds
@@ -1277,7 +1559,7 @@ export const LudoGame: React.FC = () => {
         );
     }
 
-    // ─── Render: WAITING ROOM ─────────────────────────────────────────
+    // ---- Render: WAITING ROOM ----
 
     if (matchState === 'WAITING_ROOM' && serverState) {
         const isCreator = user && serverState.players[0]?.id === user.id;
@@ -1357,7 +1639,7 @@ export const LudoGame: React.FC = () => {
         );
     }
 
-    // ─── Render: PLAYING + FINISHED ───────────────────────────────────
+    // ---- Render: PLAYING + FINISHED ----
 
     if ((matchState === 'PLAYING' || matchState === 'FINISHED') && serverState) {
         const players = serverState.players;
@@ -1391,11 +1673,16 @@ export const LudoGame: React.FC = () => {
         const turnColor = currentPlayer ? COLOR_MAP[currentPlayer.color].main : '#8ea7bf';
         const mobileOpponents = players.filter(player => player.color !== myHudPlayer?.color);
         const roomLabel = serverState.code || (isLocalMatch ? 'LOCAL' : 'MATCH');
+
+        // Current player color for edge glow
+        const currentPlayerColorHex = currentPlayer ? COLOR_MAP[currentPlayer.color].main : '#8ea7bf';
+
         const handleToggleSound = () => {
             const nextEnabled = !soundEnabled;
             soundManager.setEnabled(nextEnabled);
             setSoundEnabled(nextEnabled);
         };
+
         const handleBoardTap = (event: React.MouseEvent<HTMLDivElement>) => {
             if (!boardRef.current || !serverState.waitingForMove || !isMyTurn) return;
             if ((event.target as HTMLElement).closest('.piece')) return;
@@ -1439,17 +1726,48 @@ export const LudoGame: React.FC = () => {
         // Emoji reaction handler
         const handleSendEmoji = (emoji: string) => {
             playEmojiPop();
+            triggerHaptic('light');
             const id = `${Date.now()}-${Math.random()}`;
             setEmojiReactions(prev => [...prev, { id, emoji, fromTop: false }]);
             setTimeout(() => {
                 setEmojiReactions(prev => prev.filter(r => r.id !== id));
-            }, 1800);
+            }, 1500);
         };
+
+        // Compute move preview for the first movable piece when waiting for selection
+        const computedMovePreview = useMemo(() => {
+            if (!serverState.waitingForMove || !isMyTurn || !currentPlayer || deviceProfile.isLowEnd) return null;
+            const roll = serverState.lastRoll;
+            if (!roll) return null;
+
+            const activeColor = isLocalMatch ? currentPlayer.color : myColor;
+            if (!activeColor) return null;
+
+            const player = players.find(p => p.color === activeColor);
+            if (!player) return null;
+
+            // Show preview for each movable piece
+            const previews: Array<{row: number, col: number, color: string}> = [];
+            for (const pieceId of serverState.movablePieces) {
+                const piece = player.pieces.find(p => p.id === pieceId);
+                if (!piece || piece.finished) continue;
+                const landing = getLandingPosition(activeColor, piece, roll);
+                if (landing) {
+                    previews.push({ row: landing.r, col: landing.c, color: COLOR_MAP[activeColor].main });
+                }
+            }
+            return previews;
+        }, [serverState.waitingForMove, isMyTurn, serverState.lastRoll, serverState.movablePieces, currentPlayer, players, myColor, isLocalMatch, deviceProfile.isLowEnd, getLandingPosition]);
 
         return (
             <div className={`ludo-game-screen${deviceProfile.isLowEnd ? ' low-end' : ''} ${shakeClass}`}>
                 {/* Enhanced Confetti */}
-                {showConfetti && !deviceProfile.isLowEnd && <EnhancedConfetti duration={5000} />}
+                {showConfetti && !deviceProfile.isLowEnd && <EnhancedConfetti duration={6000} />}
+
+                {/* Screen edge glow in current player's color */}
+                {matchState === 'PLAYING' && isMyTurn && !deviceProfile.isLowEnd && (
+                    <ScreenEdgeGlow color={currentPlayerColorHex} active={true} />
+                )}
 
                 {/* Urgency vignette when timer is low and it's my turn */}
                 {isMyTurn && matchState === 'PLAYING' && (
@@ -1537,9 +1855,18 @@ export const LudoGame: React.FC = () => {
                         const isMe = player.id === user?.id;
 
                         return (
-                            <div key={player.color}
+                            <motion.div key={player.color}
                                 className={`ludo-strip-player${isActive ? ' active' : ''}${isMe ? ' me' : ''}`}
-                                style={{ '--strip-color': colors.main, '--strip-glow': colors.glow } as React.CSSProperties}>
+                                style={{ '--strip-color': colors.main, '--strip-glow': colors.glow } as React.CSSProperties}
+                                animate={isActive ? {
+                                    boxShadow: [
+                                        `0 0 0 0 ${colors.glow}`,
+                                        `0 0 12px 3px ${colors.glow}`,
+                                        `0 0 0 0 ${colors.glow}`,
+                                    ],
+                                } : {}}
+                                transition={isActive ? { duration: 1.5, repeat: Infinity, ease: 'easeInOut' } : {}}
+                            >
                                 <div className="strip-avatar" style={{ background: colors.gradient }}>
                                     {player.username[0].toUpperCase()}
                                 </div>
@@ -1552,7 +1879,7 @@ export const LudoGame: React.FC = () => {
                                 {isActive && player.finishedCount < finishTarget && (
                                     <TimerRing timeLeft={turnTimeLeft} maxTime={turnSeconds} color={colors.main} />
                                 )}
-                            </div>
+                            </motion.div>
                         );
                     })}
                 </div>
@@ -1570,6 +1897,11 @@ export const LudoGame: React.FC = () => {
                         )}
                         {/* In-board effects layer */}
                         <div className="ludo-board-effects-layer">
+                            {/* Board Flash for major events */}
+                            {boardFlashColor && (
+                                <BoardFlash color={boardFlashColor} show={showBoardFlash} />
+                            )}
+
                             {/* Capture Explosion */}
                             <AnimatePresence>
                                 {captureExplosionPos && !deviceProfile.isLowEnd && (
@@ -1577,6 +1909,17 @@ export const LudoGame: React.FC = () => {
                                         color={captureExplosionPos.color}
                                         x={captureExplosionPos.x}
                                         y={captureExplosionPos.y}
+                                    />
+                                )}
+                            </AnimatePresence>
+
+                            {/* Piece Entry Burst */}
+                            <AnimatePresence>
+                                {pieceEntryEffect && !deviceProfile.isLowEnd && (
+                                    <PieceEntryBurst
+                                        color={pieceEntryEffect.color}
+                                        x={pieceEntryEffect.x}
+                                        y={pieceEntryEffect.y}
                                     />
                                 )}
                             </AnimatePresence>
@@ -1598,7 +1941,7 @@ export const LudoGame: React.FC = () => {
                                 )}
                             </AnimatePresence>
 
-                            {/* Turn Banner (flashes briefly) */}
+                            {/* Turn Banner (flashes briefly -- slides in from side) */}
                             {showTurnBanner && myColor && (
                                 <TurnBanner
                                     isMyTurn={true}
@@ -1633,6 +1976,18 @@ export const LudoGame: React.FC = () => {
                                 <div key={`home-${color}-${i}`} className={`cell path-${color.toLowerCase()}`} style={{ gridRow: coord.r, gridColumn: coord.c }} />
                             ))
                         )}
+
+                        {/* Move preview ghosts -- show where pieces would land */}
+                        {computedMovePreview && computedMovePreview.map((preview, i) => (
+                            <MovePreviewGhost
+                                key={`preview-${i}`}
+                                color={preview.color}
+                                gridRow={preview.row}
+                                gridColumn={preview.col}
+                                visible={true}
+                            />
+                        ))}
+
                         {players.flatMap(p =>
                             p.pieces.map(piece => {
                                 const style = getPieceStyle(p.color, piece.position, piece.travelled, piece.id);
@@ -1643,17 +1998,29 @@ export const LudoGame: React.FC = () => {
                                     (isLocalMatch ? p.color === activeColor : (isMyTurn && p.color === myColor));
 
                                 // Check for animation states
-                                const isCaptured = capturingPiece?.color === p.color && capturingPiece?.pieceId === piece.id;
+                                const isHopping = hoppingPiece?.color === p.color && hoppingPiece?.pieceId === piece.id && hoppingPiece?.isHopping;
+                                const isFlyingBack = captureFlyback?.color === p.color && captureFlyback?.pieceId === piece.id;
                                 const isAttacker = attackerPiece?.color === p.color && attackerPiece?.pieceId === piece.id;
                                 const isSparkling = sparklingPiece?.color === p.color && sparklingPiece?.pieceId === piece.id;
                                 const isMovingTrail = movingPieceTrail?.color === p.color && movingPieceTrail?.pieceId === piece.id;
+
+                                // Override position if hopping
+                                let finalStyle = { ...style };
+                                if (isHopping && hoppingPiece.currentStep) {
+                                    finalStyle = {
+                                        ...finalStyle,
+                                        gridRow: hoppingPiece.currentStep.r,
+                                        gridColumn: hoppingPiece.currentStep.c,
+                                    };
+                                }
 
                                 const classNames = [
                                     'piece',
                                     p.color.toLowerCase(),
                                     isMovable && 'glow',
                                     isMovingTrail && 'trail',
-                                    isCaptured && 'captured-enhanced',
+                                    isHopping && 'hopping',
+                                    isFlyingBack && 'flyback',
                                     isAttacker && 'attacker-pulse',
                                     isSparkling && 'sparkling-enhanced',
                                 ].filter(Boolean).join(' ');
@@ -1662,18 +2029,26 @@ export const LudoGame: React.FC = () => {
                                     <motion.div
                                         key={`${p.color}-${piece.id}`}
                                         className={classNames}
-                                        style={{ ...style, cursor: isMovable ? 'pointer' : 'default' }}
-                                        animate={isMovingTrail ? {
-                                            y: [0, -18, -8, -12, -3, 0],
-                                            scale: [1, 1.18, 1.06, 1.1, 1.02, 1],
-                                            rotateZ: [0, 6, -5, 3, -1, 0],
-                                        } : isCaptured ? {
-                                            scale: [1, 1.5, 0.1],
-                                            rotate: [0, 15, 180],
-                                            opacity: [1, 1, 0],
-                                            y: [0, -10, -200],
+                                        style={{ ...finalStyle, cursor: isMovable ? 'pointer' : 'default' }}
+                                        animate={isHopping ? {
+                                            // Squash and stretch during hop for cartoon feel
+                                            y: [0, -10, 0],
+                                            scale: [1, 1.1, 1],
+                                            scaleX: [1, 0.92, 1.04, 1],
+                                            scaleY: [1, 1.1, 0.94, 1],
+                                        } : isMovingTrail ? {
+                                            y: [0, -14, 0],
+                                            scale: [1, 1.1, 1],
+                                        } : isFlyingBack ? {
+                                            scale: [1, 1.4, 0.3],
+                                            opacity: [1, 1, 0.2],
+                                            y: [0, -25, 0],
                                         } : isAttacker ? {
-                                            scale: [1, 1.3, 1.15, 1],
+                                            scale: [1, 1.35, 1.15, 1],
+                                        } : isMovable ? {
+                                            // Movable pieces "breathe" -- subtle scale pulse
+                                            scale: [1, 1.08, 1],
+                                            y: [0, -2, 0],
                                         } : {
                                             y: 0,
                                             scale: 1,
@@ -1687,13 +2062,18 @@ export const LudoGame: React.FC = () => {
                                         }}
                                         layout
                                         initial={false}
-                                        whileTap={isMovable ? { scale: 0.88 } : undefined}
-                                        transition={isMovingTrail
-                                            ? { duration: 0.62, times: [0, 0.2, 0.4, 0.6, 0.8, 1], ease: 'easeInOut' }
-                                            : isCaptured
-                                            ? { duration: 0.7, times: [0, 0.2, 1], ease: 'easeIn' }
+                                        whileTap={isMovable ? { scale: 0.85, y: 2 } : undefined}
+                                        whileHover={isMovable ? { scale: 1.15, y: -4 } : undefined}
+                                        transition={isHopping
+                                            ? { duration: 0.1, times: [0, 0.5, 1], ease: 'easeOut' }
+                                            : isMovingTrail
+                                            ? { duration: 0.35, times: [0, 0.4, 1], ease: 'easeOut' }
+                                            : isFlyingBack
+                                            ? { duration: 0.7, times: [0, 0.3, 1], ease: 'easeInOut' }
                                             : isAttacker
                                             ? { duration: 0.6, times: [0, 0.25, 0.5, 1], ease: 'easeOut' }
+                                            : isMovable
+                                            ? { duration: 0.8, repeat: Infinity, repeatType: 'mirror' as const, ease: 'easeInOut' }
                                             : { type: 'spring', stiffness: 280, damping: 20, mass: 0.55 }}
                                     />
                                 );
@@ -1720,13 +2100,17 @@ export const LudoGame: React.FC = () => {
                                     <motion.div
                                         className={`ludo-dice hud-dice ${canRollDice ? 'can-roll' : 'disabled'} ${isRolling && rollingColor === myHudPlayer.color ? 'rolling-enhanced' : ''} ${showSixEffect && rollingColor === myHudPlayer.color ? 'dice-six-glow-enhanced' : ''}`}
                                         onClick={() => canRollDice && rollDice()}
-                                        whileTap={canRollDice ? { scale: 0.88 } : {}}
+                                        onPointerDown={() => canRollDice && setDicePressed(true)}
+                                        onPointerUp={() => setDicePressed(false)}
+                                        onPointerLeave={() => setDicePressed(false)}
+                                        whileTap={canRollDice ? { scale: 0.85 } : {}}
+                                        animate={dicePressed && canRollDice ? { scale: 0.9, y: 2 } : {}}
                                     >
                                         {myHudDiceValue ? <DiceFace value={myHudDiceValue} /> : (
                                             <span className="hud-dice-wait">{canRollDice ? 'TAP' : 'WAIT'}</span>
                                         )}
                                     </motion.div>
-                                    <div className="hud-turn-arrow">◀</div>
+                                    <div className="hud-turn-arrow">&#9664;</div>
                                     {isDuelPresentation && (
                                         <div className="hud-label">You</div>
                                     )}
@@ -1741,7 +2125,7 @@ export const LudoGame: React.FC = () => {
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: -6 }}
                                 >
-                                    <span className="hint-hand">👆</span> Select your token to move
+                                    <span className="hint-hand">{'\u{1F446}'}</span> Select your token to move
                                 </motion.div>
                             )}
                         </AnimatePresence>
@@ -1764,12 +2148,22 @@ export const LudoGame: React.FC = () => {
                             <motion.div
                                 className={`ludo-dice ludo-dice-center mobile-primary-dice ${canRollDice ? 'can-roll' : 'disabled'} ${isRolling && rollingColor === currentPlayer?.color ? 'rolling-enhanced' : ''} ${showSixEffect ? 'dice-six-glow-enhanced' : ''} ${diceRevealed ? 'dice-revealed' : ''}`}
                                 onClick={() => canRollDice && rollDice()}
-                                whileTap={canRollDice ? { scale: 0.88 } : {}}
+                                onPointerDown={() => canRollDice && setDicePressed(true)}
+                                onPointerUp={() => setDicePressed(false)}
+                                onPointerLeave={() => setDicePressed(false)}
+                                whileTap={canRollDice ? { scale: 0.85 } : {}}
+                                animate={dicePressed && canRollDice ? { scale: 0.92, y: 3 } : {}}
                             >
                                 {activeDiceValue ? <DiceFace value={activeDiceValue} /> : (
                                     <span className="hud-dice-wait">{canRollDice ? 'ROLL' : 'WAIT'}</span>
                                 )}
                             </motion.div>
+                            {/* Dice six burst effect */}
+                            <AnimatePresence>
+                                {diceSixBurstPos && showSixEffect && !deviceProfile.isLowEnd && (
+                                    <DiceSixBurst x={0} y={0} />
+                                )}
+                            </AnimatePresence>
                             <div className="mobile-dice-caption">
                                 {isMyTurn && serverState.waitingForMove ? 'Choose token' : (canRollDice ? 'Tap to roll' : 'Stand by')}
                             </div>
@@ -1886,7 +2280,11 @@ export const LudoGame: React.FC = () => {
                                         <motion.div
                                             className={`ludo-dice ludo-dice-center ${canRollDice ? 'can-roll' : 'disabled'} ${isRolling && rollingColor === currentPlayer?.color ? 'rolling-enhanced' : ''} ${showSixEffect && rollingColor === currentPlayer?.color ? 'dice-six-glow-enhanced' : ''} ${diceRevealed ? 'dice-revealed' : ''}`}
                                             onClick={() => canRollDice && rollDice()}
-                                            whileTap={canRollDice ? { scale: 0.88 } : {}}
+                                            onPointerDown={() => canRollDice && setDicePressed(true)}
+                                            onPointerUp={() => setDicePressed(false)}
+                                            onPointerLeave={() => setDicePressed(false)}
+                                            whileTap={canRollDice ? { scale: 0.85 } : {}}
+                                            animate={dicePressed && canRollDice ? { scale: 0.92, y: 3 } : {}}
                                         >
                                             {activeDiceValue ? <DiceFace value={activeDiceValue} /> : (
                                                 <span style={{ fontSize: '0.8rem', color: '#999', fontWeight: 700 }}>
@@ -1915,7 +2313,7 @@ export const LudoGame: React.FC = () => {
                                                     animate={{ opacity: 1, y: 0 }}
                                                     exit={{ opacity: 0, y: -8 }}
                                                 >
-                                                    <span className="hint-hand">👆</span> Tap here to roll
+                                                    <span className="hint-hand">{'\u{1F446}'}</span> Tap here to roll
                                                 </motion.div>
                                             )}
                                         </AnimatePresence>

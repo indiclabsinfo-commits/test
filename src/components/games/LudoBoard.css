@@ -8,7 +8,29 @@
     --ludo-neon: #7ef9a9;
     --ludo-neon-soft: rgba(126, 249, 169, 0.28);
     --ludo-gold: #ffd86b;
-    --ludo-panel-bg: rgba(12, 28, 46, 0.78);
+    --ludo-panel-bg: rgba(12, 28, 46, 0.82);
+    /* Premium Ludo King palette - richer, more vibrant */
+    --ludo-green: #00B84A;
+    --ludo-green-light: #2AE86A;
+    --ludo-green-dark: #008535;
+    --ludo-yellow: #FFCA00;
+    --ludo-yellow-light: #FFE04A;
+    --ludo-yellow-dark: #E0A800;
+    --ludo-blue: #2855C5;
+    --ludo-blue-light: #5080E8;
+    --ludo-blue-dark: #1A3A8F;
+    --ludo-red: #E8202C;
+    --ludo-red-light: #FF4D55;
+    --ludo-red-dark: #B8141D;
+    /* Board wood tones */
+    --ludo-wood-light: #F5DEB3;
+    --ludo-wood-mid: #E8CFA0;
+    --ludo-wood-dark: #6D3A1A;
+    --ludo-wood-trim: #8B5E3C;
+    /* Gold accent for premium feel */
+    --ludo-gold-bright: #FFD700;
+    --ludo-gold-dim: #C5A028;
+    --ludo-gold-shimmer: rgba(255, 215, 0, 0.5);
 }
 
 /* ─── SHARED SCREEN WRAPPERS ─────────────── */
@@ -26,19 +48,24 @@
 .ludo-mobile-card {
     width: 100%;
     max-width: 420px;
-    background: var(--bg-secondary, #1a2c38);
-    border-radius: 16px;
-    padding: 20px 16px;
-    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    background: linear-gradient(180deg, rgba(26, 44, 56, 0.98), rgba(18, 32, 46, 0.98));
+    border-radius: 18px;
+    padding: 22px 18px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.4),
+        0 2px 8px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .ludo-title {
-    font-size: 1.3rem;
-    font-weight: 800;
+    font-size: 1.4rem;
+    font-weight: 900;
     color: var(--text-primary, #fff);
     margin: 0 0 4px;
     text-align: center;
+    letter-spacing: 0.02em;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .ludo-subtitle {
@@ -138,11 +165,14 @@
 }
 
 .ludo-setup-panel {
-    background: linear-gradient(180deg, #123f86, #0d2f64);
-    border: 2px solid rgba(255, 214, 74, 0.85);
-    box-shadow: 0 0 0 2px rgba(17, 39, 70, 0.75) inset, 0 14px 28px rgba(0, 0, 0, 0.35);
-    border-radius: 12px;
-    padding: 14px;
+    background: linear-gradient(180deg, #14428a, #0d2f64);
+    border: 2px solid rgba(255, 214, 74, 0.9);
+    box-shadow:
+        inset 0 0 0 2px rgba(17, 39, 70, 0.75),
+        0 0 20px rgba(255, 214, 74, 0.1),
+        0 14px 32px rgba(0, 0, 0, 0.4);
+    border-radius: 14px;
+    padding: 16px;
     margin-bottom: 12px;
 }
 
@@ -163,26 +193,47 @@
 }
 
 .ludo-color-dot {
-    width: 50px;
-    height: 50px;
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
     border: 3px solid rgba(255, 255, 255, 0.25);
     color: #fff;
     font-weight: 900;
     font-size: 1.1rem;
     cursor: pointer;
+    transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s, border-color 0.2s;
+    touch-action: manipulation;
 }
 
 .ludo-color-dot.selected {
-    transform: scale(1.08);
+    transform: scale(1.12);
     border-color: #fff;
-    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.16);
+    box-shadow:
+        0 0 0 4px rgba(255, 255, 255, 0.2),
+        0 0 16px rgba(255, 255, 255, 0.15);
 }
 
-.ludo-color-dot.green { background: #2ecc40; }
-.ludo-color-dot.yellow { background: #f5d000; color: #1a1a1a; }
-.ludo-color-dot.blue { background: #3498db; }
-.ludo-color-dot.red { background: #e74c3c; }
+.ludo-color-dot:active {
+    transform: scale(0.95);
+}
+
+.ludo-color-dot.green {
+    background: radial-gradient(circle at 35% 30%, var(--ludo-green-light), var(--ludo-green));
+    box-shadow: 0 4px 12px rgba(0, 184, 74, 0.4);
+}
+.ludo-color-dot.yellow {
+    background: radial-gradient(circle at 35% 30%, var(--ludo-yellow-light), var(--ludo-yellow));
+    color: #1a1a1a;
+    box-shadow: 0 4px 12px rgba(255, 202, 0, 0.4);
+}
+.ludo-color-dot.blue {
+    background: radial-gradient(circle at 35% 30%, var(--ludo-blue-light), var(--ludo-blue));
+    box-shadow: 0 4px 12px rgba(40, 85, 197, 0.4);
+}
+.ludo-color-dot.red {
+    background: radial-gradient(circle at 35% 30%, var(--ludo-red-light), var(--ludo-red));
+    box-shadow: 0 4px 12px rgba(232, 32, 44, 0.4);
+}
 
 /* ─── POT INFO ───────────────────────────── */
 
@@ -244,25 +295,32 @@
 
 .ludo-action-btn {
     width: 100%;
-    padding: 14px 0;
-    font-size: 0.9rem;
+    padding: 15px 0;
+    font-size: 0.92rem;
     font-weight: 800;
     border: none;
-    border-radius: 10px;
+    border-radius: 12px;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all 0.15s cubic-bezier(0.22, 1, 0.36, 1);
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.04em;
+    touch-action: manipulation;
+    position: relative;
+    overflow: hidden;
 }
 
 .ludo-action-btn.primary {
-    background: linear-gradient(135deg, var(--accent-green, #00e701), #00c801);
+    background: linear-gradient(135deg, #00e701 0%, #00c801 50%, #00b001 100%);
     color: #000;
-    box-shadow: 0 4px 16px rgba(0, 231, 1, 0.25);
+    box-shadow:
+        0 4px 16px rgba(0, 231, 1, 0.3),
+        0 1px 3px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .ludo-action-btn.primary:active {
-    transform: scale(0.97);
+    transform: scale(0.96);
+    box-shadow: 0 2px 8px rgba(0, 231, 1, 0.2);
 }
 
 .ludo-action-btn.primary:disabled {
@@ -272,13 +330,14 @@
 }
 
 .ludo-action-btn.secondary {
-    background: var(--bg-hover, #2f4553);
+    background: linear-gradient(180deg, rgba(47, 69, 83, 0.9), rgba(38, 58, 72, 0.9));
     color: var(--text-secondary, #b1bad3);
-    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .ludo-action-btn.secondary:active {
-    transform: scale(0.97);
+    transform: scale(0.96);
 }
 
 .ludo-action-btn.secondary:disabled {
@@ -413,41 +472,43 @@
 
 .ludo-room-code-box {
     text-align: center;
-    padding: 14px;
+    padding: 16px;
     margin-bottom: 16px;
-    background: var(--bg-input, #0d1b26);
-    border-radius: 12px;
-    border: 1px dashed rgba(255, 215, 0, 0.3);
+    background: linear-gradient(180deg, rgba(13, 27, 38, 0.95), rgba(10, 22, 34, 0.95));
+    border-radius: 14px;
+    border: 1.5px dashed rgba(255, 215, 0, 0.35);
     cursor: pointer;
-    transition: background 0.15s;
+    transition: background 0.15s, border-color 0.15s;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
 .ludo-room-code-box:active {
-    background: var(--bg-hover, #2f4553);
+    background: rgba(47, 69, 83, 0.8);
+    border-color: rgba(255, 215, 0, 0.5);
 }
 
 .ludo-room-code-box .code-label {
     font-size: 0.65rem;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.1em;
     color: var(--text-muted, #557086);
-    margin-bottom: 4px;
+    margin-bottom: 6px;
 }
 
 .ludo-room-code-box .code-value {
-    font-size: 1.6rem;
+    font-size: 1.7rem;
     font-weight: 900;
     font-family: var(--font-mono, monospace);
-    letter-spacing: 0.3em;
-    color: var(--accent-gold, #ffd700);
-    text-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
+    letter-spacing: 0.35em;
+    color: var(--ludo-gold-bright, #ffd700);
+    text-shadow: 0 0 16px rgba(255, 215, 0, 0.35);
 }
 
 .ludo-room-code-box .code-hint {
     font-size: 0.65rem;
     color: var(--text-muted, #557086);
-    margin-top: 4px;
+    margin-top: 6px;
 }
 
 .ludo-player-slots {
@@ -461,15 +522,27 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 10px 12px;
-    background: var(--bg-input, #0d1b26);
-    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
-    border-radius: 10px;
-    transition: border-color 0.2s;
+    padding: 10px 14px;
+    background: linear-gradient(180deg, rgba(13, 27, 38, 0.9), rgba(10, 22, 34, 0.9));
+    border: 1.5px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    transition: border-color 0.25s, box-shadow 0.25s, transform 0.2s;
+    animation: slot-enter 0.3s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.ludo-slot:nth-child(1) { animation-delay: 0s; }
+.ludo-slot:nth-child(2) { animation-delay: 0.06s; }
+.ludo-slot:nth-child(3) { animation-delay: 0.12s; }
+.ludo-slot:nth-child(4) { animation-delay: 0.18s; }
+
+@keyframes slot-enter {
+    0% { opacity: 0; transform: translateY(8px); }
+    100% { opacity: 1; transform: translateY(0); }
 }
 
 .ludo-slot.filled {
     border-width: 2px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
 }
 
 .ludo-slot .slot-avatar {
@@ -555,9 +628,10 @@
     min-height: 100dvh;
     overflow-x: hidden;
     background:
-      radial-gradient(circle at 15% 12%, rgba(102, 153, 255, 0.18), transparent 38%),
-      radial-gradient(circle at 85% 86%, rgba(36, 108, 196, 0.24), transparent 42%),
-      linear-gradient(180deg, #091a30, #070f20 58%, #050a16);
+      radial-gradient(ellipse 600px 400px at 50% 40%, rgba(40, 85, 197, 0.12), transparent),
+      radial-gradient(circle at 15% 12%, rgba(102, 153, 255, 0.15), transparent 35%),
+      radial-gradient(circle at 85% 86%, rgba(36, 108, 196, 0.2), transparent 40%),
+      linear-gradient(180deg, #091a30, #070f20 55%, #050a16);
     isolation: isolate;
 }
 
@@ -567,8 +641,8 @@
     inset: 0;
     pointer-events: none;
     background:
-        radial-gradient(420px 280px at 50% 8%, rgba(126, 249, 169, 0.08), transparent 68%),
-        radial-gradient(360px 260px at 52% 90%, rgba(255, 216, 107, 0.08), transparent 70%);
+        radial-gradient(480px 320px at 50% 8%, rgba(126, 249, 169, 0.06), transparent 65%),
+        radial-gradient(400px 300px at 52% 90%, rgba(255, 216, 107, 0.06), transparent 65%);
     z-index: 0;
 }
 
@@ -585,8 +659,8 @@
     display: flex;
     gap: 4px;
     padding: 6px 8px;
-    background: var(--bg-secondary, #1a2c38);
-    border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+    background: linear-gradient(180deg, rgba(26, 44, 56, 0.98), rgba(20, 36, 50, 0.98));
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
@@ -613,22 +687,22 @@
 .ludo-strip-player.active {
     border-color: var(--strip-color);
     box-shadow:
-        0 0 10px var(--strip-glow),
-        0 0 20px var(--strip-glow),
-        0 0 30px var(--strip-glow);
-    background: rgba(255, 255, 255, 0.08);
-    animation: player-glow-pulse 1.5s ease-in-out infinite;
+        0 0 12px var(--strip-glow),
+        0 0 24px var(--strip-glow);
+    background: rgba(255, 255, 255, 0.1);
+    animation: player-glow-pulse 1.4s ease-in-out infinite;
 }
 
 @keyframes player-glow-pulse {
     0%, 100% {
-        box-shadow:
-            0 0 10px var(--strip-glow);
+        box-shadow: 0 0 10px var(--strip-glow);
+        border-color: var(--strip-color);
     }
     50% {
         box-shadow:
-            0 0 20px var(--strip-glow),
-            0 0 40px var(--strip-glow);
+            0 0 18px var(--strip-glow),
+            0 0 36px var(--strip-glow);
+        border-color: var(--strip-color);
     }
 }
 
@@ -758,17 +832,21 @@
     width: 100%;
     aspect-ratio: 1;
     background:
-        radial-gradient(circle at 18% 14%, rgba(255, 255, 255, 0.35), transparent 30%),
-        linear-gradient(145deg, #f8e9cb, #edd8ab);
-    border: 6px solid #6d3a1a;
-    border-radius: 8px;
-    max-width: min(96vw, 640px);
+        radial-gradient(circle at 20% 15%, rgba(255, 255, 255, 0.4), transparent 35%),
+        radial-gradient(circle at 80% 85%, rgba(255, 255, 255, 0.15), transparent 30%),
+        linear-gradient(145deg, #f5ddb5, #e8cfa0 40%, #dcc290 70%, #d4b880);
+    border: 6px solid var(--ludo-wood-dark);
+    border-radius: 10px;
+    max-width: min(92vw, 420px);
     margin: 0 auto;
     box-shadow:
-        0 0 0 2px #8b5e3c,
-        0 0 0 4px #4a2508,
-        0 8px 24px rgba(0, 0, 0, 0.5),
-        inset 0 0 20px rgba(139, 69, 19, 0.1);
+        0 0 0 2px var(--ludo-wood-trim),
+        0 0 0 5px var(--ludo-wood-dark),
+        0 0 0 7px rgba(212, 170, 80, 0.5),
+        0 0 40px rgba(255, 215, 0, 0.08),
+        0 12px 40px rgba(0, 0, 0, 0.55),
+        0 4px 12px rgba(0, 0, 0, 0.35),
+        inset 0 0 30px rgba(139, 69, 19, 0.08);
     overflow: visible;
     position: relative;
     contain: layout style paint;
@@ -777,7 +855,7 @@
 }
 
 .ludo-board.duel-board {
-    max-width: min(98vw, 700px);
+    max-width: min(95vw, 500px);
 }
 
 @keyframes board-float {
@@ -785,49 +863,66 @@
     50% { transform: translateY(-2px); }
 }
 
+/* Wood grain texture overlay */
 .ludo-board::before {
     content: '';
     position: absolute;
-    inset: 6px;
-    border-radius: 4px;
+    inset: 0;
+    border-radius: 5px;
     pointer-events: none;
     background:
         repeating-linear-gradient(
-            45deg,
-            rgba(255, 255, 255, 0.03) 0px,
-            rgba(255, 255, 255, 0.03) 8px,
-            rgba(0, 0, 0, 0.02) 8px,
-            rgba(0, 0, 0, 0.02) 16px
+            90deg,
+            rgba(139, 90, 43, 0.02) 0px,
+            transparent 2px,
+            transparent 6px,
+            rgba(139, 90, 43, 0.015) 8px
+        ),
+        repeating-linear-gradient(
+            0deg,
+            rgba(139, 90, 43, 0.02) 0px,
+            transparent 2px,
+            transparent 6px,
+            rgba(139, 90, 43, 0.015) 8px
         );
-    mix-blend-mode: multiply;
+    z-index: 0;
 }
 
+/* Inner highlight and depth */
 .ludo-board::after {
     content: '';
     position: absolute;
     inset: -2px;
-    border-radius: 8px;
+    border-radius: 12px;
     pointer-events: none;
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.5),
-        inset 0 -10px 16px rgba(0, 0, 0, 0.08);
+        inset 0 2px 0 rgba(255, 255, 255, 0.5),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.1),
+        inset 2px 0 0 rgba(255, 255, 255, 0.2),
+        inset -2px 0 0 rgba(0, 0, 0, 0.05);
+    z-index: 0;
 }
 
 /* ─── PATH CELLS ─────────────────────────── */
 
 .cell {
-    border: 0.5px solid rgba(139, 69, 19, 0.12);
+    border: 0.5px solid rgba(139, 69, 19, 0.15);
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0.86);
-    transition: background 0.2s, box-shadow 0.2s;
+    background: rgba(255, 255, 255, 0.88);
+    transition: background 0.15s, box-shadow 0.15s;
     contain: layout style paint;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.65),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.06),
+        inset 1px 0 0 rgba(255, 255, 255, 0.35),
+        inset -1px 0 0 rgba(0, 0, 0, 0.04);
 }
 
 .cell:nth-of-type(odd) {
-    background: rgba(255, 255, 255, 0.92);
+    background: rgba(255, 255, 255, 0.93);
 }
 
 /* ─── COLORED BASES ──────────────────────── */
@@ -839,41 +934,49 @@
     position: relative;
     border-radius: 6px;
     z-index: 5;
-    border: none;
+    border: 2px solid rgba(0, 0, 0, 0.12);
     box-shadow:
-        inset 0 2px 4px rgba(255, 255, 255, 0.2),
-        inset 0 -2px 4px rgba(0, 0, 0, 0.15),
-        0 4px 12px rgba(0, 0, 0, 0.2);
+        inset 0 3px 6px rgba(255, 255, 255, 0.25),
+        inset 0 -3px 6px rgba(0, 0, 0, 0.2),
+        0 4px 14px rgba(0, 0, 0, 0.25);
 }
 
 .base.green {
     grid-row: 1 / span 6;
     grid-column: 1 / span 6;
-    background: linear-gradient(145deg, #2ecc40, #1a9c2a);
+    background:
+        radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.15), transparent 50%),
+        linear-gradient(145deg, var(--ludo-green-light), var(--ludo-green) 50%, var(--ludo-green-dark));
 }
 
 .base.yellow {
     grid-row: 1 / span 6;
     grid-column: 10 / span 6;
-    background: linear-gradient(145deg, #ffe066, #e6b800);
+    background:
+        radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.2), transparent 50%),
+        linear-gradient(145deg, var(--ludo-yellow-light), var(--ludo-yellow) 50%, var(--ludo-yellow-dark));
 }
 
 .base.red {
     grid-row: 10 / span 6;
     grid-column: 1 / span 6;
-    background: linear-gradient(145deg, #ff4d4d, #cc0000);
+    background:
+        radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.15), transparent 50%),
+        linear-gradient(145deg, var(--ludo-red-light), var(--ludo-red) 50%, var(--ludo-red-dark));
 }
 
 .base.blue {
     grid-row: 10 / span 6;
     grid-column: 10 / span 6;
-    background: linear-gradient(145deg, #5dade2, #2471a3);
+    background:
+        radial-gradient(circle at 25% 20%, rgba(255, 255, 255, 0.15), transparent 50%),
+        linear-gradient(145deg, var(--ludo-blue-light), var(--ludo-blue) 50%, var(--ludo-blue-dark));
 }
 
 .base-inner {
     width: 62%;
     height: 62%;
-    background: rgba(255, 255, 255, 0.92);
+    background: rgba(255, 255, 255, 0.94);
     border-radius: 12px;
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -881,8 +984,9 @@
     gap: 8px;
     padding: 10px;
     box-shadow:
-        inset 0 2px 8px rgba(0, 0, 0, 0.1),
-        0 2px 6px rgba(0, 0, 0, 0.15);
+        inset 0 2px 8px rgba(0, 0, 0, 0.12),
+        inset 0 -1px 4px rgba(255, 255, 255, 0.4),
+        0 2px 8px rgba(0, 0, 0, 0.18);
 }
 
 .piece-spot {
@@ -891,19 +995,19 @@
     aspect-ratio: 1;
     border-radius: 50%;
     box-shadow:
-        inset 0 2px 4px rgba(0, 0, 0, 0.15),
-        inset 0 -1px 2px rgba(255, 255, 255, 0.3);
+        inset 0 2px 5px rgba(0, 0, 0, 0.18),
+        inset 0 -1px 3px rgba(255, 255, 255, 0.35);
 }
 
-.base.green .piece-spot { background: rgba(46, 204, 64, 0.3); border: 2px solid rgba(46, 204, 64, 0.5); }
-.base.yellow .piece-spot { background: rgba(230, 184, 0, 0.3); border: 2px solid rgba(230, 184, 0, 0.5); }
-.base.red .piece-spot { background: rgba(204, 0, 0, 0.3); border: 2px solid rgba(204, 0, 0, 0.5); }
-.base.blue .piece-spot { background: rgba(36, 113, 163, 0.3); border: 2px solid rgba(36, 113, 163, 0.5); }
+.base.green .piece-spot { background: rgba(0, 184, 74, 0.25); border: 2px solid rgba(0, 184, 74, 0.45); }
+.base.yellow .piece-spot { background: rgba(255, 202, 0, 0.25); border: 2px solid rgba(255, 202, 0, 0.45); }
+.base.red .piece-spot { background: rgba(232, 32, 44, 0.25); border: 2px solid rgba(232, 32, 44, 0.45); }
+.base.blue .piece-spot { background: rgba(40, 85, 197, 0.25); border: 2px solid rgba(40, 85, 197, 0.45); }
 
 /* ─── SAFE SPOTS ─────────────────────────── */
 
 .safe {
-    background: rgba(255, 255, 255, 0.95) !important;
+    background: rgba(255, 255, 255, 0.97) !important;
     position: relative;
     overflow: hidden;
 }
@@ -915,36 +1019,60 @@
     left: 50%;
     transform: translate(-50%, -50%);
     font-size: clamp(0.5rem, 1.8vw, 1.2rem);
-    color: #d4a017;
-    text-shadow: 0 0 4px rgba(212, 160, 23, 0.4);
+    color: var(--ludo-gold-bright);
+    text-shadow:
+        0 0 6px rgba(255, 215, 0, 0.6),
+        0 0 12px rgba(255, 215, 0, 0.25);
     z-index: 0;
     line-height: 1;
+    animation: safe-spot-sparkle 3s ease-in-out infinite;
+}
+
+@keyframes safe-spot-sparkle {
+    0%, 100% {
+        text-shadow: 0 0 4px rgba(255, 215, 0, 0.4);
+        opacity: 0.85;
+    }
+    50% {
+        text-shadow:
+            0 0 8px rgba(255, 215, 0, 0.8),
+            0 0 16px rgba(255, 215, 0, 0.35);
+        opacity: 1;
+    }
 }
 
 /* ─── HOME PATHS ─────────────────────────── */
 
 .path-green {
-    background: linear-gradient(135deg, #2ecc40, #27ae36) !important;
+    background: linear-gradient(135deg, var(--ludo-green-light), var(--ludo-green)) !important;
     border-color: rgba(0, 0, 0, 0.1) !important;
-    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.1);
+    box-shadow:
+        inset 0 0 8px rgba(0, 0, 0, 0.12),
+        inset 0 1px 2px rgba(255, 255, 255, 0.2) !important;
 }
 
 .path-yellow {
-    background: linear-gradient(135deg, #ffe066, #f5d000) !important;
+    background: linear-gradient(135deg, var(--ludo-yellow-light), var(--ludo-yellow)) !important;
     border-color: rgba(0, 0, 0, 0.1) !important;
-    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.1);
+    box-shadow:
+        inset 0 0 8px rgba(0, 0, 0, 0.1),
+        inset 0 1px 2px rgba(255, 255, 255, 0.25) !important;
 }
 
 .path-red {
-    background: linear-gradient(135deg, #ff4d4d, #e60000) !important;
+    background: linear-gradient(135deg, var(--ludo-red-light), var(--ludo-red)) !important;
     border-color: rgba(0, 0, 0, 0.1) !important;
-    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.1);
+    box-shadow:
+        inset 0 0 8px rgba(0, 0, 0, 0.12),
+        inset 0 1px 2px rgba(255, 255, 255, 0.2) !important;
 }
 
 .path-blue {
-    background: linear-gradient(135deg, #5dade2, #3498db) !important;
+    background: linear-gradient(135deg, var(--ludo-blue-light), var(--ludo-blue)) !important;
     border-color: rgba(0, 0, 0, 0.1) !important;
-    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.1);
+    box-shadow:
+        inset 0 0 8px rgba(0, 0, 0, 0.12),
+        inset 0 1px 2px rgba(255, 255, 255, 0.2) !important;
 }
 
 /* ─── HOME CENTER ────────────────────────── */
@@ -957,52 +1085,57 @@
     overflow: hidden;
     background:
         conic-gradient(from -45deg,
-            #ffe066 0deg 90deg,
-            #5dade2 90deg 180deg,
-            #ff4d4d 180deg 270deg,
-            #2ecc40 270deg 360deg
+            var(--ludo-yellow) 0deg 90deg,
+            var(--ludo-blue) 90deg 180deg,
+            var(--ludo-red) 180deg 270deg,
+            var(--ludo-green) 270deg 360deg
         );
-    border: 3px solid #6d3a1a;
+    border: 3px solid var(--ludo-wood-dark);
     border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
     box-shadow:
-        inset 0 0 12px rgba(0, 0, 0, 0.15),
-        0 4px 12px rgba(0, 0, 0, 0.2);
+        inset 0 0 16px rgba(0, 0, 0, 0.2),
+        0 4px 14px rgba(0, 0, 0, 0.25);
 }
 
 .home-center::after {
     content: '';
-    width: 36%;
-    height: 36%;
-    background: radial-gradient(circle, #fff 0%, #f0e6d0 100%);
+    width: 38%;
+    height: 38%;
+    background: radial-gradient(circle at 40% 35%, #fff 0%, #f5eed8 60%, #e8dcc0 100%);
     border-radius: 50%;
-    border: 2px solid #d4a017;
+    border: 2px solid var(--ludo-gold-dim);
     box-shadow:
-        0 0 10px rgba(212, 160, 23, 0.4),
-        inset 0 1px 3px rgba(255, 255, 255, 0.6);
-    animation: center-core-pulse 1.9s ease-in-out infinite;
+        0 0 12px rgba(255, 215, 0, 0.5),
+        0 0 24px rgba(255, 215, 0, 0.15),
+        inset 0 1px 3px rgba(255, 255, 255, 0.7);
+    animation: center-core-pulse 2s ease-in-out infinite;
 }
 
 @keyframes center-core-pulse {
     0%, 100% {
         box-shadow:
-            0 0 10px rgba(212, 160, 23, 0.4),
-            inset 0 1px 3px rgba(255, 255, 255, 0.6);
+            0 0 12px rgba(255, 215, 0, 0.45),
+            0 0 24px rgba(255, 215, 0, 0.15),
+            inset 0 1px 3px rgba(255, 255, 255, 0.7);
+        transform: scale(1);
     }
     50% {
         box-shadow:
-            0 0 18px rgba(255, 216, 107, 0.7),
-            inset 0 1px 3px rgba(255, 255, 255, 0.7);
+            0 0 20px rgba(255, 216, 107, 0.75),
+            0 0 40px rgba(255, 216, 107, 0.3),
+            inset 0 1px 3px rgba(255, 255, 255, 0.8);
+        transform: scale(1.04);
     }
 }
 
 /* ─── PIECES ─────────────────────────────── */
 
 .piece {
-    width: 62%;
-    height: 62%;
+    width: 72%;
+    height: 72%;
     border-radius: 50%;
     z-index: 10;
     cursor: pointer;
@@ -1011,201 +1144,247 @@
     align-items: center;
     justify-content: center;
     margin: auto;
-    transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), filter 0.18s ease;
-    border: none;
+    transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), filter 0.15s ease;
+    border: 1.5px solid rgba(0, 0, 0, 0.15);
     transform: translateZ(0);
     transform-origin: center bottom;
     touch-action: manipulation;
+    background-clip: padding-box;
 }
 
 .piece:active {
-    transform: scale(0.92);
+    transform: scale(0.9);
 }
 
+/* 3D glossy highlight -- top shine */
 .piece::before {
     content: '';
     position: absolute;
-    inset: 18%;
+    inset: 10%;
     border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.08) 68%, transparent 100%);
+    background: radial-gradient(
+        ellipse at 38% 28%,
+        rgba(255, 255, 255, 0.85) 0%,
+        rgba(255, 255, 255, 0.4) 22%,
+        rgba(255, 255, 255, 0.08) 55%,
+        transparent 100%
+    );
     box-shadow:
-        inset 0 1px 2px rgba(255, 255, 255, 0.55),
-        0 1px 3px rgba(0, 0, 0, 0.24);
+        inset 0 1px 3px rgba(255, 255, 255, 0.65);
     z-index: 11;
     pointer-events: none;
 }
 
+/* Ground shadow for 3D depth */
 .piece::after {
     content: '';
     position: absolute;
     left: 50%;
-    bottom: -7px;
+    bottom: -8px;
     transform: translateX(-50%);
-    width: 70%;
-    height: 18%;
-    background: radial-gradient(ellipse, rgba(0, 0, 0, 0.35) 0%, transparent 75%);
+    width: 78%;
+    height: 22%;
+    background: radial-gradient(ellipse, rgba(0, 0, 0, 0.45) 0%, transparent 72%);
     border-radius: 50%;
-    filter: blur(0.8px);
+    filter: blur(1.2px);
     z-index: 9;
     pointer-events: none;
 }
 
+/* 3D sphere gradient per color -- layered radials for pawn effect */
 .piece.green {
-    background: radial-gradient(circle at 35% 35%, #00FF41, #00C853);
-    box-shadow: 0 4px 10px rgba(0, 200, 83, 0.44), inset 0 -3px 6px rgba(0, 0, 0, 0.2);
+    background:
+        radial-gradient(circle at 38% 28%, rgba(255, 255, 255, 0.15), transparent 40%),
+        radial-gradient(circle at 50% 60%, rgba(0, 0, 0, 0.15), transparent 50%),
+        radial-gradient(circle at 35% 30%, #3CF080, var(--ludo-green) 65%, var(--ludo-green-dark));
+    box-shadow:
+        0 5px 12px rgba(0, 184, 74, 0.55),
+        inset 0 -4px 8px rgba(0, 0, 0, 0.3),
+        inset 0 3px 5px rgba(255, 255, 255, 0.35);
 }
 
 .piece.yellow {
-    background: radial-gradient(circle at 35% 35%, #FFEA00, #FFD600);
-    box-shadow: 0 4px 10px rgba(255, 214, 0, 0.44), inset 0 -3px 6px rgba(0, 0, 0, 0.15);
+    background:
+        radial-gradient(circle at 38% 28%, rgba(255, 255, 255, 0.2), transparent 40%),
+        radial-gradient(circle at 50% 60%, rgba(0, 0, 0, 0.12), transparent 50%),
+        radial-gradient(circle at 35% 30%, #FFF06A, var(--ludo-yellow) 65%, var(--ludo-yellow-dark));
+    box-shadow:
+        0 5px 12px rgba(255, 202, 0, 0.55),
+        inset 0 -4px 8px rgba(0, 0, 0, 0.22),
+        inset 0 3px 5px rgba(255, 255, 255, 0.4);
 }
 
 .piece.red {
-    background: radial-gradient(circle at 35% 35%, #FF5252, #D50000);
-    box-shadow: 0 4px 10px rgba(213, 0, 0, 0.44), inset 0 -3px 6px rgba(0, 0, 0, 0.2);
+    background:
+        radial-gradient(circle at 38% 28%, rgba(255, 255, 255, 0.15), transparent 40%),
+        radial-gradient(circle at 50% 60%, rgba(0, 0, 0, 0.15), transparent 50%),
+        radial-gradient(circle at 35% 30%, #FF6860, var(--ludo-red) 65%, var(--ludo-red-dark));
+    box-shadow:
+        0 5px 12px rgba(232, 32, 44, 0.55),
+        inset 0 -4px 8px rgba(0, 0, 0, 0.3),
+        inset 0 3px 5px rgba(255, 255, 255, 0.35);
 }
 
 .piece.blue {
-    background: radial-gradient(circle at 35% 35%, #448AFF, #2962FF);
-    box-shadow: 0 4px 10px rgba(41, 98, 255, 0.44), inset 0 -3px 6px rgba(0, 0, 0, 0.2);
+    background:
+        radial-gradient(circle at 38% 28%, rgba(255, 255, 255, 0.15), transparent 40%),
+        radial-gradient(circle at 50% 60%, rgba(0, 0, 0, 0.15), transparent 50%),
+        radial-gradient(circle at 35% 30%, #6088E8, var(--ludo-blue) 65%, var(--ludo-blue-dark));
+    box-shadow:
+        0 5px 12px rgba(40, 85, 197, 0.55),
+        inset 0 -4px 8px rgba(0, 0, 0, 0.3),
+        inset 0 3px 5px rgba(255, 255, 255, 0.35);
 }
 
+/* Movable piece glow -- dramatic color-matched pulse */
 .piece.glow {
     z-index: 20;
-    animation: piece-glow-pulse 1.1s infinite alternate;
-    filter: brightness(1.15);
-    will-change: transform;
+    animation: piece-glow-pulse 1s infinite alternate ease-in-out;
+    filter: brightness(1.2);
+    will-change: transform, box-shadow;
 }
 
 .piece.glow::before {
-    filter: brightness(1.1);
+    filter: brightness(1.15);
 }
 
+/* Hopping trail animation */
 .piece.trail {
-    animation: piece-trail-pop 0.58s cubic-bezier(0.22, 0.9, 0.2, 1);
+    animation: piece-trail-pop 0.55s cubic-bezier(0.22, 0.9, 0.2, 1);
     will-change: transform;
 }
 
 @keyframes piece-trail-pop {
     0% {
-        transform: translateY(0) scale(1) rotateZ(0deg);
+        transform: translateY(0) scale(1);
         filter: brightness(1);
     }
-    28% {
-        transform: translateY(-14px) scale(1.15) rotateZ(5deg);
-        filter: brightness(1.26) drop-shadow(0 14px 10px rgba(0, 0, 0, 0.22));
+    22% {
+        transform: translateY(-16px) scale(1.15);
+        filter: brightness(1.3) drop-shadow(0 16px 12px rgba(0, 0, 0, 0.25));
     }
-    62% {
-        transform: translateY(-6px) scale(1.08) rotateZ(-4deg);
-        filter: brightness(1.18) drop-shadow(0 9px 9px rgba(0, 0, 0, 0.16));
+    55% {
+        transform: translateY(-5px) scale(1.06);
+        filter: brightness(1.15) drop-shadow(0 8px 8px rgba(0, 0, 0, 0.18));
     }
     100% {
-        transform: translateY(0) scale(1) rotateZ(0deg);
+        transform: translateY(0) scale(1);
         filter: brightness(1);
     }
 }
 
 @keyframes piece-glow-pulse {
     from {
-        transform: scale(1.1);
+        transform: scale(1.08);
         box-shadow:
-            0 0 12px rgba(255, 215, 0, 0.6),
-            0 0 24px rgba(255, 215, 0, 0.3),
-            0 3px 8px rgba(0, 0, 0, 0.3);
+            0 0 12px var(--ludo-gold-shimmer),
+            0 0 24px rgba(255, 215, 0, 0.25),
+            0 4px 10px rgba(0, 0, 0, 0.3);
     }
     to {
-        transform: scale(1.25);
+        transform: scale(1.22);
         box-shadow:
-            0 0 20px rgba(255, 215, 0, 0.8),
-            0 0 40px rgba(255, 215, 0, 0.4),
-            0 4px 12px rgba(0, 0, 0, 0.3);
+            0 0 18px rgba(255, 215, 0, 0.75),
+            0 0 36px rgba(255, 215, 0, 0.35),
+            0 0 52px rgba(255, 215, 0, 0.12),
+            0 5px 14px rgba(0, 0, 0, 0.3);
     }
 }
 
 /* ─── DICE ───────────────────────────────── */
 
 .ludo-dice {
-    width: 64px;
-    height: 64px;
-    border-radius: 12px;
+    width: 68px;
+    height: 68px;
+    border-radius: 14px;
     background:
-        linear-gradient(145deg, #ffffff 0%, #eef5fc 38%, #dbe4ee 100%);
+        radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.9), transparent 50%),
+        linear-gradient(145deg, #ffffff 0%, #f0f5fa 35%, #dbe4ee 70%, #c8d4e2 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     position: relative;
     box-shadow:
-        0 12px 18px rgba(0, 0, 0, 0.28),
-        0 4px 0 #aeb8c5,
-        inset 0 1px 0 rgba(255, 255, 255, 0.92),
-        inset 0 -8px 10px rgba(16, 33, 53, 0.1);
-    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, filter 0.2s ease;
+        0 14px 20px rgba(0, 0, 0, 0.3),
+        0 5px 0 #a0adb8,
+        inset 0 1px 0 rgba(255, 255, 255, 0.95),
+        inset 0 -8px 12px rgba(16, 33, 53, 0.1);
+    transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s, opacity 0.2s, filter 0.2s;
     border-top: 2px solid #f7fbff;
     border-left: 2px solid #e5edf5;
-    border-right: 2px solid #b8c4d2;
-    border-bottom: 2px solid #a8b5c4;
+    border-right: 2px solid #b0bcc8;
+    border-bottom: 2px solid #98a8b8;
     flex-shrink: 0;
     touch-action: manipulation;
     transform-style: preserve-3d;
-    transform: perspective(260px) rotateX(10deg) rotateY(-12deg);
+    transform: perspective(300px) rotateX(10deg) rotateY(-12deg);
 }
 
+/* Right face of 3D dice */
 .ludo-dice::before {
     content: '';
     position: absolute;
-    top: 7px;
-    right: -10px;
-    width: 14px;
-    height: calc(100% - 14px);
-    border-radius: 0 10px 10px 0;
-    background: linear-gradient(180deg, #cad4df 0%, #aab6c5 100%);
+    top: 8px;
+    right: -12px;
+    width: 16px;
+    height: calc(100% - 16px);
+    border-radius: 0 12px 12px 0;
+    background: linear-gradient(180deg, #c0ccd8 0%, #a0afc0 100%);
     transform: skewY(-18deg);
     transform-origin: left center;
-    opacity: 0.96;
+    opacity: 0.97;
     z-index: -1;
 }
 
+/* Bottom face of 3D dice */
 .ludo-dice::after {
     content: '';
     position: absolute;
-    left: 7px;
-    right: 10px;
-    bottom: -10px;
-    height: 14px;
-    border-radius: 0 0 12px 12px;
-    background: linear-gradient(180deg, #c5d0dc 0%, #8f9db0 100%);
+    left: 8px;
+    right: 12px;
+    bottom: -12px;
+    height: 16px;
+    border-radius: 0 0 14px 14px;
+    background: linear-gradient(180deg, #b8c5d2 0%, #8895a5 100%);
     transform: skewX(-22deg);
     transform-origin: top center;
-    opacity: 0.95;
+    opacity: 0.96;
     z-index: -2;
 }
 
+/* Center dice (larger, in dice dock or mobile) */
 .ludo-dice-center {
-    width: clamp(66px, 19vw, 86px);
-    height: clamp(66px, 19vw, 86px);
+    width: clamp(72px, 20vw, 92px);
+    height: clamp(72px, 20vw, 92px);
 }
 
+/* Ready-to-roll state -- golden glow with hover bob */
 .ludo-dice.can-roll {
     cursor: pointer;
     box-shadow:
-        0 14px 20px rgba(0, 0, 0, 0.26),
-        0 0 0 3px rgba(255, 215, 0, 0.4),
-        0 0 20px rgba(255, 215, 0, 0.18),
-        inset 0 1px 0 rgba(255, 255, 255, 0.8);
-    animation: dice-ready 1.5s ease-in-out infinite;
+        0 16px 24px rgba(0, 0, 0, 0.3),
+        0 0 0 3px rgba(255, 215, 0, 0.45),
+        0 0 24px rgba(255, 215, 0, 0.2),
+        0 5px 0 #a0adb8,
+        inset 0 1px 0 rgba(255, 255, 255, 0.85);
+    animation: dice-ready 1.3s ease-in-out infinite;
     filter: saturate(1.05);
     will-change: transform;
 }
 
 .ludo-dice.can-roll:active {
-    transform: perspective(260px) rotateX(10deg) rotateY(-12deg) scale(0.92);
+    transform: perspective(300px) rotateX(10deg) rotateY(-12deg) scale(0.9);
+    box-shadow:
+        0 8px 14px rgba(0, 0, 0, 0.35),
+        0 0 0 3px rgba(255, 215, 0, 0.5),
+        0 2px 0 #a0adb8;
 }
 
 .ludo-dice.rolling {
-    animation: dice-roll 0.9s cubic-bezier(0.16, 0.84, 0.44, 1);
+    animation: dice-roll 0.85s cubic-bezier(0.16, 0.84, 0.44, 1);
     box-shadow:
-        0 18px 28px rgba(0, 0, 0, 0.35),
+        0 20px 32px rgba(0, 0, 0, 0.4),
         0 0 0 4px rgba(120, 144, 156, 0.25),
         inset 0 1px 0 rgba(255, 255, 255, 0.8),
         inset 0 -2px 4px rgba(0, 0, 0, 0.05);
@@ -1213,21 +1392,24 @@
 }
 
 .ludo-dice.disabled {
-    opacity: 0.45;
+    opacity: 0.4;
     cursor: not-allowed;
+    filter: grayscale(0.2);
 }
 
 @keyframes dice-ready {
-    0%, 100% { transform: perspective(260px) rotateX(10deg) rotateY(-12deg) translateY(0) scale(1); }
-    50% { transform: perspective(260px) rotateX(13deg) rotateY(-15deg) translateY(-3px) scale(1.04); }
+    0%, 100% { transform: perspective(300px) rotateX(10deg) rotateY(-12deg) translateY(0) scale(1); }
+    50% { transform: perspective(300px) rotateX(14deg) rotateY(-16deg) translateY(-4px) scale(1.05); }
 }
 
 @keyframes dice-roll {
-    0% { transform: perspective(260px) rotateX(10deg) rotateY(-12deg) translateY(0) scale(1); }
-    22% { transform: perspective(260px) rotateX(210deg) rotateY(120deg) rotateZ(100deg) translateY(-8px) scale(0.95); }
-    48% { transform: perspective(260px) rotateX(420deg) rotateY(250deg) rotateZ(210deg) translateY(3px) scale(1.04); }
-    74% { transform: perspective(260px) rotateX(610deg) rotateY(400deg) rotateZ(320deg) translateY(-4px) scale(0.98); }
-    100% { transform: perspective(260px) rotateX(730deg) rotateY(540deg) rotateZ(360deg) translateY(0) scale(1); }
+    0% { transform: perspective(300px) rotateX(10deg) rotateY(-12deg) translateY(0) scale(1); }
+    15% { transform: perspective(300px) rotateX(180deg) rotateY(100deg) rotateZ(70deg) translateY(-10px) scale(0.93); }
+    35% { transform: perspective(300px) rotateX(380deg) rotateY(230deg) rotateZ(170deg) translateY(5px) scale(1.05); }
+    55% { transform: perspective(300px) rotateX(540deg) rotateY(370deg) rotateZ(260deg) translateY(-6px) scale(0.97); }
+    75% { transform: perspective(300px) rotateX(660deg) rotateY(470deg) rotateZ(330deg) translateY(2px) scale(1.02); }
+    90% { transform: perspective(300px) rotateX(710deg) rotateY(525deg) rotateZ(350deg) translateY(-1px) scale(1.0); }
+    100% { transform: perspective(300px) rotateX(730deg) rotateY(540deg) rotateZ(360deg) translateY(0) scale(1); }
 }
 
 .dice-face {
@@ -1236,34 +1418,42 @@
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     grid-template-rows: repeat(3, 1fr);
-    padding: 9px;
+    padding: 10px;
     gap: 1px;
     position: relative;
     z-index: 2;
 }
 
 .dice-dot {
-    width: 11px;
-    height: 11px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
-    background: radial-gradient(circle at 35% 35%, #334155, #0f172a);
+    background: radial-gradient(circle at 40% 35%, #3a4a5e, #0f172a);
     box-shadow:
-        inset 0 2px 3px rgba(0, 0, 0, 0.6),
-        0 1px 1px rgba(255, 255, 255, 0.3);
+        inset 0 2px 4px rgba(0, 0, 0, 0.65),
+        inset 0 -1px 1px rgba(255, 255, 255, 0.1),
+        0 1px 1px rgba(255, 255, 255, 0.35);
     margin: auto;
 }
 
 .dice-dot.red-dot {
-    background: radial-gradient(circle at 35% 35%, #ff4444, #aa0000);
-    width: 14px;
-    height: 14px;
+    background: radial-gradient(circle at 38% 32%, #ff4040, #b80000);
+    width: 15px;
+    height: 15px;
+    box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.5),
+        inset 0 -1px 1px rgba(255, 100, 100, 0.2),
+        0 1px 1px rgba(255, 255, 255, 0.3),
+        0 0 6px rgba(255, 60, 60, 0.2);
 }
 
 .dice-six-glow {
     box-shadow:
-        0 0 0 3px rgba(255, 215, 0, 0.5),
-        0 0 20px rgba(255, 215, 0, 0.3),
-        0 4px 12px rgba(0, 0, 0, 0.25) !important;
+        0 0 0 4px rgba(255, 215, 0, 0.55),
+        0 0 24px rgba(255, 215, 0, 0.4),
+        0 0 48px rgba(255, 215, 0, 0.15),
+        0 5px 14px rgba(0, 0, 0, 0.25) !important;
+    animation: dice-six-celebration 0.8s ease-in-out 2;
 }
 
 /* ─── TIMER RING ─────────────────────────── */
@@ -1297,8 +1487,8 @@
     display: flex;
     flex-direction: column;
     padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
-    background: var(--bg-secondary, #1a2c38);
-    border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+    background: linear-gradient(180deg, rgba(26, 44, 56, 0.98), rgba(18, 32, 46, 0.98));
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
     gap: 8px;
     min-height: 0;
 }
@@ -1310,24 +1500,33 @@
     grid-template-columns: minmax(90px, 1fr) auto minmax(90px, 1fr);
     align-items: center;
     gap: 8px;
-    padding: 6px 4px;
-    border-radius: 14px;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.08));
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 8px 6px;
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.1));
+    border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .ludo-dice-dock.active-turn {
-    border-color: rgba(0, 231, 1, 0.28);
-    box-shadow: 0 0 0 2px rgba(0, 231, 1, 0.08), 0 10px 20px rgba(0, 0, 0, 0.24);
+    border-color: rgba(0, 231, 1, 0.3);
+    box-shadow:
+        0 0 0 2px rgba(0, 231, 1, 0.1),
+        0 0 16px rgba(0, 231, 1, 0.06),
+        0 10px 24px rgba(0, 0, 0, 0.28);
     animation: ludo-turn-dock-pulse 1.2s ease-in-out infinite;
 }
 
 @keyframes ludo-turn-dock-pulse {
     0%, 100% {
-        box-shadow: 0 0 0 2px rgba(0, 231, 1, 0.08), 0 10px 20px rgba(0, 0, 0, 0.24);
+        box-shadow:
+            0 0 0 2px rgba(0, 231, 1, 0.1),
+            0 0 16px rgba(0, 231, 1, 0.06),
+            0 10px 24px rgba(0, 0, 0, 0.28);
     }
     50% {
-        box-shadow: 0 0 0 4px rgba(0, 231, 1, 0.12), 0 10px 22px rgba(0, 0, 0, 0.28);
+        box-shadow:
+            0 0 0 4px rgba(0, 231, 1, 0.15),
+            0 0 24px rgba(0, 231, 1, 0.1),
+            0 10px 26px rgba(0, 0, 0, 0.32);
     }
 }
 
@@ -1371,11 +1570,13 @@
     align-items: center;
     gap: 6px;
     z-index: 40;
-    padding: 5px;
-    border-radius: 12px;
-    background: rgba(8, 24, 40, 0.78);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+    padding: 6px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(8, 24, 40, 0.85), rgba(6, 18, 32, 0.88));
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 }
 
 .ludo-board-hud.top {
@@ -1397,8 +1598,8 @@
 }
 
 .hud-dice {
-    width: 54px;
-    height: 54px;
+    width: 58px;
+    height: 58px;
 }
 
 .hud-dice-wait {
@@ -1580,10 +1781,11 @@
     flex-direction: column;
     align-items: center;
     gap: 2px;
-    padding: 8px;
-    border-radius: 10px;
-    border: 1px solid rgba(255, 215, 0, 0.25);
-    background: radial-gradient(circle at top, rgba(255, 215, 0, 0.14), rgba(255, 215, 0, 0.04));
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 215, 0, 0.35);
+    background: radial-gradient(circle at top, rgba(255, 215, 0, 0.18), rgba(255, 215, 0, 0.04));
+    box-shadow: 0 0 24px rgba(255, 215, 0, 0.08);
 }
 
 .ludo-winner-spotlight span {
@@ -1795,6 +1997,7 @@
 
     .ludo-board {
         border-width: 4px;
+        max-width: min(94vw, 320px);
     }
 
     .base-inner {
@@ -1804,23 +2007,23 @@
     }
 
     .ludo-dice {
-        width: 52px;
-        height: 52px;
+        width: 56px;
+        height: 56px;
     }
 
     .ludo-dice-center {
-        width: 62px;
-        height: 62px;
+        width: 66px;
+        height: 66px;
     }
 
     .dice-dot {
-        width: 8px;
-        height: 8px;
+        width: 9px;
+        height: 9px;
     }
 
     .dice-dot.red-dot {
-        width: 11px;
-        height: 11px;
+        width: 12px;
+        height: 12px;
     }
 
     .ludo-strip-player {
@@ -1836,6 +2039,11 @@
 
     .strip-name {
         font-size: 0.6rem;
+    }
+
+    .piece {
+        width: 70%;
+        height: 70%;
     }
 }
 
@@ -1982,14 +2190,16 @@
         grid-template-columns: minmax(72px, auto) minmax(120px, 1fr) auto;
         align-items: center;
         gap: 8px;
-        min-height: 44px;
-        padding: 8px 10px 6px;
+        min-height: 46px;
+        padding: 8px 12px 6px;
         margin-top: env(safe-area-inset-top, 0px);
-        background: rgba(7, 19, 32, 0.92);
+        background: linear-gradient(180deg, rgba(7, 19, 32, 0.95), rgba(10, 24, 38, 0.95));
         border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         position: sticky;
         top: 0;
         z-index: 60;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
     }
 
     .ludo-mobile-room,
@@ -2019,10 +2229,11 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        padding: 6px 10px;
+        padding: 6px 12px;
         border-radius: 14px;
-        background: rgba(17, 36, 58, 0.92);
-        border: 1px solid rgba(126, 249, 169, 0.18);
+        background: linear-gradient(180deg, rgba(17, 36, 58, 0.95), rgba(12, 28, 46, 0.95));
+        border: 1px solid rgba(126, 249, 169, 0.22);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     }
 
     .mobile-secured-mark {
@@ -2075,26 +2286,32 @@
     .ludo-mobile-self-card {
         min-height: 78px;
         display: grid;
-        grid-template-columns: 34px minmax(0, 1fr) auto;
+        grid-template-columns: 36px minmax(0, 1fr) auto;
         align-items: center;
         gap: 8px;
-        padding: 10px;
+        padding: 10px 12px;
         border-radius: 18px;
-        background: rgba(15, 33, 54, 0.88);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: linear-gradient(180deg, rgba(15, 33, 54, 0.92), rgba(12, 28, 46, 0.92));
+        border: 1.5px solid rgba(255, 255, 255, 0.08);
+        transition: border-color 0.25s, box-shadow 0.25s;
     }
 
     .ludo-mobile-player-card.active,
     .ludo-mobile-self-card.active {
-        border-color: rgba(126, 249, 169, 0.42);
-        box-shadow: 0 0 0 2px rgba(126, 249, 169, 0.12);
+        border-color: rgba(126, 249, 169, 0.5);
+        box-shadow:
+            0 0 0 2px rgba(126, 249, 169, 0.12),
+            0 0 16px rgba(126, 249, 169, 0.06);
     }
 
     .mobile-player-token {
-        width: 28px;
-        height: 28px;
+        width: 30px;
+        height: 30px;
         border-radius: 50%;
-        box-shadow: inset 0 2px 5px rgba(255, 255, 255, 0.24), 0 3px 6px rgba(0, 0, 0, 0.24);
+        box-shadow:
+            inset 0 2px 5px rgba(255, 255, 255, 0.28),
+            inset 0 -2px 4px rgba(0, 0, 0, 0.2),
+            0 3px 8px rgba(0, 0, 0, 0.28);
     }
 
     .mobile-player-copy {
@@ -2157,11 +2374,11 @@
     }
 
     .ludo-board {
-        width: 95vw;
-        max-width: 95vw;
-        max-height: 95vw;
+        width: min(92vw, 420px);
+        max-width: min(92vw, 420px);
+        max-height: min(92vw, 420px);
         border-width: 5px;
-        border-radius: 18px;
+        border-radius: 14px;
         contain: layout style paint;
     }
 
@@ -2173,30 +2390,31 @@
 
     .ludo-mobile-bottom-bar {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 104px;
+        grid-template-columns: minmax(0, 1fr) 108px;
         gap: 10px;
         align-items: center;
-        padding: 0 10px calc(env(safe-area-inset-bottom, 0px) + 10px);
+        padding: 6px 10px calc(env(safe-area-inset-bottom, 0px) + 10px);
     }
 
     .ludo-mobile-dice-zone {
-        min-height: 100px;
+        min-height: 104px;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 4px;
-        padding: 10px 8px;
-        border-radius: 22px;
-        background: rgba(10, 24, 39, 0.9);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        gap: 6px;
+        padding: 12px 10px;
+        border-radius: 24px;
+        background: linear-gradient(180deg, rgba(12, 28, 44, 0.94), rgba(8, 20, 34, 0.96));
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
     }
 
     .mobile-primary-dice {
-        width: 80px;
-        height: 80px;
-        min-width: 80px;
-        min-height: 80px;
+        width: 84px;
+        height: 84px;
+        min-width: 84px;
+        min-height: 84px;
     }
 
     .mobile-dice-caption {
@@ -2287,9 +2505,9 @@
 /* ─── ENHANCED DICE ROLL ─────────────────── */
 
 .ludo-dice.rolling-enhanced {
-    animation: dice-tumble-enhanced 0.85s cubic-bezier(0.16, 0.84, 0.44, 1);
+    animation: dice-tumble-enhanced 0.8s cubic-bezier(0.16, 0.84, 0.44, 1);
     box-shadow:
-        0 18px 28px rgba(0, 0, 0, 0.35),
+        0 22px 32px rgba(0, 0, 0, 0.4),
         0 0 0 4px rgba(120, 144, 156, 0.25),
         inset 0 1px 0 rgba(255, 255, 255, 0.8),
         inset 0 -2px 4px rgba(0, 0, 0, 0.05);
@@ -2298,77 +2516,92 @@
 
 @keyframes dice-tumble-enhanced {
     0% {
-        transform: perspective(260px) rotateX(10deg) rotateY(-12deg) scale(1);
+        transform: perspective(300px) rotateX(10deg) rotateY(-12deg) scale(1);
     }
-    10% {
-        transform: perspective(260px) rotateX(80deg) rotateY(40deg) rotateZ(30deg) scale(0.9) translateY(-8px);
+    8% {
+        transform: perspective(300px) rotateX(70deg) rotateY(35deg) rotateZ(25deg) scale(0.88) translateY(-12px);
     }
-    22% {
-        transform: perspective(260px) rotateX(200deg) rotateY(140deg) rotateZ(80deg) scale(0.95) translateY(3px);
+    20% {
+        transform: perspective(300px) rotateX(190deg) rotateY(130deg) rotateZ(75deg) scale(0.95) translateY(4px);
     }
-    36% {
-        transform: perspective(260px) rotateX(340deg) rotateY(260deg) rotateZ(150deg) scale(1.02) translateY(-5px);
+    34% {
+        transform: perspective(300px) rotateX(330deg) rotateY(250deg) rotateZ(150deg) scale(1.04) translateY(-8px);
     }
-    52% {
-        transform: perspective(260px) rotateX(490deg) rotateY(380deg) rotateZ(240deg) scale(0.97) translateY(4px);
+    48% {
+        transform: perspective(300px) rotateX(470deg) rotateY(370deg) rotateZ(235deg) scale(0.96) translateY(5px);
     }
-    68% {
-        transform: perspective(260px) rotateX(610deg) rotateY(470deg) rotateZ(310deg) scale(1.01) translateY(-3px);
+    62% {
+        transform: perspective(300px) rotateX(580deg) rotateY(455deg) rotateZ(300deg) scale(1.02) translateY(-4px);
     }
-    82% {
-        transform: perspective(260px) rotateX(690deg) rotateY(520deg) rotateZ(345deg) scale(1.0) translateY(1px);
+    78% {
+        transform: perspective(300px) rotateX(670deg) rotateY(510deg) rotateZ(340deg) scale(1.0) translateY(2px);
+    }
+    90% {
+        transform: perspective(300px) rotateX(710deg) rotateY(530deg) rotateZ(355deg) scale(1.0) translateY(-1px);
     }
     100% {
-        transform: perspective(260px) rotateX(730deg) rotateY(540deg) rotateZ(360deg) scale(1) translateY(0);
+        transform: perspective(300px) rotateX(730deg) rotateY(540deg) rotateZ(360deg) scale(1) translateY(0);
     }
 }
 
-/* Dice reveal flash */
+/* Dice reveal flash -- landing impact */
 .ludo-dice.dice-revealed {
-    animation: dice-land-flash 0.35s ease-out;
+    animation: dice-land-flash 0.4s ease-out;
 }
 
 @keyframes dice-land-flash {
-    0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.6), 0 4px 0 #aeb8c5; }
-    40% { box-shadow: 0 0 20px 6px rgba(255, 255, 255, 0.4), 0 4px 0 #aeb8c5; }
-    100% { box-shadow: 0 12px 18px rgba(0, 0, 0, 0.28), 0 4px 0 #aeb8c5; }
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7), 0 5px 0 #a0adb8;
+        transform: perspective(300px) rotateX(10deg) rotateY(-12deg) scale(1.06);
+    }
+    35% {
+        box-shadow: 0 0 24px 8px rgba(255, 255, 255, 0.45), 0 5px 0 #a0adb8;
+        transform: perspective(300px) rotateX(10deg) rotateY(-12deg) scale(1.02);
+    }
+    100% {
+        box-shadow: 0 14px 20px rgba(0, 0, 0, 0.3), 0 5px 0 #a0adb8;
+        transform: perspective(300px) rotateX(10deg) rotateY(-12deg) scale(1);
+    }
 }
 
-/* Enhanced six glow */
+/* Enhanced six glow -- golden celebration */
 .ludo-dice.dice-six-glow-enhanced {
-    animation: six-glow-burst-enhanced 0.8s ease-in-out 2 !important;
+    animation: six-glow-burst-enhanced 0.75s ease-in-out 2 !important;
 }
 
 @keyframes six-glow-burst-enhanced {
     0% {
         box-shadow:
-            0 0 0 4px rgba(255, 215, 0, 0.5),
+            0 0 0 4px rgba(255, 215, 0, 0.6),
             0 0 20px rgba(255, 215, 0, 0.4),
-            0 4px 12px rgba(0, 0, 0, 0.25);
+            0 5px 14px rgba(0, 0, 0, 0.25);
         filter: brightness(1);
+        transform: perspective(300px) rotateX(10deg) rotateY(-12deg) scale(1);
     }
     50% {
         box-shadow:
-            0 0 0 10px rgba(255, 215, 0, 0.3),
-            0 0 40px rgba(255, 215, 0, 0.6),
-            0 0 60px rgba(255, 165, 0, 0.3),
-            0 4px 12px rgba(0, 0, 0, 0.25);
-        filter: brightness(1.15);
+            0 0 0 12px rgba(255, 215, 0, 0.4),
+            0 0 50px rgba(255, 215, 0, 0.7),
+            0 0 80px rgba(255, 165, 0, 0.3),
+            0 5px 14px rgba(0, 0, 0, 0.25);
+        filter: brightness(1.2);
+        transform: perspective(300px) rotateX(10deg) rotateY(-12deg) scale(1.1);
     }
     100% {
         box-shadow:
-            0 0 0 4px rgba(255, 215, 0, 0.5),
+            0 0 0 4px rgba(255, 215, 0, 0.6),
             0 0 20px rgba(255, 215, 0, 0.4),
-            0 4px 12px rgba(0, 0, 0, 0.25);
+            0 5px 14px rgba(0, 0, 0, 0.25);
         filter: brightness(1);
+        transform: perspective(300px) rotateX(10deg) rotateY(-12deg) scale(1);
     }
 }
 
 /* ─── ENHANCED PIECE ANIMATIONS ──────────── */
 
-/* Enhanced captured piece: shatter effect */
+/* Enhanced captured piece: explosive shatter effect */
 .piece.captured-enhanced {
-    animation: piece-shatter-enhanced 0.7s cubic-bezier(0.6, 0, 0.4, 1) forwards;
+    animation: piece-shatter-enhanced 0.65s cubic-bezier(0.6, 0, 0.4, 1) forwards;
     z-index: 50;
     filter: brightness(1.5) saturate(1.3);
 }
@@ -2379,62 +2612,62 @@
         opacity: 1;
         filter: brightness(1);
     }
-    15% {
-        transform: scale(1.5) rotate(8deg);
-        filter: brightness(2.5);
-        box-shadow: 0 0 30px rgba(255, 255, 255, 0.6);
+    12% {
+        transform: scale(1.6) rotate(10deg);
+        filter: brightness(2.8);
+        box-shadow: 0 0 40px rgba(255, 255, 255, 0.7);
     }
-    30% {
-        transform: scale(1.3) rotate(-5deg);
-        filter: brightness(2) saturate(1.5);
+    25% {
+        transform: scale(1.35) rotate(-6deg);
+        filter: brightness(2.2) saturate(1.5);
     }
     100% {
-        transform: scale(0.05) rotate(200deg) translateY(-250px);
+        transform: scale(0.03) rotate(240deg) translateY(-300px);
         opacity: 0;
-        filter: brightness(3) blur(3px);
+        filter: brightness(3) blur(4px);
     }
 }
 
-/* Attacker power pulse after capture */
+/* Attacker power pulse after successful capture */
 .piece.attacker-pulse {
-    animation: attacker-power-enhanced 0.8s ease-out;
+    animation: attacker-power-enhanced 0.75s ease-out;
     z-index: 35;
 }
 
 @keyframes attacker-power-enhanced {
     0% {
         box-shadow:
-            0 0 0 0 rgba(255, 215, 0, 0.7),
-            0 4px 10px rgba(0, 0, 0, 0.3);
+            0 0 0 0 rgba(255, 215, 0, 0.8),
+            0 5px 12px rgba(0, 0, 0, 0.3);
         transform: scale(1);
         filter: brightness(1);
     }
-    25% {
+    20% {
         box-shadow:
-            0 0 0 16px rgba(255, 215, 0, 0.3),
-            0 0 35px rgba(255, 215, 0, 0.5),
-            0 4px 10px rgba(0, 0, 0, 0.3);
-        transform: scale(1.3);
-        filter: brightness(1.3);
+            0 0 0 18px rgba(255, 215, 0, 0.35),
+            0 0 40px rgba(255, 215, 0, 0.6),
+            0 5px 12px rgba(0, 0, 0, 0.3);
+        transform: scale(1.35);
+        filter: brightness(1.35);
     }
-    50% {
+    45% {
         box-shadow:
-            0 0 0 24px rgba(255, 215, 0, 0),
-            0 0 20px rgba(255, 215, 0, 0.25),
-            0 4px 10px rgba(0, 0, 0, 0.3);
-        transform: scale(1.15);
-        filter: brightness(1.15);
+            0 0 0 28px rgba(255, 215, 0, 0),
+            0 0 24px rgba(255, 215, 0, 0.3),
+            0 5px 12px rgba(0, 0, 0, 0.3);
+        transform: scale(1.18);
+        filter: brightness(1.18);
     }
     100% {
         box-shadow:
             0 0 0 0 transparent,
-            0 4px 10px rgba(0, 0, 0, 0.3);
+            0 5px 12px rgba(0, 0, 0, 0.3);
         transform: scale(1);
         filter: brightness(1);
     }
 }
 
-/* Enhanced home sparkle */
+/* Enhanced home sparkle -- golden triumphant glow */
 .piece.sparkling-enhanced {
     animation: sparkle-enhanced 0.6s ease-in-out 2;
     z-index: 30;
@@ -2444,27 +2677,27 @@
     0%, 100% {
         transform: scale(1);
         filter: brightness(1);
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 5px 12px rgba(0, 0, 0, 0.3);
     }
     50% {
-        transform: scale(1.35);
-        filter: brightness(2) drop-shadow(0 0 20px gold);
+        transform: scale(1.4);
+        filter: brightness(2.2) drop-shadow(0 0 24px gold);
         box-shadow:
-            0 0 20px rgba(255, 215, 0, 0.6),
-            0 0 40px rgba(255, 215, 0, 0.3),
-            0 4px 10px rgba(0, 0, 0, 0.3);
+            0 0 24px rgba(255, 215, 0, 0.7),
+            0 0 48px rgba(255, 215, 0, 0.35),
+            0 5px 12px rgba(0, 0, 0, 0.3);
     }
 }
 
 .piece.sparkling-enhanced::before {
     content: '' !important;
     position: absolute !important;
-    top: -24px !important;
+    top: -26px !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
-    width: 20px !important;
-    height: 20px !important;
-    background: radial-gradient(circle, rgba(255, 215, 0, 0.8), transparent 70%) !important;
+    width: 24px !important;
+    height: 24px !important;
+    background: radial-gradient(circle, rgba(255, 215, 0, 0.9), transparent 65%) !important;
     border-radius: 50% !important;
     animation: sparkle-particle-float 1s ease-out forwards !important;
     pointer-events: none !important;
@@ -2474,85 +2707,11 @@
 
 @keyframes sparkle-particle-float {
     0% { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
-    100% { opacity: 0; transform: translateX(-50%) translateY(-40px) scale(0.3); }
-}
-
-/* Enhanced piece glow (movable pieces) */
-.piece.glow {
-    z-index: 20;
-    animation: piece-glow-pulse-enhanced 1s infinite alternate;
-    filter: brightness(1.15);
-    will-change: transform;
-}
-
-@keyframes piece-glow-pulse-enhanced {
-    from {
-        transform: scale(1.08);
-        box-shadow:
-            0 0 10px rgba(255, 215, 0, 0.5),
-            0 0 20px rgba(255, 215, 0, 0.25),
-            0 3px 8px rgba(0, 0, 0, 0.3);
-    }
-    to {
-        transform: scale(1.22);
-        box-shadow:
-            0 0 16px rgba(255, 215, 0, 0.7),
-            0 0 32px rgba(255, 215, 0, 0.35),
-            0 0 48px rgba(255, 215, 0, 0.15),
-            0 4px 12px rgba(0, 0, 0, 0.3);
-    }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-45px) scale(0.2); }
 }
 
 /* ─── ENHANCED BOARD AESTHETICS ──────────── */
-
-/* Subtle glow on path cells */
-.cell {
-    border: 0.5px solid rgba(139, 69, 19, 0.15);
-    background: rgba(255, 255, 255, 0.88);
-    box-shadow: inset 0 0 1px rgba(0, 0, 0, 0.05);
-}
-
-/* Home path cells with subtle inner glow */
-.path-green,
-.path-yellow,
-.path-red,
-.path-blue {
-    box-shadow:
-        inset 0 0 8px rgba(0, 0, 0, 0.12),
-        inset 0 0 20px rgba(255, 255, 255, 0.1) !important;
-}
-
-/* Home center enhanced glow */
-.home-center::after {
-    animation: center-core-pulse-enhanced 2s ease-in-out infinite;
-}
-
-@keyframes center-core-pulse-enhanced {
-    0%, 100% {
-        box-shadow:
-            0 0 10px rgba(212, 160, 23, 0.4),
-            0 0 20px rgba(212, 160, 23, 0.2),
-            inset 0 1px 3px rgba(255, 255, 255, 0.6);
-        transform: scale(1);
-    }
-    50% {
-        box-shadow:
-            0 0 18px rgba(255, 216, 107, 0.7),
-            0 0 36px rgba(255, 216, 107, 0.35),
-            inset 0 1px 3px rgba(255, 255, 255, 0.7);
-        transform: scale(1.05);
-    }
-}
-
-/* Board with premium polish */
-.ludo-board {
-    box-shadow:
-        0 0 0 2px #8b5e3c,
-        0 0 0 4px #4a2508,
-        0 8px 32px rgba(0, 0, 0, 0.55),
-        0 2px 8px rgba(0, 0, 0, 0.3),
-        inset 0 0 30px rgba(139, 69, 19, 0.08);
-}
+/* (Primary cell and board styles defined above -- this section is for overrides only) */
 
 /* ─── ENHANCED WIN SCREEN ────────────────── */
 
@@ -2610,19 +2769,22 @@
 /* ─── ENHANCED TURN INDICATOR ────────────── */
 
 .ludo-mobile-self-card.active {
-    border-color: rgba(126, 249, 169, 0.5) !important;
-    box-shadow: 0 0 0 3px rgba(126, 249, 169, 0.15) !important;
+    border-color: rgba(126, 249, 169, 0.55) !important;
+    box-shadow:
+        0 0 0 3px rgba(126, 249, 169, 0.15),
+        0 0 16px rgba(126, 249, 169, 0.06) !important;
     animation: self-card-pulse 1.2s ease-in-out infinite;
 }
 
 @keyframes self-card-pulse {
     0%, 100% {
-        box-shadow: 0 0 0 2px rgba(126, 249, 169, 0.12);
+        box-shadow:
+            0 0 0 2px rgba(126, 249, 169, 0.12);
     }
     50% {
         box-shadow:
-            0 0 0 4px rgba(126, 249, 169, 0.2),
-            0 0 20px rgba(126, 249, 169, 0.08);
+            0 0 0 5px rgba(126, 249, 169, 0.22),
+            0 0 24px rgba(126, 249, 169, 0.1);
     }
 }
 
@@ -2640,23 +2802,26 @@
 
     @keyframes dice-ready-mobile {
         0%, 100% {
-            transform: perspective(260px) rotateX(10deg) rotateY(-12deg) translateY(0) scale(1);
+            transform: perspective(300px) rotateX(10deg) rotateY(-12deg) translateY(0) scale(1);
             box-shadow:
-                0 14px 20px rgba(0, 0, 0, 0.26),
-                0 0 0 3px rgba(255, 215, 0, 0.4),
-                0 0 20px rgba(255, 215, 0, 0.18);
+                0 16px 24px rgba(0, 0, 0, 0.3),
+                0 0 0 3px rgba(255, 215, 0, 0.45),
+                0 0 24px rgba(255, 215, 0, 0.2),
+                0 5px 0 #a0adb8;
         }
         50% {
-            transform: perspective(260px) rotateX(14deg) rotateY(-16deg) translateY(-4px) scale(1.05);
+            transform: perspective(300px) rotateX(14deg) rotateY(-16deg) translateY(-5px) scale(1.06);
             box-shadow:
-                0 18px 24px rgba(0, 0, 0, 0.3),
-                0 0 0 5px rgba(255, 215, 0, 0.5),
-                0 0 30px rgba(255, 215, 0, 0.25);
+                0 20px 28px rgba(0, 0, 0, 0.35),
+                0 0 0 5px rgba(255, 215, 0, 0.55),
+                0 0 36px rgba(255, 215, 0, 0.3),
+                0 5px 0 #a0adb8;
         }
     }
 
     .mobile-dice-caption {
         transition: color 0.3s;
+        font-weight: 600;
     }
 
     .ludo-mobile-self-card.active .mobile-player-turn {
@@ -2726,21 +2891,22 @@
 /* ─── QUEUE SCREEN ENHANCEMENT ───────────── */
 
 .ludo-queue-spinner {
-    width: 52px;
-    height: 52px;
+    width: 54px;
+    height: 54px;
     border-width: 4px;
     border-color: rgba(255, 255, 255, 0.06);
     border-top-color: var(--accent-green, #00e701);
     border-right-color: rgba(0, 231, 1, 0.3);
-    box-shadow: 0 0 20px rgba(0, 231, 1, 0.1);
+    box-shadow: 0 0 24px rgba(0, 231, 1, 0.12);
 }
 
 .ludo-queue-timer {
-    font-size: 2.2rem;
+    font-size: 2.4rem;
     background: linear-gradient(135deg, #fff, #b1bad3);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
 /* ─── ERROR STATE FRIENDLY ───────────────── */
@@ -2769,21 +2935,23 @@
 
 @media (max-width: 768px) {
     .ludo-mobile-player-card.active {
-        border-color: rgba(255, 215, 0, 0.4) !important;
+        border-color: rgba(255, 215, 0, 0.45) !important;
         box-shadow:
-            0 0 0 2px rgba(255, 215, 0, 0.1),
+            0 0 0 2px rgba(255, 215, 0, 0.12),
+            0 0 12px rgba(255, 215, 0, 0.05),
             0 4px 16px rgba(0, 0, 0, 0.2);
-        animation: opponent-active-pulse 1.5s ease-in-out infinite;
+        animation: opponent-active-pulse 1.4s ease-in-out infinite;
     }
 
     @keyframes opponent-active-pulse {
         0%, 100% {
-            box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.1);
+            box-shadow:
+                0 0 0 2px rgba(255, 215, 0, 0.1);
         }
         50% {
             box-shadow:
-                0 0 0 4px rgba(255, 215, 0, 0.15),
-                0 0 16px rgba(255, 215, 0, 0.06);
+                0 0 0 4px rgba(255, 215, 0, 0.18),
+                0 0 20px rgba(255, 215, 0, 0.08);
         }
     }
 }
@@ -2792,6 +2960,8 @@
     .ludo-strip-player.active,
     .piece.glow,
     .piece.trail,
+    .piece.hopping,
+    .piece.flyback,
     .ludo-dice.can-roll,
     .ludo-dice.rolling,
     .ludo-dice.rolling-enhanced,
@@ -2816,4 +2986,206 @@
     .ludo-leave-btn {
         transition: none !important;
     }
+}
+
+/* ============================================
+   CELL-BY-CELL HOPPING ANIMATION
+   Ludo King style: piece hops through each cell
+   with slight vertical bounce
+   ============================================ */
+
+.piece.hopping {
+    z-index: 25;
+    transition: grid-row 0s, grid-column 0s;
+    will-change: transform;
+}
+
+/* Flyback: captured piece flies back to base */
+.piece.flyback {
+    z-index: 50;
+    transition: grid-row 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+                grid-column 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    filter: brightness(1.4) saturate(0.6);
+    opacity: 0.7;
+}
+
+.piece.flyback::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 200%;
+    height: 200%;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 60%);
+    border-radius: 50%;
+    pointer-events: none;
+    animation: flyback-trail 0.6s ease-out forwards;
+}
+
+@keyframes flyback-trail {
+    0% {
+        opacity: 0.8;
+        transform: translate(-50%, -50%) scale(0.5);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(2);
+    }
+}
+
+/* ============================================
+   ENHANCED MOVABLE PIECE HIGHLIGHTING
+   Dashed ring + dramatic pulse + scale
+   ============================================ */
+
+/* Movable piece glow override -- Ludo King style */
+.piece.glow {
+    z-index: 20;
+    animation: piece-glow-king 0.9s infinite alternate ease-in-out;
+    filter: brightness(1.25);
+    will-change: transform, box-shadow;
+}
+
+/* Spinning dashed ring indicator around movable pieces */
+.piece.glow::after {
+    content: '' !important;
+    position: absolute !important;
+    inset: -7px !important;
+    border-radius: 50% !important;
+    border: 2.5px dashed rgba(255, 215, 0, 0.85) !important;
+    background: transparent !important;
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.2) !important;
+    filter: none !important;
+    animation: glow-ring-spin 2.5s linear infinite !important;
+    z-index: 25 !important;
+    pointer-events: none !important;
+    bottom: auto !important;
+    transform: none !important;
+    width: auto !important;
+    height: auto !important;
+}
+
+@keyframes glow-ring-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes piece-glow-king {
+    from {
+        transform: scale(1.08);
+        box-shadow:
+            0 0 12px var(--ludo-gold-shimmer),
+            0 0 22px rgba(255, 215, 0, 0.25),
+            0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+    to {
+        transform: scale(1.24);
+        box-shadow:
+            0 0 20px rgba(255, 215, 0, 0.75),
+            0 0 36px rgba(255, 215, 0, 0.35),
+            0 0 54px rgba(255, 215, 0, 0.12),
+            0 5px 14px rgba(0, 0, 0, 0.3);
+    }
+}
+
+/* ============================================
+   EMBOSSED CELL BORDERS
+   (Defined in main .cell rule above)
+   ============================================ */
+
+/* ============================================
+   CONE-SHAPED PAWN LOOK
+   (3D pawn styles defined in main .piece rules)
+   ============================================ */
+
+/* ============================================
+   ENHANCED PLAYER CARD TIMER RINGS
+   Green progress ring around active player
+   ============================================ */
+
+@media (max-width: 768px) {
+    .ludo-mobile-player-card.active .mobile-player-token,
+    .ludo-mobile-self-card.active .mobile-player-token {
+        box-shadow:
+            0 0 0 3px rgba(76, 175, 80, 0.65),
+            0 0 14px rgba(76, 175, 80, 0.35),
+            inset 0 2px 5px rgba(255, 255, 255, 0.28),
+            0 3px 8px rgba(0, 0, 0, 0.28);
+        animation: token-ring-pulse 1.2s ease-in-out infinite;
+    }
+
+    @keyframes token-ring-pulse {
+        0%, 100% {
+            box-shadow:
+                0 0 0 3px rgba(76, 175, 80, 0.65),
+                0 0 14px rgba(76, 175, 80, 0.35),
+                inset 0 2px 5px rgba(255, 255, 255, 0.28);
+        }
+        50% {
+            box-shadow:
+                0 0 0 5px rgba(76, 175, 80, 0.45),
+                0 0 24px rgba(76, 175, 80, 0.45),
+                inset 0 2px 5px rgba(255, 255, 255, 0.28);
+        }
+    }
+}
+
+/* ============================================
+   ENHANCED WIN SCREEN
+   More dramatic play again button
+   ============================================ */
+
+.play-again-btn {
+    animation: play-again-king 2s ease-in-out infinite !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.play-again-btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        105deg,
+        transparent 0%,
+        transparent 35%,
+        rgba(255, 255, 255, 0.28) 50%,
+        transparent 65%,
+        transparent 100%
+    );
+    transform: translateX(-150%);
+    animation: play-again-shine 2.5s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes play-again-king {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow:
+            0 4px 16px rgba(0, 231, 1, 0.3),
+            inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    }
+    50% {
+        transform: scale(1.04);
+        box-shadow:
+            0 6px 28px rgba(0, 231, 1, 0.45),
+            0 0 48px rgba(0, 231, 1, 0.18),
+            inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    }
+}
+
+@keyframes play-again-shine {
+    0% { transform: translateX(-150%); }
+    55% { transform: translateX(150%); }
+    100% { transform: translateX(150%); }
+}
+
+/* ============================================
+   FLOATING EMOJI REACTIONS - Bigger & More Visible
+   ============================================ */
+
+.floating-emoji {
+    font-size: 2.8rem !important;
+    filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.55)) !important;
 }
