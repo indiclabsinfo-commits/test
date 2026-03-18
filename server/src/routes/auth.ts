@@ -281,7 +281,7 @@ router.post('/logout', async (req, res) => {
 });
 
 // Get current user
-router.get('/me', JWTService.middleware, async (req, res) => {
+router.get('/me', JWTService.middleware.bind(JWTService), async (req, res) => {
   try {
     const result = await query(
       'SELECT id, username, balance, demo_balance, is_demo_mode, role FROM users WHERE id = $1',
