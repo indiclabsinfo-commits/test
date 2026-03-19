@@ -932,6 +932,40 @@
     }
 }
 
+/* ─── 3D DICE CUBE TUMBLE ───────────────── */
+
+/* True 3D cube tumble: rotates through multiple axes then lands */
+@keyframes dice-cube-tumble {
+    0% {
+        transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1);
+    }
+    8% {
+        transform: rotateX(95deg) rotateY(55deg) rotateZ(30deg) scale(0.9) translateY(-8px);
+    }
+    20% {
+        transform: rotateX(210deg) rotateY(145deg) rotateZ(80deg) scale(0.95) translateY(4px);
+    }
+    34% {
+        transform: rotateX(355deg) rotateY(260deg) rotateZ(155deg) scale(1.04) translateY(-6px);
+    }
+    48% {
+        transform: rotateX(490deg) rotateY(380deg) rotateZ(240deg) scale(0.96) translateY(4px);
+    }
+    62% {
+        transform: rotateX(600deg) rotateY(470deg) rotateZ(310deg) scale(1.02) translateY(-3px);
+    }
+    78% {
+        transform: rotateX(690deg) rotateY(530deg) rotateZ(345deg) scale(1.0) translateY(2px);
+    }
+    90% {
+        transform: rotateX(720deg) rotateY(550deg) rotateZ(358deg) scale(1.0) translateY(-1px);
+    }
+    100% {
+        /* Ends at a multiple of 360 so the CSS .show-N class takes over cleanly */
+        transform: rotateX(720deg) rotateY(540deg) rotateZ(360deg) scale(1) translateY(0);
+    }
+}
+
 /* ─── SAFE SPOT SPARKLE ──────────────────── */
 
 @keyframes safe-spot-sparkle {

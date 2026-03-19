@@ -153,28 +153,65 @@ const TimerRing: React.FC<{ timeLeft: number; maxTime: number; color: string }> 
     );
 };
 
-const DiceFace: React.FC<{ value: number }> = ({ value }) => {
-    const dot = (key: number, red = false) => (
-        <div key={key} className={`dice-dot${red ? ' red-dot' : ''}`} />
-    );
-    const empty = (key: number) => <div key={key} />;
-
-    const layouts: Record<number, (number | 'e' | 'r')[]> = {
-        1: ['e', 'e', 'e', 'e', 'r', 'e', 'e', 'e', 'e'],
-        2: [1, 'e', 'e', 'e', 'e', 'e', 'e', 'e', 2],
-        3: [1, 'e', 'e', 'e', 2, 'e', 'e', 'e', 3],
-        4: [1, 'e', 2, 'e', 'e', 'e', 3, 'e', 4],
-        5: [1, 'e', 2, 'e', 3, 'e', 4, 'e', 5],
-        6: [1, 'e', 2, 3, 'e', 4, 5, 'e', 6],
+/** Render pips for a single dice face using CSS grid positioning */
+const DiceFacePips: React.FC<{ value: number }> = ({ value }) => {
+    // Each face uses a 3x3 grid. Pips are placed at specific grid positions.
+    // Grid positions: TL=1/1, TC=1/2, TR=1/3, ML=2/1, MC=2/2, MR=2/3, BL=3/1, BC=3/2, BR=3/3
+    const pipPositions: Record<number, { row: number; col: number; red?: boolean }[]> = {
+        1: [{ row: 2, col: 2, red: true }],
+        2: [{ row: 1, col: 3 }, { row: 3, col: 1 }],
+        3: [{ row: 1, col: 3 }, { row: 2, col: 2 }, { row: 3, col: 1 }],
+        4: [{ row: 1, col: 1 }, { row: 1, col: 3 }, { row: 3, col: 1 }, { row: 3, col: 3 }],
+        5: [{ row: 1, col: 1 }, { row: 1, col: 3 }, { row: 2, col: 2 }, { row: 3, col: 1 }, { row: 3, col: 3 }],
+        6: [{ row: 1, col: 1 }, { row: 1, col: 3 }, { row: 2, col: 1 }, { row: 2, col: 3 }, { row: 3, col: 1 }, { row: 3, col: 3 }],
     };
-
-    const layout = layouts[value] || layouts[1];
-
+    const pips = pipPositions[value] || pipPositions[1];
     return (
-        <div className="dice-face">
-            {layout.map((cell, i) =>
-                cell === 'e' ? empty(i) : cell === 'r' ? dot(i, true) : dot(i)
-            )}
+        <>
+            {pips.map((p, i) => (
+                <div
+                    key={i}
+                    className={`dice-pip${p.red ? ' pip-red' : ''}`}
+                    style={{ gridRow: p.row, gridColumn: p.col }}
+                />
+            ))}
+        </>
+    );
+};
+
+/** 3D Dice Cube -- renders a proper 3D cube with pip faces, like Ludo King */
+const Dice3D: React.FC<{ value: number | null; isRolling: boolean; showSix: boolean }> = ({ value, isRolling, showSix }) => {
+    const displayValue = value || 1;
+    // Face mapping -- must align with .show-N rotation rules:
+    // show-1: rotateX(0) rotateY(0)      -> front face visible  -> value 1
+    // show-2: rotateX(-90deg)             -> top face visible    -> value 2
+    // show-3: rotateY(90deg)              -> left face visible   -> value 3
+    // show-4: rotateY(-90deg)             -> right face visible  -> value 4
+    // show-5: rotateX(90deg)              -> bottom face visible -> value 5
+    // show-6: rotateX(180deg)             -> back face visible   -> value 6
+    // Opposite faces sum to 7: front/back=1/6, top/bottom=2/5, left/right=3/4
+    return (
+        <div className="dice-3d-scene">
+            <div className={`dice-3d-cube ${isRolling ? 'cube-rolling' : ''} show-${displayValue}${showSix && displayValue === 6 ? ' six-glow' : ''}`}>
+                <div className="dice-3d-face face-front">
+                    <DiceFacePips value={1} />
+                </div>
+                <div className="dice-3d-face face-back">
+                    <DiceFacePips value={6} />
+                </div>
+                <div className="dice-3d-face face-right">
+                    <DiceFacePips value={4} />
+                </div>
+                <div className="dice-3d-face face-left">
+                    <DiceFacePips value={3} />
+                </div>
+                <div className="dice-3d-face face-top">
+                    <DiceFacePips value={2} />
+                </div>
+                <div className="dice-3d-face face-bottom">
+                    <DiceFacePips value={5} />
+                </div>
+            </div>
         </div>
     );
 };
@@ -1355,6 +1392,27 @@ export const LudoGame: React.FC = () => {
         isRolling,
     ]);
 
+    // Move preview: top-level useMemo so hook count is stable across all render branches
+    const computedMovePreview = useMemo(() => {
+        if (!serverState || !serverState.waitingForMove || !isMyTurn || !currentPlayer || deviceProfile.isLowEnd) return null;
+        const roll = serverState.lastRoll;
+        if (!roll) return null;
+        const activeColor = isLocalMatch ? currentPlayer.color : myColor;
+        if (!activeColor) return null;
+        const player = serverState.players.find((p: { color: PlayerColor }) => p.color === activeColor);
+        if (!player) return null;
+        const previews: Array<{row: number, col: number, color: string}> = [];
+        for (const pieceId of serverState.movablePieces) {
+            const piece = player.pieces.find((p: ServerPiece) => p.id === pieceId);
+            if (!piece || piece.finished) continue;
+            const landing = getLandingPosition(activeColor, piece, roll);
+            if (landing) {
+                previews.push({ row: landing.r, col: landing.c, color: COLOR_MAP[activeColor].main });
+            }
+        }
+        return previews;
+    }, [serverState, isMyTurn, currentPlayer, isLocalMatch, myColor, deviceProfile.isLowEnd, getLandingPosition]);
+
     // ---- Render: MENU ----
 
     if (matchState === 'MENU') {
@@ -1734,30 +1792,7 @@ export const LudoGame: React.FC = () => {
             }, 1500);
         };
 
-        // Compute move preview for the first movable piece when waiting for selection
-        const computedMovePreview = useMemo(() => {
-            if (!serverState.waitingForMove || !isMyTurn || !currentPlayer || deviceProfile.isLowEnd) return null;
-            const roll = serverState.lastRoll;
-            if (!roll) return null;
-
-            const activeColor = isLocalMatch ? currentPlayer.color : myColor;
-            if (!activeColor) return null;
-
-            const player = players.find(p => p.color === activeColor);
-            if (!player) return null;
-
-            // Show preview for each movable piece
-            const previews: Array<{row: number, col: number, color: string}> = [];
-            for (const pieceId of serverState.movablePieces) {
-                const piece = player.pieces.find(p => p.id === pieceId);
-                if (!piece || piece.finished) continue;
-                const landing = getLandingPosition(activeColor, piece, roll);
-                if (landing) {
-                    previews.push({ row: landing.r, col: landing.c, color: COLOR_MAP[activeColor].main });
-                }
-            }
-            return previews;
-        }, [serverState.waitingForMove, isMyTurn, serverState.lastRoll, serverState.movablePieces, currentPlayer, players, myColor, isLocalMatch, deviceProfile.isLowEnd, getLandingPosition]);
+        // computedMovePreview is now a top-level useMemo (defined above early returns)
 
         return (
             <div className={`ludo-game-screen${deviceProfile.isLowEnd ? ' low-end' : ''} ${shakeClass}`}>
@@ -1962,12 +1997,61 @@ export const LudoGame: React.FC = () => {
                             )}
                         </div>
 
+                        <div className={`ludo-board-wrapper${isDuelPresentation ? ' duel-wrapper' : ''}`}>
+                        {/* Board-corner player avatars (Ludo King style) */}
+                        {players.map((player) => {
+                            const colors = COLOR_MAP[player.color];
+                            const isActive = currentPlayer?.color === player.color;
+                            const isMe = isLocalMatch
+                                ? localControlledPlayerIds.includes(player.id as string)
+                                : player.id === user?.id;
+                            const posClass = `player-avatar-pos-${player.color.toLowerCase()}`;
+                            const diceVal = diceByColor[player.color];
+
+                            return (
+                                <div
+                                    key={`avatar-${player.color}`}
+                                    className={`player-avatar-circle ${posClass}${isActive ? ' active' : ''}`}
+                                    style={{
+                                        background: colors.gradient,
+                                        '--avatar-color': colors.main,
+                                        '--avatar-glow': colors.glow,
+                                        borderColor: colors.main,
+                                    } as React.CSSProperties}
+                                >
+                                    {player.username[0].toUpperCase()}
+                                    <span className="player-avatar-score">{player.finishedCount}/{finishTarget}</span>
+                                    {player.isBot && <span className="player-avatar-bot">BOT</span>}
+                                    {isActive && <span className="avatar-turn-arrow">{'\u25BC'}</span>}
+                                    {isActive && diceVal && (
+                                        <span className="avatar-dice-result">{diceVal}</span>
+                                    )}
+                                    <span className="player-avatar-label">
+                                        {isMe && !isLocalMatch ? 'You' : player.username.slice(0, 8)}
+                                    </span>
+                                    {isActive && player.finishedCount < finishTarget && (
+                                        <div className="avatar-timer-ring">
+                                            <TimerRing timeLeft={turnTimeLeft} maxTime={turnSeconds} color={colors.main} />
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+
                         <div ref={boardRef} onClick={handleBoardTap} className={`ludo-board ${isDuelPresentation ? 'duel-board' : ''}`}>
                         <div className="base green"><div className="base-inner">{[0, 1, 2, 3].map(i => <div key={i} className="piece-spot" />)}</div></div>
                         <div className="base yellow" style={{ gridColumn: '10 / span 6' }}><div className="base-inner">{[0, 1, 2, 3].map(i => <div key={i} className="piece-spot" />)}</div></div>
                         <div className="base red" style={{ gridRow: '10 / span 6' }}><div className="base-inner">{[0, 1, 2, 3].map(i => <div key={i} className="piece-spot" />)}</div></div>
                         <div className="base blue" style={{ gridRow: '10 / span 6', gridColumn: '10 / span 6' }}><div className="base-inner">{[0, 1, 2, 3].map(i => <div key={i} className="piece-spot" />)}</div></div>
-                        <div className="home-center" />
+                        <div className="home-center">
+                            <div className="home-center-triangles">
+                                <div className="home-tri-top" />
+                                <div className="home-tri-bottom" />
+                                <div className="home-tri-left" />
+                                <div className="home-tri-right" />
+                            </div>
+                            <div className="home-center-jewel" />
+                        </div>
                         {PATH_COORDS.map((coord, i) => (
                             <div key={`path-${i}`} className={`cell ${SAFE_SPOTS.includes(i) ? 'safe' : ''}`} style={{ gridRow: coord.r, gridColumn: coord.c }} />
                         ))}
@@ -2080,16 +2164,21 @@ export const LudoGame: React.FC = () => {
                             })
                         )}
                         </div>
+                        </div>{/* close ludo-board-wrapper */}
 
                         {matchState === 'PLAYING' && myHudPlayer && (isLocalMatch || isDuelPresentation) && (
                             <>
                                 <div className="ludo-board-hud top">
                                     <div className="hud-token" style={{ background: COLOR_MAP[(opponentHudPlayer?.color || currentPlayer?.color || 'GREEN') as PlayerColor].gradient }} />
-                                    <motion.div
-                                        className={`ludo-dice hud-dice ${opponentCanRoll ? 'can-roll' : 'disabled'} ${isRolling && rollingColor === opponentHudPlayer?.color ? 'rolling-enhanced' : ''}`}
-                                    >
-                                        {opponentHudDiceValue ? <DiceFace value={opponentHudDiceValue} /> : <span className="hud-dice-wait">...</span>}
-                                    </motion.div>
+                                    <div className={`dice-3d-wrapper hud-dice-wrapper ${opponentCanRoll ? 'can-roll' : 'disabled'}`}>
+                                        {opponentHudDiceValue ? (
+                                            <Dice3D
+                                                value={opponentHudDiceValue}
+                                                isRolling={!!(isRolling && rollingColor === opponentHudPlayer?.color)}
+                                                showSix={false}
+                                            />
+                                        ) : <span className="hud-dice-wait">...</span>}
+                                    </div>
                                     {isDuelPresentation && (
                                         <div className="hud-label">{opponentHudPlayer?.username || 'Opponent'}</div>
                                     )}
@@ -2098,7 +2187,7 @@ export const LudoGame: React.FC = () => {
                                 <div className="ludo-board-hud bottom">
                                     <div className="hud-token" style={{ background: COLOR_MAP[myHudPlayer.color].gradient }} />
                                     <motion.div
-                                        className={`ludo-dice hud-dice ${canRollDice ? 'can-roll' : 'disabled'} ${isRolling && rollingColor === myHudPlayer.color ? 'rolling-enhanced' : ''} ${showSixEffect && rollingColor === myHudPlayer.color ? 'dice-six-glow-enhanced' : ''}`}
+                                        className={`dice-3d-wrapper hud-dice-wrapper ${canRollDice ? 'can-roll' : 'disabled'}`}
                                         onClick={() => canRollDice && rollDice()}
                                         onPointerDown={() => canRollDice && setDicePressed(true)}
                                         onPointerUp={() => setDicePressed(false)}
@@ -2106,7 +2195,13 @@ export const LudoGame: React.FC = () => {
                                         whileTap={canRollDice ? { scale: 0.85 } : {}}
                                         animate={dicePressed && canRollDice ? { scale: 0.9, y: 2 } : {}}
                                     >
-                                        {myHudDiceValue ? <DiceFace value={myHudDiceValue} /> : (
+                                        {myHudDiceValue ? (
+                                            <Dice3D
+                                                value={myHudDiceValue}
+                                                isRolling={!!(isRolling && rollingColor === myHudPlayer.color)}
+                                                showSix={!!(showSixEffect && rollingColor === myHudPlayer.color)}
+                                            />
+                                        ) : (
                                             <span className="hud-dice-wait">{canRollDice ? 'TAP' : 'WAIT'}</span>
                                         )}
                                     </motion.div>
@@ -2146,7 +2241,7 @@ export const LudoGame: React.FC = () => {
 
                         <div className="ludo-mobile-dice-zone">
                             <motion.div
-                                className={`ludo-dice ludo-dice-center mobile-primary-dice ${canRollDice ? 'can-roll' : 'disabled'} ${isRolling && rollingColor === currentPlayer?.color ? 'rolling-enhanced' : ''} ${showSixEffect ? 'dice-six-glow-enhanced' : ''} ${diceRevealed ? 'dice-revealed' : ''}`}
+                                className={`dice-3d-wrapper mobile-dice-wrapper ${canRollDice ? 'can-roll' : 'disabled'}`}
                                 onClick={() => canRollDice && rollDice()}
                                 onPointerDown={() => canRollDice && setDicePressed(true)}
                                 onPointerUp={() => setDicePressed(false)}
@@ -2154,7 +2249,13 @@ export const LudoGame: React.FC = () => {
                                 whileTap={canRollDice ? { scale: 0.85 } : {}}
                                 animate={dicePressed && canRollDice ? { scale: 0.92, y: 3 } : {}}
                             >
-                                {activeDiceValue ? <DiceFace value={activeDiceValue} /> : (
+                                {activeDiceValue ? (
+                                    <Dice3D
+                                        value={activeDiceValue}
+                                        isRolling={!!(isRolling && rollingColor === currentPlayer?.color)}
+                                        showSix={!!showSixEffect}
+                                    />
+                                ) : (
                                     <span className="hud-dice-wait">{canRollDice ? 'ROLL' : 'WAIT'}</span>
                                 )}
                             </motion.div>
@@ -2278,7 +2379,7 @@ export const LudoGame: React.FC = () => {
 
                                     <div className="ludo-dice-center-wrap">
                                         <motion.div
-                                            className={`ludo-dice ludo-dice-center ${canRollDice ? 'can-roll' : 'disabled'} ${isRolling && rollingColor === currentPlayer?.color ? 'rolling-enhanced' : ''} ${showSixEffect && rollingColor === currentPlayer?.color ? 'dice-six-glow-enhanced' : ''} ${diceRevealed ? 'dice-revealed' : ''}`}
+                                            className={`dice-3d-wrapper dock-dice-wrapper ${canRollDice ? 'can-roll' : 'disabled'}`}
                                             onClick={() => canRollDice && rollDice()}
                                             onPointerDown={() => canRollDice && setDicePressed(true)}
                                             onPointerUp={() => setDicePressed(false)}
@@ -2286,7 +2387,13 @@ export const LudoGame: React.FC = () => {
                                             whileTap={canRollDice ? { scale: 0.85 } : {}}
                                             animate={dicePressed && canRollDice ? { scale: 0.92, y: 3 } : {}}
                                         >
-                                            {activeDiceValue ? <DiceFace value={activeDiceValue} /> : (
+                                            {activeDiceValue ? (
+                                                <Dice3D
+                                                    value={activeDiceValue}
+                                                    isRolling={!!(isRolling && rollingColor === currentPlayer?.color)}
+                                                    showSix={!!(showSixEffect && rollingColor === currentPlayer?.color)}
+                                                />
+                                            ) : (
                                                 <span style={{ fontSize: '0.8rem', color: '#999', fontWeight: 700 }}>
                                                     {canRollDice ? 'TAP' : 'WAIT'}
                                                 </span>
