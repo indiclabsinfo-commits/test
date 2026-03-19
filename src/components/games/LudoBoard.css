@@ -1308,6 +1308,36 @@
     }
 }
 
+/* ─── START CELLS (entry points for each color) ── */
+
+.start-cell-green {
+    background: rgba(0, 184, 74, 0.3) !important;
+    box-shadow:
+        inset 0 0 6px rgba(0, 184, 74, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+}
+
+.start-cell-yellow {
+    background: rgba(255, 202, 0, 0.3) !important;
+    box-shadow:
+        inset 0 0 6px rgba(255, 202, 0, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+}
+
+.start-cell-blue {
+    background: rgba(40, 85, 197, 0.3) !important;
+    box-shadow:
+        inset 0 0 6px rgba(40, 85, 197, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+}
+
+.start-cell-red {
+    background: rgba(232, 32, 44, 0.3) !important;
+    box-shadow:
+        inset 0 0 6px rgba(232, 32, 44, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+}
+
 /* ─── HOME PATHS ─────────────────────────── */
 
 .path-green {
@@ -2964,6 +2994,46 @@
     pointer-events: auto;
 }
 
+/* ─── DICE ROLL ANNOUNCER ───────────────── */
+
+.dice-announcement {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2.4rem;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    pointer-events: none;
+    z-index: 90;
+    text-shadow:
+        0 0 16px currentColor,
+        0 2px 8px rgba(0, 0, 0, 0.6);
+    filter: drop-shadow(0 0 12px currentColor);
+}
+
+.dice-announcement-six {
+    font-size: 3rem;
+    animation: announce-six-pulse 0.5s ease-out;
+}
+
+.dice-announcement-no-moves {
+    font-size: 1.6rem;
+    opacity: 0.85;
+    color: #8ea7bf !important;
+    text-shadow:
+        0 0 8px rgba(142, 167, 191, 0.4),
+        0 2px 6px rgba(0, 0, 0, 0.5);
+    filter: none;
+}
+
+@keyframes announce-six-pulse {
+    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+    40% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
 /* ─── ENHANCED DICE (3D cube animations) ─── */
 /* The rolling and six-glow are handled by .dice-3d-cube classes.
    These legacy stubs exist for backward compat if any markup still uses them. */
@@ -3500,4 +3570,92 @@
 .floating-emoji {
     font-size: 2.8rem !important;
     filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.55)) !important;
+}
+
+/* ============================================
+   CONSECUTIVE SIX COUNTER BADGE
+   ============================================ */
+
+.six-counter-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 26px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 900;
+    line-height: 20px;
+    text-align: center;
+    color: #fff;
+    pointer-events: none;
+    z-index: 20;
+    letter-spacing: 0.02em;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.six-counter-warning {
+    background: linear-gradient(135deg, #ff9800, #f57c00);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.six-counter-danger {
+    background: linear-gradient(135deg, #f44336, #d32f2f);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    animation: six-counter-pulse 0.6s ease-in-out infinite;
+}
+
+@keyframes six-counter-pulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 2px 6px rgba(244, 67, 54, 0.4);
+    }
+    50% {
+        transform: scale(1.15);
+        box-shadow: 0 2px 12px rgba(244, 67, 54, 0.7), 0 0 16px rgba(244, 67, 54, 0.3);
+    }
+}
+
+/* Badge is inside .dice-3d-wrapper which already has position: relative */
+
+/* ============================================
+   PATH TRAIL HIGHLIGHT DURING PIECE HOP
+   ============================================ */
+
+.cell-trail {
+    animation: cell-trail-flash 0.5s ease-out forwards;
+    z-index: 3;
+}
+
+.cell-trail-green {
+    background: rgba(2, 200, 83, 0.35) !important;
+    box-shadow: inset 0 0 8px rgba(2, 200, 83, 0.25);
+}
+
+.cell-trail-yellow {
+    background: rgba(255, 224, 19, 0.35) !important;
+    box-shadow: inset 0 0 8px rgba(255, 224, 19, 0.25);
+}
+
+.cell-trail-blue {
+    background: rgba(63, 81, 181, 0.35) !important;
+    box-shadow: inset 0 0 8px rgba(63, 81, 181, 0.25);
+}
+
+.cell-trail-red {
+    background: rgba(235, 28, 36, 0.35) !important;
+    box-shadow: inset 0 0 8px rgba(235, 28, 36, 0.25);
+}
+
+@keyframes cell-trail-flash {
+    0% {
+        opacity: 1;
+    }
+    70% {
+        opacity: 0.8;
+    }
+    100% {
+        opacity: 0.5;
+    }
 }

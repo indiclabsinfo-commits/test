@@ -273,10 +273,14 @@ export const LudoGame: React.FC = () => {
     const [captureExplosionPos, setCaptureExplosionPos] = useState<{x: number, y: number, color: string} | null>(null);
     const [homeCelebrationPos, setHomeCelebrationPos] = useState<{x: number, y: number} | null>(null);
     const [showNearMiss, setShowNearMiss] = useState(false);
+    const [diceAnnouncement, setDiceAnnouncement] = useState<string | null>(null);
     const [showTurnBanner, setShowTurnBanner] = useState(false);
     const [emojiReactions, setEmojiReactions] = useState<Array<{id: string, emoji: string, fromTop: boolean}>>([]);
     const [diceRevealed, setDiceRevealed] = useState(false);
     const [consecutiveSixes, setConsecutiveSixes] = useState(0);
+    // Trail cells for hop path highlight
+    const [trailCells, setTrailCells] = useState<{ r: number; c: number; color: PlayerColor }[]>([]);
+    const trailTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
     // New effect states
     const [pieceEntryEffect, setPieceEntryEffect] = useState<{x: number, y: number, color: string} | null>(null);
@@ -293,11 +297,22 @@ export const LudoGame: React.FC = () => {
     const isLocalMatchRef = useRef(false);
     const boardRef = useRef<HTMLDivElement | null>(null);
     const captureStreakRef = useRef(0);
+    const serverStateRef = useRef<ServerGameState | null>(null);
+    const myColorRef = useRef<PlayerColor | null>(null);
+    const nearMissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const { shakeClass, triggerShake } = useScreenShake();
 
     useEffect(() => {
         isLocalMatchRef.current = isLocalMatch;
     }, [isLocalMatch]);
+
+    useEffect(() => {
+        serverStateRef.current = serverState;
+    }, [serverState]);
+
+    useEffect(() => {
+        myColorRef.current = myColor;
+    }, [myColor]);
 
     useEffect(() => {
         if (isAuthenticated && wsStatus === 'DISCONNECTED') {
@@ -402,16 +417,25 @@ export const LudoGame: React.FC = () => {
             return;
         }
 
+        // Clear any previous trail timers
+        trailTimersRef.current.forEach(t => clearTimeout(t));
+        trailTimersRef.current = [];
+        setTrailCells([]);
+
         const HOP_MS = 120; // ms per hop
         const MAX_DURATION = 1500; // cap total
         const hopDuration = Math.min(HOP_MS, MAX_DURATION / steps.length);
         let stepIdx = 0;
+        const TRAIL_FADE_MS = 500; // how long each cell trail lingers
 
         const doStep = () => {
             if (stepIdx >= steps.length) {
                 // Final landing -- satisfying thud
                 playLandingSound();
                 setHoppingPiece(null);
+                // Clear remaining trail after fade
+                const clearTimer = setTimeout(() => setTrailCells([]), TRAIL_FADE_MS);
+                trailTimersRef.current.push(clearTimer);
                 onComplete?.();
                 return;
             }
@@ -419,6 +443,17 @@ export const LudoGame: React.FC = () => {
             const coord = steps[stepIdx];
             // Per-cell hop sound with pitch variation built into playHopSound
             playHopSound();
+
+            // Add this cell to the trail
+            setTrailCells(prev => [...prev, { r: coord.r, c: coord.c, color }]);
+
+            // Schedule fade-out removal for this specific cell
+            const cellR = coord.r;
+            const cellC = coord.c;
+            const fadeTimer = setTimeout(() => {
+                setTrailCells(prev => prev.filter(t => !(t.r === cellR && t.c === cellC)));
+            }, TRAIL_FADE_MS + stepIdx * hopDuration);
+            trailTimersRef.current.push(fadeTimer);
 
             setHoppingPiece({
                 color,
@@ -647,9 +682,47 @@ export const LudoGame: React.FC = () => {
                 } else {
                     addToLog(`${playerColor} rolled ${roll}`, 'normal');
                 }
+
+                // Dice roll announcer text
+                if (roll === 6) {
+                    setDiceAnnouncement('SIX!');
+                    setTimeout(() => setDiceAnnouncement(null), 800);
+                } else if (!canMove) {
+                    setDiceAnnouncement('No moves!');
+                    setTimeout(() => setDiceAnnouncement(null), 800);
+                }
             }
         }, tickMs);
     }, [addToLog, deviceProfile.diceAnimDurationMs, deviceProfile.isLowEnd, serverState?.currentPlayerColor, triggerHaptic, triggerShake]);
+
+    /** Check if any opponent piece is within 1-6 cells of the local player's pieces (danger zone). */
+    const checkNearMiss = useCallback((state: ServerGameState | null) => {
+        if (!state || state.status !== 'PLAYING') return;
+        const localColor = myColorRef.current;
+        if (!localColor) return;
+        const localPlayer = state.players.find(p => p.color === localColor);
+        if (!localPlayer) return;
+
+        const myMainPathPieces = localPlayer.pieces.filter(p => p.position >= 0);
+        if (myMainPathPieces.length === 0) return;
+
+        for (const opponent of state.players) {
+            if (opponent.color === localColor) continue;
+            for (const opPiece of opponent.pieces) {
+                if (opPiece.position < 0) continue;
+                for (const myPiece of myMainPathPieces) {
+                    if (SAFE_SPOTS.includes(myPiece.position)) continue;
+                    const dist = (myPiece.position - opPiece.position + 52) % 52;
+                    if (dist >= 1 && dist <= 6) {
+                        if (nearMissTimerRef.current) clearTimeout(nearMissTimerRef.current);
+                        setShowNearMiss(true);
+                        nearMissTimerRef.current = setTimeout(() => setShowNearMiss(false), 1500);
+                        return;
+                    }
+                }
+            }
+        }
+    }, []);
 
     const handlePieceMoved = useCallback((data: any) => {
         triggerHaptic('light');
@@ -697,7 +770,10 @@ export const LudoGame: React.FC = () => {
         if (!data.captured) {
             captureStreakRef.current = 0;
         }
-    }, [addToLog, triggerHaptic, flashMovedPiece, getPathSteps, animateHop]);
+
+        // Near-miss detection: check after a short delay so state has settled
+        setTimeout(() => checkNearMiss(serverStateRef.current), 200);
+    }, [addToLog, triggerHaptic, flashMovedPiece, getPathSteps, animateHop, checkNearMiss]);
 
     const handlePieceCaptured = useCallback((data: any) => {
         // Dramatic pause built into timing: capture sound starts immediately
@@ -1067,6 +1143,9 @@ export const LudoGame: React.FC = () => {
         setServerState(state);
         setMovePreview(null);
 
+        // Near-miss detection for local moves
+        checkNearMiss(state);
+
         if (finishLocalIfNeeded(state)) return;
 
         const bonusTurn = roll === 6 || captured;
@@ -1253,6 +1332,7 @@ export const LudoGame: React.FC = () => {
         setCaptureExplosionPos(null);
         setHomeCelebrationPos(null);
         setShowNearMiss(false);
+        setDiceAnnouncement(null);
         setShowTurnBanner(false);
         setShowConfetti(false);
         setConsecutiveSixes(0);
@@ -1988,6 +2068,22 @@ export const LudoGame: React.FC = () => {
                             {/* Near Miss Flash */}
                             <NearMissFlash show={showNearMiss} />
 
+                            {/* Dice Roll Announcer */}
+                            <AnimatePresence>
+                                {diceAnnouncement && (
+                                    <motion.div
+                                        className={`dice-announcement${diceAnnouncement === 'SIX!' ? ' dice-announcement-six' : ' dice-announcement-no-moves'}`}
+                                        initial={{ opacity: 0, scale: 0.4 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 1.3 }}
+                                        transition={{ duration: 0.15, ease: 'easeOut' }}
+                                        style={currentPlayer ? { color: COLOR_MAP[currentPlayer.color].main } : undefined}
+                                    >
+                                        {diceAnnouncement}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+
                             {/* Emoji Reactions */}
                             {matchState === 'PLAYING' && (
                                 <EmojiReactions
@@ -2052,13 +2148,24 @@ export const LudoGame: React.FC = () => {
                             </div>
                             <div className="home-center-jewel" />
                         </div>
-                        {PATH_COORDS.map((coord, i) => (
-                            <div key={`path-${i}`} className={`cell ${SAFE_SPOTS.includes(i) ? 'safe' : ''}`} style={{ gridRow: coord.r, gridColumn: coord.c }} />
-                        ))}
+                        {PATH_COORDS.map((coord, i) => {
+                            const startColorClass =
+                                i === START_OFFSETS.GREEN ? 'start-cell-green' :
+                                i === START_OFFSETS.YELLOW ? 'start-cell-yellow' :
+                                i === START_OFFSETS.BLUE ? 'start-cell-blue' :
+                                i === START_OFFSETS.RED ? 'start-cell-red' : '';
+                            const trailMatch = trailCells.find(t => t.r === coord.r && t.c === coord.c);
+                            return (
+                                <div key={`path-${i}`} className={`cell ${SAFE_SPOTS.includes(i) ? 'safe' : ''} ${startColorClass}${trailMatch ? ` cell-trail cell-trail-${trailMatch.color.toLowerCase()}` : ''}`} style={{ gridRow: coord.r, gridColumn: coord.c }} />
+                            );
+                        })}
                         {Object.entries(HOME_PATHS).map(([color, paths]) =>
-                            paths.map((coord, i) => (
-                                <div key={`home-${color}-${i}`} className={`cell path-${color.toLowerCase()}`} style={{ gridRow: coord.r, gridColumn: coord.c }} />
-                            ))
+                            paths.map((coord, i) => {
+                                const trailMatch = trailCells.find(t => t.r === coord.r && t.c === coord.c);
+                                return (
+                                    <div key={`home-${color}-${i}`} className={`cell path-${color.toLowerCase()}${trailMatch ? ` cell-trail cell-trail-${trailMatch.color.toLowerCase()}` : ''}`} style={{ gridRow: coord.r, gridColumn: coord.c }} />
+                                );
+                            })
                         )}
 
                         {/* Move preview ghosts -- show where pieces would land */}
@@ -2072,9 +2179,37 @@ export const LudoGame: React.FC = () => {
                             />
                         ))}
 
-                        {players.flatMap(p =>
-                            p.pieces.map(piece => {
-                                const style = getPieceStyle(p.color, piece.position, piece.travelled, piece.id);
+                        {(() => {
+                            // Build stacking offset map: group pieces by grid cell, assign offsets
+                            const STACK_OFFSETS: [number, number][] = [[-4, -4], [4, -4], [-4, 4], [4, 4]];
+                            const cellGroups: Record<string, string[]> = {};
+                            const allPieceData = players.flatMap(p =>
+                                p.pieces.map(piece => {
+                                    const style = getPieceStyle(p.color, piece.position, piece.travelled, piece.id);
+                                    let row = style.gridRow;
+                                    let col = style.gridColumn;
+                                    const isHoppingThis = hoppingPiece?.color === p.color && hoppingPiece?.pieceId === piece.id && hoppingPiece?.isHopping;
+                                    if (isHoppingThis && hoppingPiece?.currentStep) {
+                                        row = hoppingPiece.currentStep.r;
+                                        col = hoppingPiece.currentStep.c;
+                                    }
+                                    const cellKey = `${row},${col}`;
+                                    const pieceKey = `${p.color}-${piece.id}`;
+                                    if (!cellGroups[cellKey]) cellGroups[cellKey] = [];
+                                    cellGroups[cellKey].push(pieceKey);
+                                    return { player: p, piece, style };
+                                })
+                            );
+                            const stackOffsetMap: Record<string, [number, number]> = {};
+                            for (const group of Object.values(cellGroups)) {
+                                if (group.length > 1) {
+                                    group.forEach((key, idx) => {
+                                        stackOffsetMap[key] = STACK_OFFSETS[idx % STACK_OFFSETS.length];
+                                    });
+                                }
+                            }
+
+                            return allPieceData.map(({ player: p, piece, style }) => {
                                 const activeColor = currentPlayer?.color;
                                 const isMovable = serverState.waitingForMove &&
                                     serverState.movablePieces.includes(piece.id) &&
@@ -2096,6 +2231,14 @@ export const LudoGame: React.FC = () => {
                                         gridRow: hoppingPiece.currentStep.r,
                                         gridColumn: hoppingPiece.currentStep.c,
                                     };
+                                }
+
+                                // Apply stacking offset when multiple pieces share a cell
+                                const pieceKey = `${p.color}-${piece.id}`;
+                                const stackOffset = stackOffsetMap[pieceKey];
+                                if (stackOffset) {
+                                    (finalStyle as any).marginLeft = `${stackOffset[0]}px`;
+                                    (finalStyle as any).marginTop = `${stackOffset[1]}px`;
                                 }
 
                                 const classNames = [
@@ -2161,8 +2304,8 @@ export const LudoGame: React.FC = () => {
                                             : { type: 'spring', stiffness: 280, damping: 20, mass: 0.55 }}
                                     />
                                 );
-                            })
-                        )}
+                            });
+                        })()}
                         </div>
                         </div>{/* close ludo-board-wrapper */}
 
@@ -2203,6 +2346,11 @@ export const LudoGame: React.FC = () => {
                                             />
                                         ) : (
                                             <span className="hud-dice-wait">{canRollDice ? 'TAP' : 'WAIT'}</span>
+                                        )}
+                                        {consecutiveSixes >= 2 && (
+                                            <div className={`six-counter-badge ${consecutiveSixes >= 3 ? 'six-counter-danger' : 'six-counter-warning'}`}>
+                                                x{consecutiveSixes}
+                                            </div>
                                         )}
                                     </motion.div>
                                     <div className="hud-turn-arrow">&#9664;</div>
@@ -2257,6 +2405,11 @@ export const LudoGame: React.FC = () => {
                                     />
                                 ) : (
                                     <span className="hud-dice-wait">{canRollDice ? 'ROLL' : 'WAIT'}</span>
+                                )}
+                                {consecutiveSixes >= 2 && (
+                                    <div className={`six-counter-badge ${consecutiveSixes >= 3 ? 'six-counter-danger' : 'six-counter-warning'}`}>
+                                        x{consecutiveSixes}
+                                    </div>
                                 )}
                             </motion.div>
                             {/* Dice six burst effect */}
@@ -2398,8 +2551,12 @@ export const LudoGame: React.FC = () => {
                                                     {canRollDice ? 'TAP' : 'WAIT'}
                                                 </span>
                                             )}
+                                            {consecutiveSixes >= 2 && (
+                                                <div className={`six-counter-badge ${consecutiveSixes >= 3 ? 'six-counter-danger' : 'six-counter-warning'}`}>
+                                                    x{consecutiveSixes}
+                                                </div>
+                                            )}
                                         </motion.div>
-
                                         <AnimatePresence>
                                             {showSixEffect && (
                                                 <motion.div
