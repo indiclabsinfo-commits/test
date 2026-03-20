@@ -1114,6 +1114,56 @@
     max-width: min(95vw, 500px);
 }
 
+/* Board rotation: rotate so player's color is at the bottom (online matches only) */
+.ludo-board.board-rotated {
+    --board-rotation: 0deg;
+    transform: rotate(var(--board-rotation));
+    animation: board-float-rotated 6s ease-in-out infinite;
+}
+
+/* Pieces are counter-rotated via Framer Motion rotateZ (see LudoGame.tsx) */
+
+/* Counter-rotate base inner content */
+.ludo-board.board-rotated .base-inner {
+    transform: rotate(calc(-1 * var(--board-rotation)));
+}
+
+/* Counter-rotate home center */
+.ludo-board.board-rotated .home-center {
+    transform: rotate(calc(-1 * var(--board-rotation)));
+}
+
+/* Counter-rotate safe spot star markers (preserve existing translate centering) */
+.ludo-board.board-rotated .safe::before {
+    transform: translate(-50%, -50%) rotate(calc(-1 * var(--board-rotation)));
+    animation-name: safe-spot-sparkle-rotated;
+}
+
+@keyframes safe-spot-sparkle-rotated {
+    0%, 100% {
+        text-shadow:
+            0 0 5px rgba(255, 215, 0, 0.45),
+            0 0 10px rgba(255, 215, 0, 0.2);
+        opacity: 0.85;
+        transform: translate(-50%, -50%) rotate(calc(-1 * var(--board-rotation))) scale(1);
+    }
+    50% {
+        text-shadow:
+            0 0 8px rgba(255, 215, 0, 0.8),
+            0 0 18px rgba(255, 215, 0, 0.4),
+            0 0 28px rgba(255, 215, 0, 0.15);
+        opacity: 1;
+        transform: translate(-50%, -50%) rotate(calc(-1 * var(--board-rotation))) scale(1.1);
+    }
+}
+
+/* Move preview ghosts are circular; no counter-rotation needed */
+
+@keyframes board-float-rotated {
+    0%, 100% { transform: rotate(var(--board-rotation)) translateY(0px); }
+    50% { transform: rotate(var(--board-rotation)) translateY(-2px); }
+}
+
 @keyframes board-float {
     0%, 100% { transform: translateY(0px); }
     50% { transform: translateY(-2px); }
@@ -2619,6 +2669,13 @@
     border-radius: 26px;
 }
 
+.ludo-loading-dice {
+    width: 64px;
+    height: 64px;
+    border-radius: 14px;
+    margin: 0 auto;
+}
+
 .shimmer-block {
     background: linear-gradient(90deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
     background-size: 200% 100%;
@@ -3200,6 +3257,179 @@
     }
 }
 
+/* ─── VICTORY PODIUM ────────────────────── */
+
+.podium-container {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 8px 0 0;
+    min-height: 160px;
+}
+
+.podium-place {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    position: relative;
+    flex: 1;
+    max-width: 110px;
+}
+
+.podium-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 0.82rem;
+    color: #fff;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    flex-shrink: 0;
+}
+
+.podium-avatar-1st {
+    width: 46px;
+    height: 46px;
+    font-size: 1rem;
+    border-color: rgba(255, 215, 0, 0.7);
+    box-shadow:
+        0 0 16px rgba(255, 215, 0, 0.35),
+        0 0 40px rgba(255, 215, 0, 0.12);
+}
+
+.podium-name {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-primary, #fff);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 90px;
+    text-align: center;
+}
+
+.podium-name-1st {
+    font-size: 0.78rem;
+    font-weight: 900;
+    color: #ffe066;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+}
+
+.podium-medal {
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.podium-medal.gold {
+    color: #FFD700;
+    text-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+}
+
+.podium-medal.silver {
+    color: #C0C0C0;
+}
+
+.podium-medal.bronze {
+    color: #CD7F32;
+}
+
+.podium-payout {
+    font-size: 0.72rem;
+}
+
+.podium-payout-1st {
+    font-size: 0.82rem;
+}
+
+.podium-bar {
+    width: 100%;
+    border-radius: 6px 6px 0 0;
+    margin-top: 4px;
+}
+
+.podium-bar-1st {
+    height: 54px;
+    background: linear-gradient(180deg, rgba(255, 215, 0, 0.35), rgba(255, 215, 0, 0.12));
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    border-bottom: none;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.1);
+}
+
+.podium-bar-2nd {
+    height: 36px;
+    background: linear-gradient(180deg, rgba(192, 192, 192, 0.25), rgba(192, 192, 192, 0.08));
+    border: 1px solid rgba(192, 192, 192, 0.2);
+    border-bottom: none;
+}
+
+.podium-bar-3rd {
+    height: 24px;
+    background: linear-gradient(180deg, rgba(205, 127, 50, 0.25), rgba(205, 127, 50, 0.08));
+    border: 1px solid rgba(205, 127, 50, 0.2);
+    border-bottom: none;
+}
+
+/* ─── WINNER CROWN ANIMATION ────────────── */
+
+.winner-crown {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: crown-bounce 1.5s ease-in-out infinite;
+    filter: drop-shadow(0 2px 8px rgba(255, 215, 0, 0.5));
+}
+
+.crown-icon {
+    font-size: 1.6rem;
+    line-height: 1;
+}
+
+@keyframes crown-bounce {
+    0%, 100% {
+        transform: translateY(0) scale(1);
+        filter: drop-shadow(0 2px 8px rgba(255, 215, 0, 0.5));
+    }
+    25% {
+        transform: translateY(-6px) scale(1.08);
+        filter: drop-shadow(0 8px 16px rgba(255, 215, 0, 0.7));
+    }
+    50% {
+        transform: translateY(-2px) scale(1.02);
+        filter: drop-shadow(0 4px 10px rgba(255, 215, 0, 0.5));
+    }
+    75% {
+        transform: translateY(-5px) scale(1.06);
+        filter: drop-shadow(0 6px 14px rgba(255, 215, 0, 0.6));
+    }
+}
+
+/* Crown glow pulse */
+.podium-1st .podium-avatar-1st {
+    animation: podium-winner-glow 2s ease-in-out infinite;
+}
+
+@keyframes podium-winner-glow {
+    0%, 100% {
+        box-shadow:
+            0 0 12px rgba(255, 215, 0, 0.3),
+            0 0 24px rgba(255, 215, 0, 0.1);
+    }
+    50% {
+        box-shadow:
+            0 0 20px rgba(255, 215, 0, 0.5),
+            0 0 40px rgba(255, 215, 0, 0.2),
+            0 0 60px rgba(255, 215, 0, 0.08);
+    }
+}
+
 /* ─── ENHANCED TURN INDICATOR ────────────── */
 
 .ludo-mobile-self-card.active {
@@ -3658,4 +3888,18 @@
     100% {
         opacity: 0.5;
     }
+}
+
+/* ============================================
+   DICE DRAG/SWIPE GESTURE
+   ============================================ */
+
+.dice-3d-wrapper.dice-dragging {
+    cursor: grabbing;
+    transition: none;
+}
+
+.dice-3d-wrapper.can-roll {
+    cursor: grab;
+    touch-action: none;
 }

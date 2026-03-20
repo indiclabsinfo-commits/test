@@ -289,6 +289,10 @@ export const LudoGame: React.FC = () => {
     const [showBoardFlash, setShowBoardFlash] = useState(false);
     const [movePreview, setMovePreview] = useState<{row: number, col: number, color: string} | null>(null);
     const [dicePressed, setDicePressed] = useState(false);
+    const [diceDragDelta, setDiceDragDelta] = useState(0);
+    const [isDiceDragging, setIsDiceDragging] = useState(false);
+    const diceDragStartY = useRef<number | null>(null);
+    const diceDragTriggered = useRef(false);
 
     const queueTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const turnTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -1311,6 +1315,52 @@ export const LudoGame: React.FC = () => {
         }
     };
 
+    // Dice drag/swipe handlers for Ludo King-style gesture rolling
+    const handleDicePointerDown = useCallback((e: React.PointerEvent) => {
+        if (!canRollDice) return;
+        diceDragStartY.current = e.clientY;
+        diceDragTriggered.current = false;
+        setIsDiceDragging(true);
+        setDicePressed(true);
+        setDiceDragDelta(0);
+    }, [canRollDice]);
+
+    const handleDicePointerMove = useCallback((e: React.PointerEvent) => {
+        if (!isDiceDragging || diceDragStartY.current === null || diceDragTriggered.current) return;
+        const delta = diceDragStartY.current - e.clientY; // positive = upward
+        setDiceDragDelta(Math.max(0, delta));
+        if (delta > 30) {
+            diceDragTriggered.current = true;
+            setIsDiceDragging(false);
+            setDicePressed(false);
+            setDiceDragDelta(0);
+            diceDragStartY.current = null;
+            rollDice();
+        }
+    }, [isDiceDragging, rollDice]);
+
+    const handleDicePointerUp = useCallback(() => {
+        if (isDiceDragging && !diceDragTriggered.current && canRollDice) {
+            // Tap fallback - if no significant drag, treat as tap
+            rollDice();
+        }
+        setIsDiceDragging(false);
+        setDicePressed(false);
+        setDiceDragDelta(0);
+        diceDragStartY.current = null;
+    }, [isDiceDragging, canRollDice, rollDice]);
+
+    const handleDicePointerLeave = useCallback(() => {
+        setIsDiceDragging(false);
+        setDicePressed(false);
+        setDiceDragDelta(0);
+        diceDragStartY.current = null;
+    }, []);
+
+    const diceSwipeStyle = isDiceDragging && diceDragDelta > 0 ? {
+        transform: `translateY(${-Math.min(diceDragDelta * 0.5, 20)}px) rotate(${Math.min(diceDragDelta * 0.3, 15)}deg)`,
+    } : undefined;
+
     const movePiece = (pieceId: number) => {
         if (isLocalMatch) {
             executeLocalMove(pieceId);
@@ -1777,6 +1827,27 @@ export const LudoGame: React.FC = () => {
         );
     }
 
+    // ---- Render: PLAYING loading skeleton (serverState not yet received) ----
+
+    if (matchState === 'PLAYING' && !serverState) {
+        return (
+            <div className="ludo-mobile-screen">
+                <div className="ludo-loading-shell" style={{ display: 'grid' }}>
+                    <div className="ludo-loading-top shimmer-block" />
+                    <div className="ludo-loading-grid">
+                        <div className="shimmer-block" />
+                        <div className="shimmer-block" />
+                        <div className="shimmer-block" />
+                        <div className="shimmer-block" />
+                    </div>
+                    <div className="ludo-loading-board shimmer-block" />
+                    <div className="ludo-loading-dice shimmer-block" />
+                    <div className="ludo-loading-bottom shimmer-block" />
+                </div>
+            </div>
+        );
+    }
+
     // ---- Render: PLAYING + FINISHED ----
 
     if ((matchState === 'PLAYING' || matchState === 'FINISHED') && serverState) {
@@ -1787,6 +1858,35 @@ export const LudoGame: React.FC = () => {
         const finishTarget = serverState.targetFinishCount || 4;
         const turnSeconds = Math.max(8, Math.floor((serverState.turnTimeLimitMs || 30000) / 1000));
         const isDuelPresentation = serverState.maxPlayers === 2;
+
+        // Board rotation: in online matches, rotate so player's color is at the bottom
+        const boardRotationDeg = (!isLocalMatch && myColor) ? (
+            myColor === 'GREEN' ? 180 :
+            myColor === 'YELLOW' ? 90 :
+            myColor === 'RED' ? -90 :
+            0 // BLUE already at bottom-right
+        ) : 0;
+
+        // Remap avatar positions to match rotated board visual layout.
+        // Original positions: GREEN=top-left, YELLOW=top-right, RED=bottom-left, BLUE=bottom-right
+        // After rotation, bases move; avatars must follow.
+        const AVATAR_POS_ORDER: PlayerColor[] = ['GREEN', 'YELLOW', 'BLUE', 'RED']; // TL, TR, BR, BL in clockwise order
+        const avatarPosMap: Record<PlayerColor, string> = (() => {
+            if (boardRotationDeg === 0) {
+                return { GREEN: 'green', YELLOW: 'yellow', RED: 'red', BLUE: 'blue' };
+            }
+            // Number of 90deg clockwise steps the board rotates
+            // Positive rotation = clockwise visual movement of bases
+            const steps = ((boardRotationDeg % 360) + 360) % 360 / 90;
+            const map: Record<string, string> = {};
+            const posNames = ['green', 'yellow', 'blue', 'red']; // matches TL, TR, BR, BL
+            for (let i = 0; i < 4; i++) {
+                // After rotating, the base that was at index i visually moves to index (i + steps) % 4
+                const newIdx = (i + steps) % 4;
+                map[AVATAR_POS_ORDER[i]] = posNames[newIdx];
+            }
+            return map as Record<PlayerColor, string>;
+        })();
         const myHudPlayer = isLocalMatch
             ? players[0]
             : players.find(p => p.id === user?.id) || null;
@@ -1839,8 +1939,20 @@ export const LudoGame: React.FC = () => {
 
             const rect = boardRef.current.getBoundingClientRect();
             const cellSize = rect.width / 15;
-            const tapColumn = Math.max(1, Math.min(15, Math.round((event.clientX - rect.left) / cellSize) + 1));
-            const tapRow = Math.max(1, Math.min(15, Math.round((event.clientY - rect.top) / cellSize) + 1));
+            // Convert screen tap to board-local coordinates accounting for rotation
+            let relX = event.clientX - rect.left - rect.width / 2;
+            let relY = event.clientY - rect.top - rect.height / 2;
+            if (boardRotationDeg !== 0) {
+                const angle = -boardRotationDeg * Math.PI / 180; // un-rotate
+                const cosA = Math.cos(angle);
+                const sinA = Math.sin(angle);
+                const rx = relX * cosA - relY * sinA;
+                const ry = relX * sinA + relY * cosA;
+                relX = rx;
+                relY = ry;
+            }
+            const tapColumn = Math.max(1, Math.min(15, Math.round((relX + rect.width / 2) / cellSize) + 1));
+            const tapRow = Math.max(1, Math.min(15, Math.round((relY + rect.height / 2) / cellSize) + 1));
 
             const nearest = movablePieces
                 .map(({ player, piece }) => {
@@ -2101,7 +2213,7 @@ export const LudoGame: React.FC = () => {
                             const isMe = isLocalMatch
                                 ? localControlledPlayerIds.includes(player.id as string)
                                 : player.id === user?.id;
-                            const posClass = `player-avatar-pos-${player.color.toLowerCase()}`;
+                            const posClass = `player-avatar-pos-${avatarPosMap[player.color]}`;
                             const diceVal = diceByColor[player.color];
 
                             return (
@@ -2134,7 +2246,7 @@ export const LudoGame: React.FC = () => {
                             );
                         })}
 
-                        <div ref={boardRef} onClick={handleBoardTap} className={`ludo-board ${isDuelPresentation ? 'duel-board' : ''}`}>
+                        <div ref={boardRef} onClick={handleBoardTap} className={`ludo-board ${isDuelPresentation ? 'duel-board' : ''}${boardRotationDeg !== 0 ? ' board-rotated' : ''}`} style={{ '--board-rotation': `${boardRotationDeg}deg` } as React.CSSProperties}>
                         <div className="base green"><div className="base-inner">{[0, 1, 2, 3].map(i => <div key={i} className="piece-spot" />)}</div></div>
                         <div className="base yellow" style={{ gridColumn: '10 / span 6' }}><div className="base-inner">{[0, 1, 2, 3].map(i => <div key={i} className="piece-spot" />)}</div></div>
                         <div className="base red" style={{ gridRow: '10 / span 6' }}><div className="base-inner">{[0, 1, 2, 3].map(i => <div key={i} className="piece-spot" />)}</div></div>
@@ -2252,6 +2364,19 @@ export const LudoGame: React.FC = () => {
                                     isSparkling && 'sparkling-enhanced',
                                 ].filter(Boolean).join(' ');
 
+                                // Compute arc flyback pixel offsets when this piece is being captured
+                                let flybackArc: { dx: number; dy: number; arcY: number } | null = null;
+                                if (isFlyingBack && captureFlyback && boardRef.current) {
+                                    const bw = boardRef.current.getBoundingClientRect().width;
+                                    const cellPx = bw / 15;
+                                    const dx = (captureFlyback.toPos.c - captureFlyback.fromPos.c) * cellPx;
+                                    const dy = (captureFlyback.toPos.r - captureFlyback.fromPos.r) * cellPx;
+                                    const dist = Math.sqrt(dx * dx + dy * dy);
+                                    // Arc height scales with distance: at least 40px, up to 120px
+                                    const arcY = -Math.max(40, Math.min(120, dist * 0.45));
+                                    flybackArc = { dx, dy, arcY };
+                                }
+
                                 return (
                                     <motion.div
                                         key={`${p.color}-${piece.id}`}
@@ -2263,23 +2388,34 @@ export const LudoGame: React.FC = () => {
                                             scale: [1, 1.1, 1],
                                             scaleX: [1, 0.92, 1.04, 1],
                                             scaleY: [1, 1.1, 0.94, 1],
+                                            rotateZ: -boardRotationDeg,
                                         } : isMovingTrail ? {
                                             y: [0, -14, 0],
                                             scale: [1, 1.1, 1],
+                                            rotateZ: -boardRotationDeg,
+                                        } : (isFlyingBack && flybackArc) ? {
+                                            x: [0, flybackArc.dx * 0.5, flybackArc.dx],
+                                            y: [0, flybackArc.arcY, flybackArc.dy],
+                                            scale: [1, 1.3, 0.6],
+                                            opacity: [1, 0.9, 0.3],
+                                            rotate: [-boardRotationDeg, -boardRotationDeg + 180, -boardRotationDeg + 360],
                                         } : isFlyingBack ? {
                                             scale: [1, 1.4, 0.3],
                                             opacity: [1, 1, 0.2],
                                             y: [0, -25, 0],
+                                            rotateZ: -boardRotationDeg,
                                         } : isAttacker ? {
                                             scale: [1, 1.35, 1.15, 1],
+                                            rotateZ: -boardRotationDeg,
                                         } : isMovable ? {
                                             // Movable pieces "breathe" -- subtle scale pulse
                                             scale: [1, 1.08, 1],
                                             y: [0, -2, 0],
+                                            rotateZ: -boardRotationDeg,
                                         } : {
                                             y: 0,
                                             scale: 1,
-                                            rotateZ: 0,
+                                            rotateZ: -boardRotationDeg,
                                         }}
                                         onClick={() => {
                                             if (isMovable) {
@@ -2287,7 +2423,7 @@ export const LudoGame: React.FC = () => {
                                                 movePiece(piece.id);
                                             }
                                         }}
-                                        layout
+                                        layout={!isFlyingBack}
                                         initial={false}
                                         whileTap={isMovable ? { scale: 0.85, y: 2 } : undefined}
                                         whileHover={isMovable ? { scale: 1.15, y: -4 } : undefined}
@@ -2296,7 +2432,7 @@ export const LudoGame: React.FC = () => {
                                             : isMovingTrail
                                             ? { duration: 0.35, times: [0, 0.4, 1], ease: 'easeOut' }
                                             : isFlyingBack
-                                            ? { duration: 0.7, times: [0, 0.3, 1], ease: 'easeInOut' }
+                                            ? { duration: 0.75, times: [0, 0.4, 1], ease: [0.25, 0.1, 0.25, 1] }
                                             : isAttacker
                                             ? { duration: 0.6, times: [0, 0.25, 0.5, 1], ease: 'easeOut' }
                                             : isMovable
@@ -2330,11 +2466,12 @@ export const LudoGame: React.FC = () => {
                                 <div className="ludo-board-hud bottom">
                                     <div className="hud-token" style={{ background: COLOR_MAP[myHudPlayer.color].gradient }} />
                                     <motion.div
-                                        className={`dice-3d-wrapper hud-dice-wrapper ${canRollDice ? 'can-roll' : 'disabled'}`}
-                                        onClick={() => canRollDice && rollDice()}
-                                        onPointerDown={() => canRollDice && setDicePressed(true)}
-                                        onPointerUp={() => setDicePressed(false)}
-                                        onPointerLeave={() => setDicePressed(false)}
+                                        className={`dice-3d-wrapper hud-dice-wrapper ${canRollDice ? 'can-roll' : 'disabled'}${isDiceDragging ? ' dice-dragging' : ''}`}
+                                        onPointerDown={handleDicePointerDown}
+                                        onPointerMove={handleDicePointerMove}
+                                        onPointerUp={handleDicePointerUp}
+                                        onPointerLeave={handleDicePointerLeave}
+                                        style={diceSwipeStyle}
                                         whileTap={canRollDice ? { scale: 0.85 } : {}}
                                         animate={dicePressed && canRollDice ? { scale: 0.9, y: 2 } : {}}
                                     >
@@ -2389,11 +2526,12 @@ export const LudoGame: React.FC = () => {
 
                         <div className="ludo-mobile-dice-zone">
                             <motion.div
-                                className={`dice-3d-wrapper mobile-dice-wrapper ${canRollDice ? 'can-roll' : 'disabled'}`}
-                                onClick={() => canRollDice && rollDice()}
-                                onPointerDown={() => canRollDice && setDicePressed(true)}
-                                onPointerUp={() => setDicePressed(false)}
-                                onPointerLeave={() => setDicePressed(false)}
+                                className={`dice-3d-wrapper mobile-dice-wrapper ${canRollDice ? 'can-roll' : 'disabled'}${isDiceDragging ? ' dice-dragging' : ''}`}
+                                onPointerDown={handleDicePointerDown}
+                                onPointerMove={handleDicePointerMove}
+                                onPointerUp={handleDicePointerUp}
+                                onPointerLeave={handleDicePointerLeave}
+                                style={diceSwipeStyle}
                                 whileTap={canRollDice ? { scale: 0.85 } : {}}
                                 animate={dicePressed && canRollDice ? { scale: 0.92, y: 3 } : {}}
                             >
@@ -2446,57 +2584,133 @@ export const LudoGame: React.FC = () => {
                                 Game Over!
                             </motion.h3>
 
-                            {finishData.finishOrder?.[0] && (
-                                <motion.div
-                                    className="ludo-winner-spotlight enhanced"
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.5 }}
-                                >
-                                    <span>Winner</span>
-                                    <strong>{finishData.finishOrder[0].username}</strong>
-                                </motion.div>
-                            )}
-                            <div className="finish-results">
-                                {finishData.finishOrder?.map((p: any, i: number) => {
-                                    const colors = COLOR_MAP[p.color as PlayerColor];
-                                    const payout = finishData.payouts?.[p.id] || 0;
-                                    const displayPayout = payout / INTERNAL_MULTIPLIER;
-                                    const isMe = p.id === user?.id;
-                                    const medals = ['1st', '2nd', '3rd', '4th'];
+                            {/* Victory Podium */}
+                            {finishData.finishOrder && finishData.finishOrder.length >= 2 ? (
+                                <div className="podium-container">
+                                    {/* 2nd place - left */}
+                                    {finishData.finishOrder[1] && (() => {
+                                        const p = finishData.finishOrder[1];
+                                        const colors = COLOR_MAP[p.color as PlayerColor];
+                                        const payout = finishData.payouts?.[p.id] || 0;
+                                        const displayPayout = payout / INTERNAL_MULTIPLIER;
+                                        const isMe = p.id === user?.id;
+                                        return (
+                                            <motion.div
+                                                className="podium-place podium-2nd"
+                                                initial={{ opacity: 0, y: 40 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: 0.9, type: 'spring', stiffness: 160, damping: 14 }}
+                                            >
+                                                <div className="podium-avatar" style={{ background: colors?.gradient }}>
+                                                    {p.username?.[0]?.toUpperCase()}
+                                                </div>
+                                                <span className="podium-name">{p.username} {isMe ? '(You)' : ''}</span>
+                                                <span className="podium-medal silver">2nd</span>
+                                                {displayPayout > 0 && (
+                                                    <div className="podium-payout">
+                                                        <PayoutCounter amount={displayPayout} formatter={formatIndianNumber} duration={1500} />
+                                                    </div>
+                                                )}
+                                                <div className="podium-bar podium-bar-2nd" />
+                                            </motion.div>
+                                        );
+                                    })()}
 
-                                    return (
-                                        <motion.div
-                                            key={i}
-                                            className={`finish-row${isMe ? ' me' : ''}${i === 0 ? ' winner' : ''}`}
-                                            initial={{ opacity: 0, x: -30, scale: 0.95 }}
-                                            animate={{ opacity: 1, x: 0, scale: 1 }}
-                                            transition={{ duration: 0.35, delay: 0.6 + i * 0.12, type: 'spring', stiffness: 150 }}
-                                        >
-                                            <span className={`finish-medal${i === 0 ? ' gold' : i === 1 ? ' silver' : i === 2 ? ' bronze' : ''}`}>
-                                                {medals[i]}
-                                            </span>
-                                            <div className="finish-avatar" style={{ background: colors?.gradient }}>
-                                                {p.username?.[0]?.toUpperCase()}
-                                            </div>
-                                            <span className="finish-name">
-                                                {p.username} {isMe ? '(You)' : ''} {p.isBot ? 'BOT' : ''}
-                                            </span>
-                                            {displayPayout > 0 && (
-                                                <PayoutCounter
-                                                    amount={displayPayout}
-                                                    formatter={formatIndianNumber}
-                                                    duration={1500}
-                                                />
-                                            )}
-                                        </motion.div>
-                                    );
-                                })}
-                            </div>
+                                    {/* 1st place - center */}
+                                    {finishData.finishOrder[0] && (() => {
+                                        const p = finishData.finishOrder[0];
+                                        const colors = COLOR_MAP[p.color as PlayerColor];
+                                        const payout = finishData.payouts?.[p.id] || 0;
+                                        const displayPayout = payout / INTERNAL_MULTIPLIER;
+                                        const isMe = p.id === user?.id;
+                                        return (
+                                            <motion.div
+                                                className="podium-place podium-1st"
+                                                initial={{ opacity: 0, scale: 0.5, y: 30 }}
+                                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                transition={{ delay: 0.5, type: 'spring', stiffness: 180, damping: 12 }}
+                                            >
+                                                <div className="winner-crown">
+                                                    <span className="crown-icon">&#x1F451;</span>
+                                                </div>
+                                                <div className="podium-avatar podium-avatar-1st" style={{ background: colors?.gradient }}>
+                                                    {p.username?.[0]?.toUpperCase()}
+                                                </div>
+                                                <span className="podium-name podium-name-1st">{p.username} {isMe ? '(You)' : ''}</span>
+                                                <span className="podium-medal gold">1st</span>
+                                                {displayPayout > 0 && (
+                                                    <div className="podium-payout podium-payout-1st">
+                                                        <PayoutCounter amount={displayPayout} formatter={formatIndianNumber} duration={1500} />
+                                                    </div>
+                                                )}
+                                                <div className="podium-bar podium-bar-1st" />
+                                            </motion.div>
+                                        );
+                                    })()}
+
+                                    {/* 3rd place - right */}
+                                    {finishData.finishOrder[2] && (() => {
+                                        const p = finishData.finishOrder[2];
+                                        const colors = COLOR_MAP[p.color as PlayerColor];
+                                        const payout = finishData.payouts?.[p.id] || 0;
+                                        const displayPayout = payout / INTERNAL_MULTIPLIER;
+                                        const isMe = p.id === user?.id;
+                                        return (
+                                            <motion.div
+                                                className="podium-place podium-3rd"
+                                                initial={{ opacity: 0, y: 40 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: 1.1, type: 'spring', stiffness: 160, damping: 14 }}
+                                            >
+                                                <div className="podium-avatar" style={{ background: colors?.gradient }}>
+                                                    {p.username?.[0]?.toUpperCase()}
+                                                </div>
+                                                <span className="podium-name">{p.username} {isMe ? '(You)' : ''}</span>
+                                                <span className="podium-medal bronze">3rd</span>
+                                                {displayPayout > 0 && (
+                                                    <div className="podium-payout">
+                                                        <PayoutCounter amount={displayPayout} formatter={formatIndianNumber} duration={1500} />
+                                                    </div>
+                                                )}
+                                                <div className="podium-bar podium-bar-3rd" />
+                                            </motion.div>
+                                        );
+                                    })()}
+                                </div>
+                            ) : null}
+
+                            {/* 4th place (if exists) shown as a simple row below podium */}
+                            {finishData.finishOrder?.[3] && (() => {
+                                const p = finishData.finishOrder[3];
+                                const colors = COLOR_MAP[p.color as PlayerColor];
+                                const payout = finishData.payouts?.[p.id] || 0;
+                                const displayPayout = payout / INTERNAL_MULTIPLIER;
+                                const isMe = p.id === user?.id;
+                                return (
+                                    <motion.div
+                                        className={`finish-row${isMe ? ' me' : ''}`}
+                                        initial={{ opacity: 0, x: -30, scale: 0.95 }}
+                                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                                        transition={{ duration: 0.35, delay: 1.3, type: 'spring', stiffness: 150 }}
+                                    >
+                                        <span className="finish-medal">4th</span>
+                                        <div className="finish-avatar" style={{ background: colors?.gradient }}>
+                                            {p.username?.[0]?.toUpperCase()}
+                                        </div>
+                                        <span className="finish-name">
+                                            {p.username} {isMe ? '(You)' : ''} {p.isBot ? 'BOT' : ''}
+                                        </span>
+                                        {displayPayout > 0 && (
+                                            <PayoutCounter amount={displayPayout} formatter={formatIndianNumber} duration={1500} />
+                                        )}
+                                    </motion.div>
+                                );
+                            })()}
+
                             <motion.div
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 1.2 }}
+                                transition={{ delay: 1.5 }}
                             >
                                 <button className="ludo-action-btn primary play-again-btn" onClick={playAgain}>Play Again</button>
                             </motion.div>
@@ -2532,11 +2746,12 @@ export const LudoGame: React.FC = () => {
 
                                     <div className="ludo-dice-center-wrap">
                                         <motion.div
-                                            className={`dice-3d-wrapper dock-dice-wrapper ${canRollDice ? 'can-roll' : 'disabled'}`}
-                                            onClick={() => canRollDice && rollDice()}
-                                            onPointerDown={() => canRollDice && setDicePressed(true)}
-                                            onPointerUp={() => setDicePressed(false)}
-                                            onPointerLeave={() => setDicePressed(false)}
+                                            className={`dice-3d-wrapper dock-dice-wrapper ${canRollDice ? 'can-roll' : 'disabled'}${isDiceDragging ? ' dice-dragging' : ''}`}
+                                            onPointerDown={handleDicePointerDown}
+                                            onPointerMove={handleDicePointerMove}
+                                            onPointerUp={handleDicePointerUp}
+                                            onPointerLeave={handleDicePointerLeave}
+                                            style={diceSwipeStyle}
                                             whileTap={canRollDice ? { scale: 0.85 } : {}}
                                             animate={dicePressed && canRollDice ? { scale: 0.92, y: 3 } : {}}
                                         >
