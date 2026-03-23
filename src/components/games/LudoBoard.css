@@ -1822,10 +1822,9 @@
 
 /* Ready-to-roll glow pulse on the wrapper -- "TAP ME" urgency */
 .dice-3d-wrapper.can-roll {
-    cursor: pointer;
-    animation: dice-wrapper-ready 1.1s ease-in-out infinite, dice-can-roll-pulse 1.2s ease-in-out infinite;
+    animation: dice-invite-pulse 1.5s ease-in-out infinite;
+    cursor: grab;
     will-change: transform, filter;
-    filter: drop-shadow(0 0 6px rgba(76, 175, 80, 0.5));
 }
 
 .dice-3d-wrapper.can-roll:active {
@@ -1833,21 +1832,14 @@
     filter: drop-shadow(0 0 8px rgba(76, 175, 80, 0.6));
 }
 
-@keyframes dice-wrapper-ready {
+@keyframes dice-invite-pulse {
     0%, 100% {
-        transform: translateY(0) scale(1);
+        transform: scale(1);
+        filter: drop-shadow(0 0 6px rgba(76, 175, 80, 0.4));
     }
     50% {
-        transform: translateY(-5px) scale(1.07);
-    }
-}
-
-@keyframes dice-can-roll-pulse {
-    0%, 100% {
-        filter: drop-shadow(0 0 6px rgba(76, 175, 80, 0.5));
-    }
-    50% {
-        filter: drop-shadow(0 0 14px rgba(76, 175, 80, 0.8)) drop-shadow(0 0 28px rgba(76, 175, 80, 0.3));
+        transform: scale(1.06);
+        filter: drop-shadow(0 0 16px rgba(76, 175, 80, 0.7)) drop-shadow(0 0 30px rgba(76, 175, 80, 0.3));
     }
 }
 
@@ -1869,9 +1861,21 @@
     transition: transform 0.7s cubic-bezier(0.18, 0.89, 0.32, 1.28);
 }
 
-/* Rolling tumble animation */
+/* Rolling tumble animation -- dramatic multi-axis tumble */
 .dice-3d-cube.cube-rolling {
-    animation: dice-cube-tumble 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+    animation: dice-cube-tumble 0.85s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+@keyframes dice-cube-tumble {
+    0% { transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) scale(1); }
+    10% { transform: rotateX(90deg) rotateY(45deg) rotateZ(30deg) scale(1.05); }
+    20% { transform: rotateX(200deg) rotateY(120deg) rotateZ(-20deg) scale(1.08); }
+    35% { transform: rotateX(340deg) rotateY(230deg) rotateZ(45deg) scale(1.04); }
+    50% { transform: rotateX(500deg) rotateY(310deg) rotateZ(-15deg) scale(1.06); }
+    65% { transform: rotateX(600deg) rotateY(400deg) rotateZ(25deg) scale(1.02); }
+    80% { transform: rotateX(680deg) rotateY(460deg) rotateZ(-5deg) scale(1.01); }
+    90% { transform: rotateX(710deg) rotateY(480deg) rotateZ(2deg) scale(1.005); }
+    100% { transform: rotateX(720deg) rotateY(500deg) rotateZ(0deg) scale(1); }
 }
 
 /* Show specific face by rotating the cube */
@@ -1896,15 +1900,17 @@
     }
 }
 
-/* Each face of the cube -- clean white with warm ivory tint, real die feel */
+/* Each face of the cube -- ivory/plastic die with surface noise texture */
 .dice-3d-face {
     position: absolute;
     width: 100%;
     height: 100%;
     background:
-        radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.9), transparent 50%),
-        linear-gradient(145deg, #ffffff 0%, #fefefe 40%, #f8f6f2 100%);
-    border: 2px solid #d4cfc6;
+        /* Subtle surface noise texture */
+        radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.9), transparent 45%),
+        /* Top-left light source gradient */
+        linear-gradient(145deg, #fffef8 0%, #f5f3ec 20%, #ece8de 50%, #e3ddd0 80%, #d9d2c3 100%);
+    border: 2px solid #b8b0a0;
     border-radius: 20%;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -1913,11 +1919,16 @@
     gap: 3px;
     backface-visibility: hidden;
     box-shadow:
-        inset 0 2px 8px rgba(255, 255, 255, 0.9),
-        inset 0 -3px 8px rgba(0, 0, 0, 0.12),
+        /* Top edge highlight */
+        inset 0 3px 8px rgba(255, 255, 255, 0.9),
+        /* Bottom edge shadow */
+        inset 0 -4px 8px rgba(0, 0, 0, 0.12),
+        /* Left highlight */
         inset 3px 0 5px rgba(255, 255, 255, 0.4),
+        /* Right shadow */
         inset -3px 0 5px rgba(0, 0, 0, 0.06),
-        0 2px 4px rgba(0, 0, 0, 0.15);
+        /* Subtle bevel */
+        inset 0 0 2px rgba(0, 0, 0, 0.05);
 }
 
 /* Position each face to form a cube -- translateZ = half of width */
@@ -1928,17 +1939,18 @@
 .dice-3d-face.face-top    { transform: rotateX(90deg)  translateZ(calc(50%)); }
 .dice-3d-face.face-bottom { transform: rotateX(-90deg) translateZ(calc(50%)); }
 
-/* Pips (dots) -- large, deeply recessed, physically carved look */
+/* Pips (dots) -- deeply indented, physically carved look */
 .dice-pip {
     width: 85%;
     aspect-ratio: 1;
     max-width: 100%;
     border-radius: 50%;
-    background: radial-gradient(circle at 42% 36%, #222 0%, #0a0a0a 55%, #000 100%);
+    background: radial-gradient(circle at 45% 40%, #333 0%, #1a1a1a 50%, #000 100%);
     box-shadow:
-        inset 0 3px 5px rgba(0, 0, 0, 0.85),
-        inset 0 -1px 2px rgba(255, 255, 255, 0.08),
-        0 1px 1px rgba(255, 255, 255, 0.4);
+        inset 0 2px 5px rgba(0, 0, 0, 0.9),
+        inset 0 -1px 3px rgba(255, 255, 255, 0.08),
+        0 1px 3px rgba(255, 255, 255, 0.4),
+        0 0 1px rgba(0, 0, 0, 0.3);
     align-self: center;
     justify-self: center;
 }
@@ -1966,6 +1978,22 @@
     border-radius: 50%;
     filter: blur(3px);
     z-index: -1;
+    transition: all 0.15s ease;
+}
+
+/* Shadow shrinks/grows during roll to simulate dice bouncing off surface */
+.dice-3d-scene.scene-rolling::after {
+    width: 50%;
+    height: 10px;
+    opacity: 0.5;
+    animation: dice-shadow-bounce 0.85s ease-out;
+}
+
+@keyframes dice-shadow-bounce {
+    0%, 100% { width: 80%; height: 16px; opacity: 0.7; }
+    25% { width: 40%; height: 8px; opacity: 0.3; }
+    50% { width: 70%; height: 14px; opacity: 0.6; }
+    75% { width: 45%; height: 9px; opacity: 0.35; }
 }
 
 /* HUD dice wait text */
@@ -3496,7 +3524,7 @@
     }
 
     .ludo-mobile-dice-zone .dice-3d-wrapper.can-roll {
-        animation: dice-wrapper-ready 1.2s ease-in-out infinite, dice-can-roll-pulse 1.2s ease-in-out infinite;
+        animation: dice-invite-pulse 1.5s ease-in-out infinite;
     }
 
     .mobile-dice-caption {
@@ -3937,4 +3965,40 @@
 .dice-3d-wrapper.can-roll {
     cursor: grab;
     touch-action: none;
+}
+
+/* ============================================
+   PLAYER AVATAR ENHANCEMENTS
+   ============================================ */
+
+/* Active player: rotating dashed ring */
+.player-avatar-circle.active::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 3px dashed currentColor;
+    animation: avatar-ring-spin 3s linear infinite;
+    opacity: 0.7;
+}
+
+@keyframes avatar-ring-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Crown icon for the player with the most pieces home */
+.player-avatar-circle.player-leading::before {
+    content: '\1F451';
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 14px;
+    animation: crown-bob 2s ease-in-out infinite;
+    z-index: 10;
+}
+
+@keyframes crown-bob {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(-3px); }
 }

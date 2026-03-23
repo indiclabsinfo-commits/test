@@ -73,61 +73,96 @@ export const EnhancedConfetti: React.FC<{ duration?: number }> = ({ duration = 4
 };
 
 // ---- Capture Explosion ----
-// Multi-layer: flash ring, shockwave, particle shrapnel, smoke wisps
+// Multi-layer: flash ring, shockwave, particle shrapnel, smoke wisps, screen flash
+// ENHANCED: 32 shards, massive shockwave ring, colored sparks, bigger smoke, screen flash
 
 export const CaptureExplosion: React.FC<{
     color: string;
     x: number;
     y: number;
 }> = ({ color, x, y }) => {
-    const shardCount = IS_LOW_END ? 8 : 18;
+    const shardCount = IS_LOW_END ? 10 : 32;
     const shards = useMemo(() =>
         Array.from({ length: shardCount }, (_, i) => ({
             id: i,
             angle: (i / shardCount) * 360 + (Math.random() - 0.5) * 20,
-            distance: 25 + Math.random() * 60,
-            size: 3 + Math.random() * 7,
-            delay: Math.random() * 0.08,
-            // Some shards are elongated for variety
-            isStrip: Math.random() > 0.6,
+            distance: 30 + Math.random() * 80,
+            size: 3 + Math.random() * 9,
+            delay: Math.random() * 0.1,
+            isStrip: Math.random() > 0.55,
+            // Some sparks are white-hot, others match the player color
+            isWhiteHot: Math.random() > 0.65,
         }))
     , [shardCount]);
 
-    // Smoke wisps -- slow-fading ghost particles
-    const smokeCount = IS_LOW_END ? 0 : 6;
+    // Colored sparks -- small bright dots that follow the shards but faster
+    const sparkCount = IS_LOW_END ? 0 : 14;
+    const sparks = useMemo(() =>
+        Array.from({ length: sparkCount }, (_, i) => ({
+            id: i,
+            angle: Math.random() * 360,
+            distance: 40 + Math.random() * 100,
+            size: 2 + Math.random() * 3,
+            delay: Math.random() * 0.12,
+        }))
+    , [sparkCount]);
+
+    // Smoke wisps -- slow-fading ghost particles (BIGGER now)
+    const smokeCount = IS_LOW_END ? 0 : 10;
     const smokes = useMemo(() =>
         Array.from({ length: smokeCount }, (_, i) => ({
             id: i,
             angle: (i / smokeCount) * 360 + Math.random() * 60,
-            distance: 15 + Math.random() * 30,
+            distance: 20 + Math.random() * 45,
+            size: 14 + Math.random() * 12,
         }))
     , [smokeCount]);
 
     return (
         <div className="capture-explosion" style={{ left: x, top: y }}>
-            {/* Central flash -- bright white burst */}
+            {/* SCREEN FLASH -- brief white overlay (positioned fixed, covers 40% from center) */}
+            {!IS_LOW_END && (
+                <motion.div
+                    className="capture-flash-overlay"
+                    initial={{ opacity: 0.35 }}
+                    animate={{ opacity: 0 }}
+                    transition={{ duration: 0.15, ease: 'easeOut' }}
+                />
+            )}
+
+            {/* Central flash -- bright white burst (BIGGER) */}
             <motion.div
                 className="explosion-flash"
                 style={{ background: '#fff' }}
                 initial={{ scale: 0, opacity: 1 }}
-                animate={{ scale: 3.5, opacity: 0 }}
-                transition={{ duration: 0.3, ease: 'easeOut' }}
+                animate={{ scale: 5, opacity: 0 }}
+                transition={{ duration: 0.35, ease: 'easeOut' }}
             />
-            {/* Colored flash overlay */}
+            {/* Colored flash overlay (BIGGER) */}
             <motion.div
                 className="explosion-flash"
                 style={{ background: color }}
-                initial={{ scale: 0, opacity: 0.8 }}
-                animate={{ scale: 4, opacity: 0 }}
-                transition={{ duration: 0.45, ease: 'easeOut', delay: 0.03 }}
+                initial={{ scale: 0, opacity: 0.9 }}
+                animate={{ scale: 6, opacity: 0 }}
+                transition={{ duration: 0.5, ease: 'easeOut', delay: 0.02 }}
             />
-            {/* Shockwave ring expanding outward */}
+
+            {/* PRIMARY SHOCKWAVE RING -- massive expanding ring */}
+            <motion.div
+                className="capture-shockwave"
+                style={{ borderColor: color }}
+                initial={{ scale: 0.3, opacity: 1 }}
+                animate={{ scale: 7, opacity: 0 }}
+                transition={{ duration: 0.6, ease: 'easeOut' }}
+            />
+
+            {/* Inner shockwave ring */}
             <motion.div
                 className="explosion-ring"
                 style={{ borderColor: color }}
                 initial={{ scale: 0, opacity: 0.9 }}
                 animate={{ scale: 5, opacity: 0 }}
-                transition={{ duration: 0.55, ease: 'easeOut' }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
             />
             {/* Second ring -- wider, slower */}
             {!IS_LOW_END && (
@@ -135,63 +170,206 @@ export const CaptureExplosion: React.FC<{
                     className="explosion-ring"
                     style={{ borderColor: '#ffffff80' }}
                     initial={{ scale: 0, opacity: 0.5 }}
-                    animate={{ scale: 6, opacity: 0 }}
-                    transition={{ duration: 0.7, ease: 'easeOut', delay: 0.08 }}
+                    animate={{ scale: 8, opacity: 0 }}
+                    transition={{ duration: 0.75, ease: 'easeOut', delay: 0.06 }}
                 />
             )}
-            {/* Particle shards radiating outward */}
+            {/* Third ring -- gold accent */}
+            {!IS_LOW_END && (
+                <motion.div
+                    className="explosion-ring"
+                    style={{ borderColor: '#FFD70060', borderWidth: 2 }}
+                    initial={{ scale: 0, opacity: 0.7 }}
+                    animate={{ scale: 9, opacity: 0 }}
+                    transition={{ duration: 0.85, ease: 'easeOut', delay: 0.1 }}
+                />
+            )}
+
+            {/* Particle shards radiating outward (MORE, BIGGER) */}
             {shards.map(s => (
                 <motion.div
                     key={s.id}
                     className="explosion-shard"
                     style={{
                         width: s.isStrip ? s.size * 0.5 : s.size,
-                        height: s.isStrip ? s.size * 2 : s.size,
-                        background: color,
+                        height: s.isStrip ? s.size * 2.5 : s.size,
+                        background: s.isWhiteHot ? '#fff' : color,
                         borderRadius: s.isStrip ? '1px' : '50%',
+                        boxShadow: s.isWhiteHot
+                            ? '0 0 6px #fff, 0 0 12px rgba(255,255,255,0.5)'
+                            : `0 0 6px ${color}, 0 0 12px ${color}80`,
                     }}
                     initial={{ x: 0, y: 0, scale: 1, opacity: 1 }}
                     animate={{
                         x: Math.cos(s.angle * Math.PI / 180) * s.distance,
-                        y: Math.sin(s.angle * Math.PI / 180) * s.distance + 15, // gravity pull
+                        y: Math.sin(s.angle * Math.PI / 180) * s.distance + 20,
                         scale: 0,
                         opacity: 0,
-                        rotate: s.isStrip ? s.angle : 0,
+                        rotate: s.isStrip ? s.angle + Math.random() * 180 : 0,
                     }}
                     transition={{
-                        duration: 0.55,
+                        duration: 0.6,
                         delay: s.delay,
                         ease: 'easeOut',
                     }}
                 />
             ))}
-            {/* Smoke wisps -- slow ghostly fade */}
+
+            {/* Colored sparks -- tiny bright fast dots */}
+            {sparks.map(s => (
+                <motion.div
+                    key={`spark-${s.id}`}
+                    className="explosion-shard"
+                    style={{
+                        width: s.size,
+                        height: s.size,
+                        background: color,
+                        borderRadius: '50%',
+                        boxShadow: `0 0 4px ${color}, 0 0 8px ${color}`,
+                    }}
+                    initial={{ x: 0, y: 0, scale: 1.5, opacity: 1 }}
+                    animate={{
+                        x: Math.cos(s.angle * Math.PI / 180) * s.distance,
+                        y: Math.sin(s.angle * Math.PI / 180) * s.distance,
+                        scale: 0,
+                        opacity: 0,
+                    }}
+                    transition={{
+                        duration: 0.4,
+                        delay: s.delay,
+                        ease: [0.25, 0.1, 0.25, 1],
+                    }}
+                />
+            ))}
+
+            {/* Smoke wisps -- BIGGER slow ghostly fade */}
             {smokes.map(s => (
                 <motion.div
                     key={`smoke-${s.id}`}
                     className="explosion-shard"
                     style={{
-                        width: 12,
-                        height: 12,
-                        background: `${color}40`,
+                        width: s.size,
+                        height: s.size,
+                        background: `${color}30`,
                         borderRadius: '50%',
-                        filter: 'blur(4px)',
+                        filter: 'blur(6px)',
                     }}
-                    initial={{ x: 0, y: 0, scale: 0.5, opacity: 0.6 }}
+                    initial={{ x: 0, y: 0, scale: 0.5, opacity: 0.7 }}
                     animate={{
                         x: Math.cos(s.angle * Math.PI / 180) * s.distance,
-                        y: Math.sin(s.angle * Math.PI / 180) * s.distance - 20,
-                        scale: 2,
+                        y: Math.sin(s.angle * Math.PI / 180) * s.distance - 25,
+                        scale: 2.5,
                         opacity: 0,
                     }}
                     transition={{
-                        duration: 0.9,
-                        delay: 0.1,
+                        duration: 1.0,
+                        delay: 0.08,
                         ease: 'easeOut',
                     }}
                 />
             ))}
         </div>
+    );
+};
+
+// ---- Coin Shower ----
+// Casino-grade gold coin fountain from capture point. Pure dopamine.
+
+export const CoinShower: React.FC<{
+    position: { x: number; y: number };
+    coinCount?: number;
+}> = ({ position, coinCount = 25 }) => {
+    const coins = useMemo(() =>
+        Array.from({ length: IS_LOW_END ? Math.min(coinCount, 12) : coinCount }, (_, i) => ({
+            id: i,
+            angle: (Math.random() - 0.5) * 140, // spread angle in degrees
+            speed: 70 + Math.random() * 130, // pixels to travel
+            delay: Math.random() * 0.18, // stagger
+            rotation: Math.random() * 720 - 360,
+            size: 9 + Math.random() * 9,
+            // Gravity: coins go up then arc down
+            gravityFactor: 0.5 + Math.random() * 1.0,
+        })), [coinCount]
+    );
+
+    return (
+        <div
+            className="coin-shower-container"
+            style={{ left: position.x, top: position.y }}
+        >
+            {coins.map(coin => {
+                const xEnd = Math.sin(coin.angle * Math.PI / 180) * coin.speed;
+                // Arc: go up first (-speed * 0.8), then gravity pulls down
+                const yEnd = -coin.speed * 0.6 + coin.gravityFactor * coin.speed * 1.2;
+                return (
+                    <motion.div
+                        key={coin.id}
+                        className="coin-shower-coin"
+                        initial={{ x: 0, y: 0, opacity: 1, scale: 0.2, rotate: 0 }}
+                        animate={{
+                            x: xEnd,
+                            y: yEnd,
+                            opacity: [1, 1, 1, 0.8, 0],
+                            scale: [0.2, 1.3, 1.1, 0.9, 0.5],
+                            rotate: coin.rotation,
+                            rotateY: [0, 180, 360, 540],
+                        }}
+                        transition={{
+                            duration: 1.0 + Math.random() * 0.3,
+                            delay: coin.delay,
+                            ease: [0.25, 0.1, 0.25, 1],
+                        }}
+                        style={{
+                            width: coin.size,
+                            height: coin.size,
+                        }}
+                    >
+                        {/* Inner shine highlight */}
+                        <div className="coin-shine" />
+                    </motion.div>
+                );
+            })}
+        </div>
+    );
+};
+
+// ---- Capture Streak Bonus ----
+// Shows escalating multiplier badge: "x2!", "x3!" with coin bonus amount
+
+export const CaptureStreakBonus: React.FC<{
+    streak: number;
+}> = ({ streak }) => {
+    if (streak < 2) return null;
+
+    const bonusAmounts: Record<number, string> = {
+        2: '+50',
+        3: '+150',
+        4: '+500',
+        5: '+1000',
+    };
+    const bonusText = bonusAmounts[Math.min(streak, 5)] || `+${streak * 250}`;
+    const isOnFire = streak >= 3;
+
+    return (
+        <motion.div
+            className={`streak-multiplier${isOnFire ? ' on-fire' : ''}`}
+            initial={{ scale: 0, opacity: 0, y: 20 }}
+            animate={{
+                scale: [0, 1.6, 1.2, 1],
+                opacity: 1,
+                y: 0,
+            }}
+            exit={{ scale: 0.5, opacity: 0, y: -30 }}
+            transition={{
+                duration: 0.5,
+                type: 'spring',
+                stiffness: 350,
+                damping: 15,
+            }}
+        >
+            <span className="streak-multiplier-x">x{streak}!</span>
+            <span className="streak-multiplier-bonus">{bonusText} coins</span>
+        </motion.div>
     );
 };
 
@@ -396,15 +574,19 @@ export const DiceSixBurst: React.FC<{
 // Applies CSS transform shake to a parent container
 
 export const useScreenShake = () => {
-    const [shaking, setShaking] = useState(false);
+    const [shakeIntensity, setShakeIntensity] = useState<string | null>(null);
 
-    const triggerShake = useCallback((intensity: 'light' | 'medium' | 'heavy' = 'medium') => {
-        setShaking(true);
-        const durations = { light: 200, medium: 350, heavy: 500 };
-        setTimeout(() => setShaking(false), durations[intensity]);
+    const triggerShake = useCallback((intensity: 'light' | 'medium' | 'heavy' | 'capture' = 'medium') => {
+        setShakeIntensity(intensity);
+        const durations = { light: 200, medium: 350, heavy: 500, capture: 600 };
+        setTimeout(() => setShakeIntensity(null), durations[intensity]);
     }, []);
 
-    const shakeClass = shaking ? 'screen-shaking' : '';
+    const shakeClass = shakeIntensity === 'capture'
+        ? 'screen-shaking-capture'
+        : shakeIntensity
+            ? 'screen-shaking'
+            : '';
 
     return { shakeClass, triggerShake };
 };

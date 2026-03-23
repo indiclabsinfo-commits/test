@@ -1,5 +1,6 @@
 // Web Audio API Sound Generator
 // Generates synthetic SFX to avoid asset dependencies
+// Casino-grade sound design: weighty, satisfying, addictive
 
 let audioCtx: AudioContext | null = null;
 let masterGain: GainNode | null = null;
@@ -253,47 +254,62 @@ export const playExplosion = () => {
 
 export const playSpinTick = playWheelTick; // Alias
 
-// --- Ludo Specific Sounds ---
+// =============================================================================
+// LUDO SPECIFIC SOUNDS -- Casino-Grade
+// =============================================================================
 
-// Per-cell hop sound -- wooden piece tapping on a board
-// Each call produces a slightly different pitch for natural, organic feel
+// ---------------------------------------------------------------------------
+// 5. PIECE HOP -- Punchy wooden block impact
+// Triangle + square wave mix for woody character, with bass thump undertone
+// Randomized pitch +/-200Hz so consecutive hops never sound identical
+// ---------------------------------------------------------------------------
 export const playHopSound = () => {
     if (!isSoundEnabled()) return;
     const ctx = getCtx();
     const t = ctx.currentTime;
 
-    // Random pitch variation: base 1800-2400Hz with +/- 100Hz jitter
-    const baseFreq = 1800 + Math.random() * 600;
-    const pitchJitter = (Math.random() - 0.5) * 200; // +/- 100Hz
-    const freq = baseFreq + pitchJitter;
+    // Randomize base pitch for variety between hops
+    const baseFreq = 1800 + (Math.random() - 0.5) * 400; // 1600-2000Hz center
+    const dur = 0.03;
 
-    // Duration: 25-35ms for a crisp wooden tap
-    const dur = 0.025 + Math.random() * 0.01;
+    // Primary tone -- triangle wave for woody, rounded attack
+    const tri = ctx.createOscillator();
+    const triGain = ctx.createGain();
+    tri.frequency.setValueAtTime(baseFreq, t);
+    tri.frequency.exponentialRampToValueAtTime(baseFreq * 0.6, t + dur);
+    tri.type = 'triangle';
+    triGain.gain.setValueAtTime(0.12, t);
+    triGain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    tri.connect(triGain);
+    connectToOutput(triGain);
+    tri.start(t);
+    tri.stop(t + dur + 0.005);
 
-    // Primary tap -- triangle wave for that woody, rounded character
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.frequency.setValueAtTime(freq, t);
-    osc.frequency.exponentialRampToValueAtTime(freq * 0.7, t + dur);
-    osc.type = 'triangle';
-    gain.gain.setValueAtTime(0.07, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    osc.connect(gain);
-    connectToOutput(gain);
-    osc.start(t);
-    osc.stop(t + dur);
+    // Square wave layer at half frequency -- adds "crack" character
+    const sq = ctx.createOscillator();
+    const sqGain = ctx.createGain();
+    sq.frequency.setValueAtTime(baseFreq * 0.5, t);
+    sq.frequency.exponentialRampToValueAtTime(baseFreq * 0.3, t + dur);
+    sq.type = 'square';
+    sqGain.gain.setValueAtTime(0.06, t);
+    sqGain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    sq.connect(sqGain);
+    connectToOutput(sqGain);
+    sq.start(t);
+    sq.stop(t + dur + 0.005);
 
-    // Subtle low-frequency body -- sine at 400-500Hz for board resonance
-    const body = ctx.createOscillator();
-    const bodyGain = ctx.createGain();
-    body.frequency.setValueAtTime(400 + Math.random() * 100, t);
-    body.type = 'sine';
-    bodyGain.gain.setValueAtTime(0.08, t);
-    bodyGain.gain.exponentialRampToValueAtTime(0.001, t + 0.015);
-    body.connect(bodyGain);
-    connectToOutput(bodyGain);
-    body.start(t);
-    body.stop(t + 0.015);
+    // Bass thump -- physical board impact feel
+    const bass = ctx.createOscillator();
+    const bassGain = ctx.createGain();
+    bass.frequency.setValueAtTime(300, t);
+    bass.frequency.exponentialRampToValueAtTime(150, t + 0.02);
+    bass.type = 'sine';
+    bassGain.gain.setValueAtTime(0.1, t);
+    bassGain.gain.exponentialRampToValueAtTime(0.001, t + 0.02);
+    bass.connect(bassGain);
+    connectToOutput(bassGain);
+    bass.start(t);
+    bass.stop(t + 0.025);
 };
 
 // Heavier impact on landing at final cell -- satisfying thud with resonance
@@ -699,19 +715,25 @@ export const playPayoutTick = () => {
     osc.stop(t + 0.035);
 };
 
-// --- Enhanced Ludo Sounds ---
+// =============================================================================
+// ENHANCED LUDO SOUNDS -- Casino-Grade, Addictive
+// =============================================================================
 
-// Realistic dice roll -- shake phase, land thud, settle rattle
+// ---------------------------------------------------------------------------
+// 3. DICE ROLL -- Heavy, satisfying, 4-phase sound design (~750ms total)
+// Phase 1: RATTLE - 12-15 bright clicks with descending pitch (dice settling)
+// Phase 2: TUMBLE - 3 heavy thuds at descending frequencies
+// Phase 3: LAND   - Deep authoritative thud with click accent
+// Phase 4: SETTLE - 2 tiny ticks as die comes to rest
+// ---------------------------------------------------------------------------
 export const playDiceShakeEnhanced = () => {
     if (!isSoundEnabled()) return;
     const ctx = getCtx();
     const t = ctx.currentTime;
     const buf = ensureNoise();
 
-    // Phase 1: Shake (0-400ms) -- 12 rapid bandpass-filtered noise bursts
-    // Simulates dice clattering inside a cupped hand
-    const rattleCount = 12;
-    let cursor = 0;
+    // Phase 1: RATTLE (0-350ms) -- 14 bright clicks, descending pitch
+    const rattleCount = 14;
     for (let i = 0; i < rattleCount; i++) {
         const src = ctx.createBufferSource();
         src.buffer = buf;
@@ -719,254 +741,364 @@ export const playDiceShakeEnhanced = () => {
         const filter = ctx.createBiquadFilter();
 
         filter.type = 'bandpass';
-        // Each click at a random frequency in 3000-6000Hz range for bright rattling
-        filter.frequency.value = 3000 + Math.random() * 3000;
-        filter.Q.value = 4 + Math.random() * 6;
+        // Start high (5500Hz), descend to 3500Hz as dice "settles"
+        const progress = i / rattleCount;
+        const baseFreq = 5500 - progress * 2000;
+        filter.frequency.value = baseFreq + (Math.random() - 0.5) * 500;
+        filter.Q.value = 6 + Math.random() * 4;
 
-        // Random timing gaps (15-35ms apart) for organic feel
-        const gap = 0.015 + Math.random() * 0.02;
-        cursor += gap;
-        const start = t + cursor;
-        const dur = 0.018 + Math.random() * 0.004; // ~20ms per click
+        // Stagger timing with slight randomness for organic feel
+        const gap = 0.018 + Math.random() * 0.012; // 18-30ms apart
+        const start = t + i * gap;
+        const dur = 0.015 + Math.random() * 0.008;
 
-        // Volume builds slightly then decays for natural envelope
-        const vol = 0.06 + Math.random() * 0.06;
-        gain.gain.setValueAtTime(vol, start);
+        // Each click is punchy -- gain 0.25
+        gain.gain.setValueAtTime(0.25, start);
         gain.gain.exponentialRampToValueAtTime(0.01, start + dur);
 
         src.connect(filter);
         filter.connect(gain);
         connectToOutput(gain);
         src.start(start);
-        src.stop(start + dur);
+        src.stop(start + dur + 0.005);
     }
 
-    // Phase 2: Land thud (at 400ms) -- deep low-frequency thump
-    // Sine wave at 120-180Hz range for the bass body of the landing
-    const thudFreq = 120 + Math.random() * 60;
-    const thud = ctx.createOscillator();
-    const thudGain = ctx.createGain();
-    thud.type = 'sine';
-    thud.frequency.setValueAtTime(thudFreq, t + 0.4);
-    thud.frequency.exponentialRampToValueAtTime(thudFreq * 0.4, t + 0.5);
-    thudGain.gain.setValueAtTime(0.18, t + 0.4);
-    thudGain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
-    thud.connect(thudGain);
-    connectToOutput(thudGain);
-    thud.start(t + 0.4);
-    thud.stop(t + 0.5);
-
-    // Mid-frequency impact layer at 400Hz for surface attack character
-    const midImpact = ctx.createOscillator();
-    const midGain = ctx.createGain();
-    midImpact.type = 'triangle';
-    midImpact.frequency.setValueAtTime(400, t + 0.4);
-    midImpact.frequency.exponentialRampToValueAtTime(180, t + 0.45);
-    midGain.gain.setValueAtTime(0.1, t + 0.4);
-    midGain.gain.exponentialRampToValueAtTime(0.01, t + 0.45);
-    midImpact.connect(midGain);
-    connectToOutput(midGain);
-    midImpact.start(t + 0.4);
-    midImpact.stop(t + 0.45);
-
-    // Phase 3: Settle rattle (400-600ms) -- 3 quiet secondary clicks as die settles
-    const settleGains = [0.15, 0.08, 0.04];
-    const settleTimes = [0.46, 0.52, 0.57];
-    settleTimes.forEach((offset, i) => {
-        const src = ctx.createBufferSource();
-        src.buffer = buf;
+    // Phase 2: TUMBLE (150ms, 350ms, 500ms) -- 3 heavy descending thuds
+    const tumbleData = [
+        { time: 0.15, freq: 200 },
+        { time: 0.35, freq: 180 },
+        { time: 0.50, freq: 160 },
+    ];
+    tumbleData.forEach(({ time, freq }) => {
+        const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        const filter = ctx.createBiquadFilter();
-        filter.type = 'bandpass';
-        filter.frequency.value = 3500 + Math.random() * 2000;
-        filter.Q.value = 5;
-        gain.gain.setValueAtTime(settleGains[i], t + offset);
-        gain.gain.exponentialRampToValueAtTime(0.01, t + offset + 0.015);
-        src.connect(filter);
-        filter.connect(gain);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t + time);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.4, t + time + 0.08);
+        gain.gain.setValueAtTime(0.3, t + time);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + time + 0.1);
+        osc.connect(gain);
         connectToOutput(gain);
-        src.start(t + offset);
-        src.stop(t + offset + 0.02);
+        osc.start(t + time);
+        osc.stop(t + time + 0.12);
+    });
+
+    // Phase 3: LAND (at 550ms) -- deep authoritative thud
+    const landTime = 0.55;
+    // Deep bass body
+    const landBass = ctx.createOscillator();
+    const landBassGain = ctx.createGain();
+    landBass.type = 'sine';
+    landBass.frequency.setValueAtTime(100, t + landTime);
+    landBass.frequency.exponentialRampToValueAtTime(40, t + landTime + 0.1);
+    landBassGain.gain.setValueAtTime(0.5, t + landTime);
+    landBassGain.gain.exponentialRampToValueAtTime(0.01, t + landTime + 0.1);
+    landBass.connect(landBassGain);
+    connectToOutput(landBassGain);
+    landBass.start(t + landTime);
+    landBass.stop(t + landTime + 0.12);
+
+    // Click accent on top of the landing thud
+    const landClick = ctx.createOscillator();
+    const landClickGain = ctx.createGain();
+    landClick.type = 'triangle';
+    landClick.frequency.setValueAtTime(1500, t + landTime);
+    landClick.frequency.exponentialRampToValueAtTime(800, t + landTime + 0.02);
+    landClickGain.gain.setValueAtTime(0.2, t + landTime);
+    landClickGain.gain.exponentialRampToValueAtTime(0.01, t + landTime + 0.03);
+    landClick.connect(landClickGain);
+    connectToOutput(landClickGain);
+    landClick.start(t + landTime);
+    landClick.stop(t + landTime + 0.04);
+
+    // Phase 4: SETTLE (650ms, 700ms) -- 2 tiny ticks, die coming to rest
+    [0.65, 0.70].forEach((offset) => {
+        const tick = ctx.createOscillator();
+        const tickGain = ctx.createGain();
+        tick.type = 'triangle';
+        tick.frequency.setValueAtTime(3000, t + offset);
+        tick.frequency.exponentialRampToValueAtTime(2000, t + offset + 0.015);
+        tickGain.gain.setValueAtTime(0.1, t + offset);
+        tickGain.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.015);
+        tick.connect(tickGain);
+        connectToOutput(tickGain);
+        tick.start(t + offset);
+        tick.stop(t + offset + 0.02);
     });
 };
 
-// Rolling a 6 -- ascending golden chime with emphasis
+// ---------------------------------------------------------------------------
+// 4. SIX ROLLED -- DRAMATIC FANFARE
+// Ascending arpeggio C5->E5->G5->C6 with triangle wave
+// Low boom bass undertone at 80Hz
+// Shimmer finish: filtered white noise at 6000Hz, slow decay
+// ---------------------------------------------------------------------------
 export const playSixRolled = () => {
     if (!isSoundEnabled()) return;
     const ctx = getCtx();
     const t = ctx.currentTime;
+    const buf = ensureNoise();
 
-    // Bright ascending arpeggio: C E G C (major triad + octave)
-    const freqs = [523.25, 659.25, 783.99, 1046.50];
-    freqs.forEach((freq, i) => {
+    // Low BOOM bass foundation -- feel it in your chest
+    const boom = ctx.createOscillator();
+    const boomGain = ctx.createGain();
+    boom.type = 'sine';
+    boom.frequency.setValueAtTime(80, t);
+    boom.frequency.exponentialRampToValueAtTime(40, t + 0.2);
+    boomGain.gain.setValueAtTime(0.35, t);
+    boomGain.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+    boom.connect(boomGain);
+    connectToOutput(boomGain);
+    boom.start(t);
+    boom.stop(t + 0.22);
+
+    // Ascending arpeggio: C5 -> E5 -> G5 -> C6
+    const arpNotes = [523, 659, 784, 1047];
+    const noteDur = 0.06;
+    const noteGap = 0.04;
+    arpNotes.forEach((freq, i) => {
+        const start = t + i * (noteDur + noteGap); // 100ms per note slot
+
+        // Primary tone
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        const start = t + i * 0.05;
-
         osc.frequency.value = freq;
         osc.type = 'triangle';
-
-        // Crescendo on the arpeggio
-        const vol = 0.06 + (i / freqs.length) * 0.04;
+        // Crescendo through the arpeggio
+        const vol = 0.1 + (i / arpNotes.length) * 0.08;
         gain.gain.setValueAtTime(vol, start);
-        gain.gain.exponentialRampToValueAtTime(0.01, start + 0.4);
-
+        gain.gain.exponentialRampToValueAtTime(0.01, start + noteDur + 0.15);
         osc.connect(gain);
         connectToOutput(gain);
         osc.start(start);
-        osc.stop(start + 0.4);
+        osc.stop(start + noteDur + 0.2);
+
+        // Octave shimmer on each note for sparkle
+        const shimOsc = ctx.createOscillator();
+        const shimGain = ctx.createGain();
+        shimOsc.frequency.value = freq * 2;
+        shimOsc.type = 'sine';
+        shimGain.gain.setValueAtTime(0.03, start + 0.01);
+        shimGain.gain.exponentialRampToValueAtTime(0.001, start + noteDur + 0.1);
+        shimOsc.connect(shimGain);
+        connectToOutput(shimGain);
+        shimOsc.start(start + 0.01);
+        shimOsc.stop(start + noteDur + 0.12);
     });
 
-    // Sparkle shimmer at the top
-    const sparkle = ctx.createOscillator();
-    const sparkleGain = ctx.createGain();
-    sparkle.frequency.value = 2093;
-    sparkle.type = 'sine';
-    sparkleGain.gain.setValueAtTime(0.035, t + 0.18);
-    sparkleGain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
-    sparkle.connect(sparkleGain);
-    connectToOutput(sparkleGain);
-    sparkle.start(t + 0.18);
-    sparkle.stop(t + 0.6);
-
-    // Second sparkle octave for richness
-    const sp2 = ctx.createOscillator();
-    const sp2Gain = ctx.createGain();
-    sp2.frequency.value = 3136; // G7
-    sp2.type = 'sine';
-    sp2Gain.gain.setValueAtTime(0.015, t + 0.22);
-    sp2Gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
-    sp2.connect(sp2Gain);
-    connectToOutput(sp2Gain);
-    sp2.start(t + 0.22);
-    sp2.stop(t + 0.55);
+    // SHIMMER finish -- white noise filtered at 6000Hz with slow decay
+    const shimmerTime = t + arpNotes.length * (noteDur + noteGap);
+    const shimmerSrc = ctx.createBufferSource();
+    shimmerSrc.buffer = buf;
+    const shimmerGain = ctx.createGain();
+    const shimmerFilter = ctx.createBiquadFilter();
+    shimmerFilter.type = 'bandpass';
+    shimmerFilter.frequency.value = 6000;
+    shimmerFilter.Q.value = 1.5;
+    shimmerGain.gain.setValueAtTime(0.12, shimmerTime);
+    shimmerGain.gain.exponentialRampToValueAtTime(0.001, shimmerTime + 0.4);
+    shimmerSrc.connect(shimmerFilter);
+    shimmerFilter.connect(shimmerGain);
+    connectToOutput(shimmerGain);
+    shimmerSrc.start(shimmerTime);
+    shimmerSrc.stop(shimmerTime + 0.42);
 };
 
-// DRAMATIC capture sound -- 4-layer physical impact: thud, shatter, ring, debris
+// ---------------------------------------------------------------------------
+// 2. CAPTURE SOUND -- DEVASTATING 5-layer explosion
+// Layer 1: DEEP BASS IMPACT -- 60Hz sine, feel it in your chest
+// Layer 2: CRACK -- bandpass-filtered white noise burst at 2000Hz
+// Layer 3: GLASS SHATTER -- high noise burst 4000-8000Hz
+// Layer 4: REVERB TAIL -- low sine 100Hz, slow decay
+// Layer 5: DRAMATIC CHORD -- minor chord (A2, C3, E3) with triangle wave
+// ---------------------------------------------------------------------------
 export const playCaptureEnhanced = () => {
     if (!isSoundEnabled()) return;
     const ctx = getCtx();
     const t = ctx.currentTime;
     const buf = ensureNoise();
 
-    // 1. Impact (0ms): Deep thud at 100-150Hz -- the collision itself
-    const impactFreq = 100 + Math.random() * 50;
-    const impact = ctx.createOscillator();
-    const impactGain = ctx.createGain();
-    impact.frequency.setValueAtTime(impactFreq, t);
-    impact.frequency.exponentialRampToValueAtTime(impactFreq * 0.3, t + 0.15);
-    impact.type = 'sine';
-    impactGain.gain.setValueAtTime(0.5, t);
-    impactGain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
-    impact.connect(impactGain);
-    connectToOutput(impactGain);
-    impact.start(t);
-    impact.stop(t + 0.15);
+    // Layer 1: DEEP BASS IMPACT -- sine 60Hz, 150ms, gain 0.5
+    const bassImpact = ctx.createOscillator();
+    const bassImpactGain = ctx.createGain();
+    bassImpact.type = 'sine';
+    bassImpact.frequency.setValueAtTime(60, t);
+    bassImpact.frequency.exponentialRampToValueAtTime(30, t + 0.15);
+    bassImpactGain.gain.setValueAtTime(0.5, t);
+    bassImpactGain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+    bassImpact.connect(bassImpactGain);
+    connectToOutput(bassImpactGain);
+    bassImpact.start(t);
+    bassImpact.stop(t + 0.17);
 
-    // 2. Shatter (10ms): Burst of high-frequency noise -- piece breaking apart feel
-    const shatter = ctx.createBufferSource();
-    shatter.buffer = buf;
+    // Layer 2: CRACK -- white noise burst filtered at 2000Hz, bandpass Q=5, 50ms
+    const crackSrc = ctx.createBufferSource();
+    crackSrc.buffer = buf;
+    const crackGain = ctx.createGain();
+    const crackFilter = ctx.createBiquadFilter();
+    crackFilter.type = 'bandpass';
+    crackFilter.frequency.value = 2000;
+    crackFilter.Q.value = 5;
+    crackGain.gain.setValueAtTime(0.4, t);
+    crackGain.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
+    crackSrc.connect(crackFilter);
+    crackFilter.connect(crackGain);
+    connectToOutput(crackGain);
+    crackSrc.start(t);
+    crackSrc.stop(t + 0.06);
+
+    // Layer 3: GLASS SHATTER -- high noise burst 4000-8000Hz, 80ms with fast decay
+    const shatterSrc = ctx.createBufferSource();
+    shatterSrc.buffer = buf;
     const shatterGain = ctx.createGain();
     const shatterFilter = ctx.createBiquadFilter();
     shatterFilter.type = 'bandpass';
-    shatterFilter.frequency.value = 4500; // Center of 3000-6000Hz band
-    shatterFilter.Q.value = 0.8; // Wide Q covers 3000-6000Hz
+    shatterFilter.frequency.value = 6000; // Center between 4000-8000Hz
+    shatterFilter.Q.value = 0.5; // Wide band to cover 4000-8000Hz range
     shatterGain.gain.setValueAtTime(0.3, t + 0.01);
     shatterGain.gain.exponentialRampToValueAtTime(0.01, t + 0.09);
-    shatter.connect(shatterFilter);
+    shatterSrc.connect(shatterFilter);
     shatterFilter.connect(shatterGain);
     connectToOutput(shatterGain);
-    shatter.start(t + 0.01);
-    shatter.stop(t + 0.09);
+    shatterSrc.start(t + 0.01);
+    shatterSrc.stop(t + 0.1);
 
-    // 3. Ring out (30ms): Mid-frequency resonance -- aftermath ringing
-    const ring = ctx.createOscillator();
-    const ringGain = ctx.createGain();
-    ring.frequency.setValueAtTime(800, t + 0.03);
-    ring.type = 'triangle';
-    ringGain.gain.setValueAtTime(0.15, t + 0.03);
-    ringGain.gain.exponentialRampToValueAtTime(0.01, t + 0.23);
-    ring.connect(ringGain);
-    connectToOutput(ringGain);
-    ring.start(t + 0.03);
-    ring.stop(t + 0.23);
+    // Layer 4: REVERB TAIL -- low sine 100Hz, slow decay over 400ms
+    const reverbTail = ctx.createOscillator();
+    const reverbGain = ctx.createGain();
+    reverbTail.type = 'sine';
+    reverbTail.frequency.setValueAtTime(100, t + 0.02);
+    reverbTail.frequency.exponentialRampToValueAtTime(60, t + 0.42);
+    reverbGain.gain.setValueAtTime(0.15, t + 0.02);
+    reverbGain.gain.exponentialRampToValueAtTime(0.001, t + 0.42);
+    reverbTail.connect(reverbGain);
+    connectToOutput(reverbGain);
+    reverbTail.start(t + 0.02);
+    reverbTail.stop(t + 0.44);
 
-    // 4. Debris (50-150ms): 5 tiny scattered clicks at random high frequencies
-    const debrisCount = 5;
-    const debrisGains = [0.12, 0.09, 0.06, 0.04, 0.02];
-    for (let i = 0; i < debrisCount; i++) {
+    // Layer 5: DRAMATIC CHORD -- minor chord A2(110Hz) + C3(131Hz) + E3(165Hz)
+    // Triangle wave, 300ms with slow release for emotional weight
+    const chordFreqs = [110, 131, 165];
+    chordFreqs.forEach((freq) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.12, t + 0.03);
+        gain.gain.linearRampToValueAtTime(0.1, t + 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.33);
+        osc.connect(gain);
+        connectToOutput(gain);
+        osc.start(t + 0.03);
+        osc.stop(t + 0.35);
+    });
+
+    // Debris scatter -- 6 tiny high-freq clicks for additional impact feel
+    for (let i = 0; i < 6; i++) {
         const debrisOsc = ctx.createOscillator();
         const dGain = ctx.createGain();
-        const debrisFreq = 4000 + Math.random() * 4000; // 4000-8000Hz
-        const debrisStart = t + 0.05 + Math.random() * 0.1; // Scattered over 50-150ms
+        const debrisFreq = 4000 + Math.random() * 4000;
+        const debrisStart = t + 0.04 + Math.random() * 0.12;
         debrisOsc.frequency.setValueAtTime(debrisFreq, debrisStart);
-        debrisOsc.frequency.exponentialRampToValueAtTime(debrisFreq * 0.5, debrisStart + 0.01);
+        debrisOsc.frequency.exponentialRampToValueAtTime(debrisFreq * 0.4, debrisStart + 0.012);
         debrisOsc.type = 'square';
-        dGain.gain.setValueAtTime(debrisGains[i], debrisStart);
-        dGain.gain.exponentialRampToValueAtTime(0.001, debrisStart + 0.01);
+        dGain.gain.setValueAtTime(0.08, debrisStart);
+        dGain.gain.exponentialRampToValueAtTime(0.001, debrisStart + 0.012);
         debrisOsc.connect(dGain);
         connectToOutput(dGain);
         debrisOsc.start(debrisStart);
-        debrisOsc.stop(debrisStart + 0.012);
+        debrisOsc.stop(debrisStart + 0.015);
     }
 };
 
-// Triumphant home entry -- ascending arpeggio C5 E5 G5 C6 with reverb + shimmer
+// ---------------------------------------------------------------------------
+// 6. HOME ENTRY -- Maximum celebration, victory jingle
+// Quick ascending scale C5->D5->E5->G5->C6 (50ms each)
+// Sustained major chord C5+E5+G5 (500ms slow fade)
+// Cymbal crash: noise burst 8000Hz, 600ms slow decay
+// 3 sparkle tones at random high frequencies
+// ---------------------------------------------------------------------------
 export const playHomeEntryEnhanced = () => {
     if (!isSoundEnabled()) return;
     const ctx = getCtx();
     const t = ctx.currentTime;
     const buf = ensureNoise();
 
-    // Notes: C5 (523Hz), E5 (659Hz), G5 (784Hz), C6 (1047Hz)
-    const notes = [523, 659, 784, 1047];
-    const noteDur = 0.06;
-    const stagger = 0.05;
-
-    notes.forEach((freq, i) => {
-        const start = t + i * stagger;
-
-        // Primary tone -- sine wave for clear, bell-like quality
+    // Quick ascending scale: C5 D5 E5 G5 C6
+    const scaleNotes = [523, 587, 659, 784, 1047];
+    const scaleDur = 0.05;
+    scaleNotes.forEach((freq, i) => {
+        const start = t + i * scaleDur;
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.frequency.value = freq;
         osc.type = 'sine';
-        gain.gain.setValueAtTime(0.1, start);
-        gain.gain.exponentialRampToValueAtTime(0.01, start + noteDur + 0.1);
+        // Crescendo through the scale
+        const vol = 0.1 + (i / scaleNotes.length) * 0.06;
+        gain.gain.setValueAtTime(vol, start);
+        gain.gain.exponentialRampToValueAtTime(0.01, start + scaleDur + 0.08);
+        osc.connect(gain);
+        connectToOutput(gain);
+        osc.start(start);
+        osc.stop(start + scaleDur + 0.1);
+    });
 
-        // Slight reverb via delay node at 30ms, feedback gain 0.2
+    // SUSTAINED CHORD: C5(523) + E5(659) + G5(784) together, 500ms slow fade
+    const chordStart = t + scaleNotes.length * scaleDur + 0.02;
+    const chordFreqs = [523, 659, 784];
+    chordFreqs.forEach((freq) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.value = freq;
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0.12, chordStart);
+        gain.gain.linearRampToValueAtTime(0.1, chordStart + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.001, chordStart + 0.5);
+        osc.connect(gain);
+        connectToOutput(gain);
+        osc.start(chordStart);
+        osc.stop(chordStart + 0.52);
+
+        // Add slight reverb via delay
         const delay = ctx.createDelay();
         delay.delayTime.value = 0.03;
         const delayGain = ctx.createGain();
-        delayGain.gain.value = 0.2;
-
-        osc.connect(gain);
-        // Dry signal
-        connectToOutput(gain);
-        // Wet (reverb) signal
+        delayGain.gain.value = 0.15;
         gain.connect(delay);
         delay.connect(delayGain);
         connectToOutput(delayGain);
-
-        osc.start(start);
-        osc.stop(start + noteDur + 0.15);
     });
 
-    // Shimmer layer: filtered white noise at 6000-10000Hz for sparkle
-    const shimmerSrc = ctx.createBufferSource();
-    shimmerSrc.buffer = buf;
-    const shimmerGain = ctx.createGain();
-    const shimmerFilter = ctx.createBiquadFilter();
-    shimmerFilter.type = 'bandpass';
-    shimmerFilter.frequency.value = 8000; // Center of 6000-10000Hz
-    shimmerFilter.Q.value = 0.5; // Wide band to cover range
-    shimmerGain.gain.setValueAtTime(0.05, t);
-    shimmerGain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
-    shimmerSrc.connect(shimmerFilter);
-    shimmerFilter.connect(shimmerGain);
-    connectToOutput(shimmerGain);
-    shimmerSrc.start(t);
-    shimmerSrc.stop(t + 0.4);
+    // CYMBAL CRASH: noise burst at 8000Hz, 600ms with slow decay
+    const cymbalSrc = ctx.createBufferSource();
+    cymbalSrc.buffer = buf;
+    const cymbalGain = ctx.createGain();
+    const cymbalFilter = ctx.createBiquadFilter();
+    cymbalFilter.type = 'highpass';
+    cymbalFilter.frequency.value = 8000;
+    cymbalGain.gain.setValueAtTime(0.15, chordStart);
+    cymbalGain.gain.exponentialRampToValueAtTime(0.001, chordStart + 0.6);
+    cymbalSrc.connect(cymbalFilter);
+    cymbalFilter.connect(cymbalGain);
+    connectToOutput(cymbalGain);
+    cymbalSrc.start(chordStart);
+    cymbalSrc.stop(chordStart + 0.62);
+
+    // 3 SPARKLE tones at random high frequencies, scattered over 300ms
+    for (let i = 0; i < 3; i++) {
+        const sparkle = ctx.createOscillator();
+        const sparkleGain = ctx.createGain();
+        const sparkleFreq = 3000 + Math.random() * 2000; // 3000-5000Hz
+        const sparkleTime = chordStart + Math.random() * 0.3;
+        sparkle.frequency.value = sparkleFreq;
+        sparkle.type = 'sine';
+        sparkleGain.gain.setValueAtTime(0.08, sparkleTime);
+        sparkleGain.gain.exponentialRampToValueAtTime(0.001, sparkleTime + 0.02);
+        sparkle.connect(sparkleGain);
+        connectToOutput(sparkleGain);
+        sparkle.start(sparkleTime);
+        sparkle.stop(sparkleTime + 0.025);
+    }
 };
 
 export const playStreakSound = () => {
@@ -1117,36 +1249,52 @@ export const playWinSoundEnhanced = () => {
     bass2.stop(t + 1.1);
 };
 
+// ---------------------------------------------------------------------------
+// 9. NEAR MISS -- Tension builder, makes player want to try again
+// Descending slide 1200Hz->400Hz over 150ms
+// "Ooh" beat frequency effect: two detuned sines at 300Hz and 305Hz (5Hz beat)
+// ---------------------------------------------------------------------------
 export const playNearMiss = () => {
     if (!isSoundEnabled()) return;
     const ctx = getCtx();
     const t = ctx.currentTime;
 
-    // Quick descending "whew" sound
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.frequency.setValueAtTime(900, t);
-    osc.frequency.exponentialRampToValueAtTime(500, t + 0.15);
-    osc.type = 'triangle';
-    gain.gain.setValueAtTime(0.06, t);
-    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.18);
-    osc.connect(gain);
-    connectToOutput(gain);
-    osc.start(t);
-    osc.stop(t + 0.18);
+    // Descending slide -- 1200Hz to 400Hz over 150ms
+    const slide = ctx.createOscillator();
+    const slideGain = ctx.createGain();
+    slide.frequency.setValueAtTime(1200, t);
+    slide.frequency.exponentialRampToValueAtTime(400, t + 0.15);
+    slide.type = 'sine';
+    slideGain.gain.setValueAtTime(0.1, t);
+    slideGain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
+    slide.connect(slideGain);
+    connectToOutput(slideGain);
+    slide.start(t);
+    slide.stop(t + 0.17);
 
-    // Relief sigh
-    const sigh = ctx.createOscillator();
-    const sighGain = ctx.createGain();
-    sigh.frequency.setValueAtTime(600, t + 0.12);
-    sigh.frequency.exponentialRampToValueAtTime(400, t + 0.3);
-    sigh.type = 'sine';
-    sighGain.gain.setValueAtTime(0.03, t + 0.12);
-    sighGain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
-    sigh.connect(sighGain);
-    connectToOutput(sighGain);
-    sigh.start(t + 0.12);
-    sigh.stop(t + 0.3);
+    // "Ooh" effect -- two detuned sines creating 5Hz beat frequency
+    // This creates a wobbling, tension-filled undertone
+    const ooh1 = ctx.createOscillator();
+    const ooh1Gain = ctx.createGain();
+    ooh1.frequency.value = 300;
+    ooh1.type = 'sine';
+    ooh1Gain.gain.setValueAtTime(0.06, t + 0.05);
+    ooh1Gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    ooh1.connect(ooh1Gain);
+    connectToOutput(ooh1Gain);
+    ooh1.start(t + 0.05);
+    ooh1.stop(t + 0.27);
+
+    const ooh2 = ctx.createOscillator();
+    const ooh2Gain = ctx.createGain();
+    ooh2.frequency.value = 305; // 5Hz detuning = pulsing beat
+    ooh2.type = 'sine';
+    ooh2Gain.gain.setValueAtTime(0.06, t + 0.05);
+    ooh2Gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    ooh2.connect(ooh2Gain);
+    connectToOutput(ooh2Gain);
+    ooh2.start(t + 0.05);
+    ooh2.stop(t + 0.27);
 };
 
 export const playBetClick = () => {
@@ -1235,8 +1383,11 @@ export const playThreeSixesForfeit = () => {
     sub.stop(t + 0.7);
 };
 
-// Turn change swoosh -- subtle "whoosh" when turns change
-// Bandpass-filtered noise sweeping from 200Hz to 2000Hz over 200ms
+// ---------------------------------------------------------------------------
+// 8. TURN CHANGE SWOOSH -- Subtle subconscious signal
+// Bandpass filtered noise sweeping 300Hz->1500Hz over 200ms
+// Gain 0.08 -- just enough to register without interrupting
+// ---------------------------------------------------------------------------
 export const playTurnChangeSwoosh = () => {
     if (!isSoundEnabled()) return;
     const ctx = getCtx();
@@ -1248,16 +1399,16 @@ export const playTurnChangeSwoosh = () => {
     const gain = ctx.createGain();
     const filter = ctx.createBiquadFilter();
 
-    // Bandpass filter that sweeps from low to high
+    // Bandpass filter sweeping 300Hz to 1500Hz
     filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(200, t);
-    filter.frequency.exponentialRampToValueAtTime(2000, t + 0.2);
-    filter.Q.value = 1.5;
+    filter.frequency.setValueAtTime(300, t);
+    filter.frequency.exponentialRampToValueAtTime(1500, t + 0.2);
+    filter.Q.value = 1.2;
 
-    // Gain envelope: fade in to 0.1 over 50ms, sustain, fade out over 100ms
+    // Subtle gain -- just enough to subconsciously signal the turn change
     gain.gain.setValueAtTime(0.001, t);
-    gain.gain.linearRampToValueAtTime(0.1, t + 0.05);
-    gain.gain.setValueAtTime(0.1, t + 0.1);
+    gain.gain.linearRampToValueAtTime(0.08, t + 0.04);
+    gain.gain.setValueAtTime(0.08, t + 0.1);
     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
 
     src.connect(filter);
@@ -1265,4 +1416,270 @@ export const playTurnChangeSwoosh = () => {
     connectToOutput(gain);
     src.start(t);
     src.stop(t + 0.22);
+};
+
+// ---------------------------------------------------------------------------
+// 1. COIN SHOWER -- Slot machine payout cascading coins
+// 18 rapid metallic clinks at 2000-4000Hz with fast decay
+// Low whoosh underneath: filtered noise sweep 200->800Hz
+// "Cha-ching" punctuation at the end
+// ---------------------------------------------------------------------------
+export const playCoinShower = () => {
+    if (!isSoundEnabled()) return;
+    const ctx = getCtx();
+    const t = ctx.currentTime;
+    const buf = ensureNoise();
+
+    // 18 rapid metallic "clink" sounds -- slot machine payout cascade
+    const clinkCount = 18;
+    for (let i = 0; i < clinkCount; i++) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+
+        // Random stagger: 30-50ms between clinks
+        const delay = i * (0.03 + Math.random() * 0.02);
+        // Randomized frequency in 2000-4000Hz for metallic variety
+        const freq = 2000 + Math.random() * 2000;
+        // Duration: 15-25ms for crisp metallic transients
+        const dur = 0.015 + Math.random() * 0.01;
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t + delay);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.6, t + delay + dur);
+
+        // Metallic resonance via peaking filter
+        filter.type = 'peaking';
+        filter.frequency.value = freq * 1.5;
+        filter.Q.value = 10;
+        filter.gain.value = 8;
+
+        // Stagger volume slightly for natural cascade feel
+        const vol = 0.1 + Math.random() * 0.06;
+        gain.gain.setValueAtTime(vol, t + delay);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + delay + dur + 0.02);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        connectToOutput(gain);
+        osc.start(t + delay);
+        osc.stop(t + delay + dur + 0.025);
+    }
+
+    // Low WHOOSH underneath -- filtered noise sweep 200->800Hz, 200ms
+    const whooshSrc = ctx.createBufferSource();
+    whooshSrc.buffer = buf;
+    const whooshGain = ctx.createGain();
+    const whooshFilter = ctx.createBiquadFilter();
+    whooshFilter.type = 'bandpass';
+    whooshFilter.frequency.setValueAtTime(200, t);
+    whooshFilter.frequency.exponentialRampToValueAtTime(800, t + 0.2);
+    whooshFilter.Q.value = 1;
+    whooshGain.gain.setValueAtTime(0.08, t);
+    whooshGain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    whooshSrc.connect(whooshFilter);
+    whooshFilter.connect(whooshGain);
+    connectToOutput(whooshGain);
+    whooshSrc.start(t);
+    whooshSrc.stop(t + 0.22);
+
+    // Shimmering sustain: filtered noise for coin rattle texture
+    const rattle = ctx.createBufferSource();
+    rattle.buffer = buf;
+    const rattleGain = ctx.createGain();
+    const rattleFilter = ctx.createBiquadFilter();
+    rattleFilter.type = 'bandpass';
+    rattleFilter.frequency.setValueAtTime(5000, t + 0.1);
+    rattleFilter.frequency.exponentialRampToValueAtTime(8000, t + 0.4);
+    rattleFilter.Q.value = 2;
+    rattleGain.gain.setValueAtTime(0.05, t + 0.1);
+    rattleGain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+    rattle.connect(rattleFilter);
+    rattleFilter.connect(rattleGain);
+    connectToOutput(rattleGain);
+    rattle.start(t + 0.1);
+    rattle.stop(t + 0.62);
+
+    // "Cha-ching" two-note punctuation at the end
+    const ching1 = ctx.createOscillator();
+    const ching1Gain = ctx.createGain();
+    ching1.type = 'sine';
+    ching1.frequency.setValueAtTime(1800, t + 0.35);
+    ching1Gain.gain.setValueAtTime(0.12, t + 0.35);
+    ching1Gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+    ching1.connect(ching1Gain);
+    connectToOutput(ching1Gain);
+    ching1.start(t + 0.35);
+    ching1.stop(t + 0.52);
+
+    const ching2 = ctx.createOscillator();
+    const ching2Gain = ctx.createGain();
+    ching2.type = 'sine';
+    ching2.frequency.setValueAtTime(2400, t + 0.42);
+    ching2Gain.gain.setValueAtTime(0.15, t + 0.42);
+    ching2Gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+    ching2.connect(ching2Gain);
+    connectToOutput(ching2Gain);
+    ching2.start(t + 0.42);
+    ching2.stop(t + 0.62);
+};
+
+// ---------------------------------------------------------------------------
+// 7. STREAK BONUS -- Escalating celebration based on streak count
+// Base: coin shower sound
+// Higher streak = higher pitched "cha-ching"
+// Streak >= 3: POWER UP ascending sine sweep 200->2000Hz
+// Streak >= 5: Deep GONG at 65Hz, 800ms slow decay
+// ---------------------------------------------------------------------------
+export const playStreakBonus = (streakCount: number) => {
+    if (!isSoundEnabled()) return;
+    const ctx = getCtx();
+    const t = ctx.currentTime;
+    const buf = ensureNoise();
+
+    // Base: coin shower cascade (inline for pitch control)
+    const clinkCount = Math.min(12 + streakCount * 2, 22); // More clinks for higher streaks
+    const pitchMultiplier = 1 + (streakCount - 1) * 0.15; // Higher streak = higher pitch
+
+    for (let i = 0; i < clinkCount; i++) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        const delay = i * (0.025 + Math.random() * 0.02);
+        const freq = (2000 + Math.random() * 2000) * pitchMultiplier;
+        const dur = 0.015 + Math.random() * 0.01;
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(Math.min(freq, 8000), t + delay);
+        osc.frequency.exponentialRampToValueAtTime(Math.min(freq, 8000) * 0.6, t + delay + dur);
+
+        const vol = 0.08 + Math.random() * 0.05;
+        gain.gain.setValueAtTime(vol, t + delay);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + delay + dur + 0.02);
+
+        osc.connect(gain);
+        connectToOutput(gain);
+        osc.start(t + delay);
+        osc.stop(t + delay + dur + 0.025);
+    }
+
+    // Pitched "cha-ching" -- higher streak = higher pitch
+    const chingBase = 1800 * pitchMultiplier;
+    const ching1 = ctx.createOscillator();
+    const ching1Gain = ctx.createGain();
+    ching1.type = 'sine';
+    ching1.frequency.setValueAtTime(Math.min(chingBase, 7000), t + 0.3);
+    ching1Gain.gain.setValueAtTime(0.12, t + 0.3);
+    ching1Gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+    ching1.connect(ching1Gain);
+    connectToOutput(ching1Gain);
+    ching1.start(t + 0.3);
+    ching1.stop(t + 0.47);
+
+    const ching2Freq = Math.min(chingBase * 1.33, 8000);
+    const ching2 = ctx.createOscillator();
+    const ching2Gain = ctx.createGain();
+    ching2.type = 'sine';
+    ching2.frequency.setValueAtTime(ching2Freq, t + 0.37);
+    ching2Gain.gain.setValueAtTime(0.15, t + 0.37);
+    ching2Gain.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+    ching2.connect(ching2Gain);
+    connectToOutput(ching2Gain);
+    ching2.start(t + 0.37);
+    ching2.stop(t + 0.57);
+
+    // Streak >= 3: POWER UP -- ascending sine sweep 200->2000Hz over 300ms
+    if (streakCount >= 3) {
+        const powerUp = ctx.createOscillator();
+        const powerGain = ctx.createGain();
+        powerUp.type = 'sawtooth';
+        powerUp.frequency.setValueAtTime(200, t + 0.05);
+        powerUp.frequency.exponentialRampToValueAtTime(2000, t + 0.35);
+        powerGain.gain.setValueAtTime(0.08, t + 0.05);
+        powerGain.gain.exponentialRampToValueAtTime(0.01, t + 0.38);
+        powerUp.connect(powerGain);
+        connectToOutput(powerGain);
+        powerUp.start(t + 0.05);
+        powerUp.stop(t + 0.4);
+
+        // Electric sizzle layer
+        const sizzle = ctx.createBufferSource();
+        sizzle.buffer = buf;
+        const sizzleGain = ctx.createGain();
+        const sizzleFilter = ctx.createBiquadFilter();
+        sizzleFilter.type = 'highpass';
+        sizzleFilter.frequency.value = 5000;
+        sizzleGain.gain.setValueAtTime(0.04, t + 0.25);
+        sizzleGain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+        sizzle.connect(sizzleFilter);
+        sizzleFilter.connect(sizzleGain);
+        connectToOutput(sizzleGain);
+        sizzle.start(t + 0.25);
+        sizzle.stop(t + 0.52);
+    }
+
+    // Streak >= 5: Deep GONG -- sine at 65Hz, 800ms with slow decay
+    if (streakCount >= 5) {
+        const gong = ctx.createOscillator();
+        const gongGain = ctx.createGain();
+        gong.type = 'sine';
+        gong.frequency.setValueAtTime(65, t);
+        gong.frequency.exponentialRampToValueAtTime(55, t + 0.8);
+        gongGain.gain.setValueAtTime(0.3, t);
+        gongGain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
+        gong.connect(gongGain);
+        connectToOutput(gongGain);
+        gong.start(t);
+        gong.stop(t + 0.82);
+
+        // Gong overtone for richness
+        const gongOvertone = ctx.createOscillator();
+        const gongOvertoneGain = ctx.createGain();
+        gongOvertone.type = 'sine';
+        gongOvertone.frequency.setValueAtTime(130, t);
+        gongOvertone.frequency.exponentialRampToValueAtTime(110, t + 0.6);
+        gongOvertoneGain.gain.setValueAtTime(0.1, t);
+        gongOvertoneGain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+        gongOvertone.connect(gongOvertoneGain);
+        connectToOutput(gongOvertoneGain);
+        gongOvertone.start(t);
+        gongOvertone.stop(t + 0.62);
+    }
+};
+
+// ---------------------------------------------------------------------------
+// 10. TIMER WARNING -- Urgent metronome tick
+// Square wave at 800Hz, 30ms, gain 0.2
+// Clean and urgent, plays once per second when timer < 5s
+// ---------------------------------------------------------------------------
+export const playTimerWarning = () => {
+    if (!isSoundEnabled()) return;
+    const ctx = getCtx();
+    const t = ctx.currentTime;
+
+    // Primary tick -- square wave at 800Hz, 30ms
+    const tick = ctx.createOscillator();
+    const tickGain = ctx.createGain();
+    tick.type = 'square';
+    tick.frequency.setValueAtTime(800, t);
+    tick.frequency.exponentialRampToValueAtTime(600, t + 0.03);
+    tickGain.gain.setValueAtTime(0.2, t);
+    tickGain.gain.exponentialRampToValueAtTime(0.01, t + 0.03);
+    tick.connect(tickGain);
+    connectToOutput(tickGain);
+    tick.start(t);
+    tick.stop(t + 0.035);
+
+    // Subtle click accent for definition
+    const accent = ctx.createOscillator();
+    const accentGain = ctx.createGain();
+    accent.type = 'sine';
+    accent.frequency.setValueAtTime(1600, t);
+    accent.frequency.exponentialRampToValueAtTime(1000, t + 0.015);
+    accentGain.gain.setValueAtTime(0.06, t);
+    accentGain.gain.exponentialRampToValueAtTime(0.001, t + 0.015);
+    accent.connect(accentGain);
+    connectToOutput(accentGain);
+    accent.start(t);
+    accent.stop(t + 0.02);
 };

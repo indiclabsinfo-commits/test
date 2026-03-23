@@ -21,6 +21,7 @@ import {
     playPieceEntryPop,
     playThreeSixesForfeit,
     playTurnChangeSwoosh,
+    playCoinShower,
 } from '../../utils/sound';
 import soundManager from '../../utils/soundManager';
 import { formatIndianNumber } from '../../utils/format';
@@ -38,6 +39,8 @@ import {
     UrgencyVignette,
     NearMissFlash,
     PieceEntryBurst,
+    CoinShower,
+    CaptureStreakBonus,
     DiceSixBurst,
     ScreenEdgeGlow,
     BoardFlash,
@@ -192,7 +195,7 @@ const Dice3D: React.FC<{ value: number | null; isRolling: boolean; showSix: bool
     // show-6: rotateX(180deg)             -> back face visible   -> value 6
     // Opposite faces sum to 7: front/back=1/6, top/bottom=2/5, left/right=3/4
     return (
-        <div className="dice-3d-scene">
+        <div className={`dice-3d-scene${isRolling ? ' scene-rolling' : ''}`}>
             <div className={`dice-3d-cube ${isRolling ? 'cube-rolling' : ''} show-${displayValue}${showSix && displayValue === 6 ? ' six-glow' : ''}`}>
                 <div className="dice-3d-face face-front">
                     <DiceFacePips value={1} />
@@ -272,6 +275,7 @@ export const LudoGame: React.FC = () => {
     const [showStreakOverlay, setShowStreakOverlay] = useState(false);
     const [streakType, setStreakType] = useState<'capture' | 'six' | 'home'>('capture');
     const [captureExplosionPos, setCaptureExplosionPos] = useState<{x: number, y: number, color: string} | null>(null);
+    const [coinShowerPos, setCoinShowerPos] = useState<{x: number, y: number} | null>(null);
     const [homeCelebrationPos, setHomeCelebrationPos] = useState<{x: number, y: number} | null>(null);
     const [showNearMiss, setShowNearMiss] = useState(false);
     const [diceAnnouncement, setDiceAnnouncement] = useState<string | null>(null);
@@ -786,9 +790,9 @@ export const LudoGame: React.FC = () => {
         triggerHaptic('capture');
         addToLog(`${data.capturedBy} captured ${data.capturedPlayer}'s piece!`, 'kill');
 
-        // Screen shake on capture
+        // INTENSE screen shake on capture -- casino-grade impact
         if (!deviceProfile.isLowEnd) {
-            triggerShake('medium');
+            triggerShake('capture');
         }
 
         // Board flash in attacker's color
@@ -796,6 +800,7 @@ export const LudoGame: React.FC = () => {
         triggerBoardFlash(attackerColor);
 
         // Fly-back animation: captured piece flies back to base with delay
+        // Delayed 300ms to let the explosion play out -- brief "slow motion" moment
         const capturedColor = data.capturedPlayer as PlayerColor;
         const capturedPieceId = data.capturedPieceId as number;
 
@@ -808,7 +813,7 @@ export const LudoGame: React.FC = () => {
 
         const toCoord = getBasePosition(capturedColor, capturedPieceId);
 
-        // Delay the flyback slightly for dramatic impact
+        // Delay the flyback slightly for dramatic impact -- 300ms "slow motion" pause
         setTimeout(() => {
             playCaptureReturn();
             setCaptureFlyback({
@@ -826,17 +831,28 @@ export const LudoGame: React.FC = () => {
             setTimeout(() => setAttackerPiece(null), 900);
         }
 
-        // Capture explosion at the point of capture
+        // Capture explosion + COIN SHOWER at the point of capture
         if (boardRef.current) {
             const capturedColorHex = COLOR_MAP[capturedColor]?.main || '#ff0000';
             const rect = boardRef.current.getBoundingClientRect();
             const cellSize = rect.width / 15;
+            const explosionX = fromCoord.c * cellSize - cellSize / 2;
+            const explosionY = fromCoord.r * cellSize - cellSize / 2;
+
+            // Capture explosion (enhanced with shockwave, flash, more particles)
             setCaptureExplosionPos({
-                x: fromCoord.c * cellSize - cellSize / 2,
-                y: fromCoord.r * cellSize - cellSize / 2,
+                x: explosionX,
+                y: explosionY,
                 color: capturedColorHex,
             });
-            setTimeout(() => setCaptureExplosionPos(null), 700);
+            setTimeout(() => setCaptureExplosionPos(null), 900);
+
+            // COIN SHOWER -- gold coins burst from the capture point
+            setCoinShowerPos({ x: explosionX, y: explosionY });
+            setTimeout(() => setCoinShowerPos(null), 1500);
+
+            // Play coin shower sound slightly delayed for layered audio
+            setTimeout(() => playCoinShower(), 100);
         }
 
         // Track capture streak
@@ -846,7 +862,7 @@ export const LudoGame: React.FC = () => {
             setStreakType('capture');
             setShowStreakOverlay(true);
             playStreakSound();
-            setTimeout(() => setShowStreakOverlay(false), 2000);
+            setTimeout(() => setShowStreakOverlay(false), 2500);
         }
     }, [addToLog, triggerHaptic, triggerShake, deviceProfile.isLowEnd, getBasePosition, triggerBoardFlash]);
 
@@ -1382,6 +1398,7 @@ export const LudoGame: React.FC = () => {
         setCaptureStreak(0);
         setShowStreakOverlay(false);
         setCaptureExplosionPos(null);
+        setCoinShowerPos(null);
         setHomeCelebrationPos(null);
         setShowNearMiss(false);
         setDiceAnnouncement(null);
@@ -2131,7 +2148,7 @@ export const LudoGame: React.FC = () => {
                                 <BoardFlash color={boardFlashColor} show={showBoardFlash} />
                             )}
 
-                            {/* Capture Explosion */}
+                            {/* Capture Explosion (enhanced with shockwave + flash) */}
                             <AnimatePresence>
                                 {captureExplosionPos && !deviceProfile.isLowEnd && (
                                     <CaptureExplosion
@@ -2139,6 +2156,21 @@ export const LudoGame: React.FC = () => {
                                         x={captureExplosionPos.x}
                                         y={captureExplosionPos.y}
                                     />
+                                )}
+                            </AnimatePresence>
+
+                            {/* COIN SHOWER -- gold coins cascade from capture point */}
+                            {coinShowerPos && (
+                                <CoinShower
+                                    position={coinShowerPos}
+                                    coinCount={captureStreakRef.current > 1 ? 40 : 25}
+                                />
+                            )}
+
+                            {/* Capture Streak Bonus Badge -- x2!, x3! with coin amount */}
+                            <AnimatePresence>
+                                {showStreakOverlay && streakType === 'capture' && captureStreak >= 2 && (
+                                    <CaptureStreakBonus streak={captureStreak} />
                                 )}
                             </AnimatePresence>
 
@@ -2209,7 +2241,14 @@ export const LudoGame: React.FC = () => {
 
                         <div className={`ludo-board-wrapper${isDuelPresentation ? ' duel-wrapper' : ''}`}>
                         {/* Board-corner player avatars (Ludo King style) */}
-                        {players.map((player) => {
+                        {(() => {
+                            const maxFinished = Math.max(...players.map(p => p.finishedCount));
+                            const leadingColors = maxFinished > 0
+                                ? players.filter(p => p.finishedCount === maxFinished).map(p => p.color)
+                                : [];
+                            // Only show crown if there is a single leader (no ties)
+                            const leaderColor = leadingColors.length === 1 ? leadingColors[0] : null;
+                            return players.map((player) => {
                             const colors = COLOR_MAP[player.color];
                             const isActive = currentPlayer?.color === player.color;
                             const isMe = isLocalMatch
@@ -2217,11 +2256,12 @@ export const LudoGame: React.FC = () => {
                                 : player.id === user?.id;
                             const posClass = `player-avatar-pos-${avatarPosMap[player.color]}`;
                             const diceVal = diceByColor[player.color];
+                            const isLeading = player.color === leaderColor;
 
                             return (
                                 <div
                                     key={`avatar-${player.color}`}
-                                    className={`player-avatar-circle ${posClass}${isActive ? ' active' : ''}`}
+                                    className={`player-avatar-circle ${posClass}${isActive ? ' active' : ''}${isLeading ? ' player-leading' : ''}`}
                                     style={{
                                         background: colors.gradient,
                                         '--avatar-color': colors.main,
@@ -2246,7 +2286,8 @@ export const LudoGame: React.FC = () => {
                                     )}
                                 </div>
                             );
-                        })}
+                        });
+                        })()}
 
                         <div ref={boardRef} onClick={handleBoardTap} className={`ludo-board ${isDuelPresentation ? 'duel-board' : ''}${boardRotationDeg !== 0 ? ' board-rotated' : ''}`} style={{ '--board-rotation': `${boardRotationDeg}deg` } as React.CSSProperties}>
                         <div className="base green"><div className="base-inner">{[0, 1, 2, 3].map(i => <div key={i} className="piece-spot" />)}</div></div>
