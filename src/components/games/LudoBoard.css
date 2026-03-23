@@ -1091,7 +1091,7 @@
         radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.45), transparent 35%),
         radial-gradient(circle at 82% 88%, rgba(255, 255, 255, 0.15), transparent 30%),
         linear-gradient(145deg, #f8e2be, #edd5a8 35%, #e2c895 65%, #d9bc85);
-    border: 7px solid var(--ludo-wood-dark);
+    border: 8px solid var(--ludo-wood-dark);
     border-radius: 12px;
     max-width: min(92vw, 420px);
     margin: 0 auto;
@@ -1194,19 +1194,39 @@
     z-index: 0;
 }
 
-/* Inner highlight and depth */
+/* Inner highlight, depth, and wood grain texture on border */
 .ludo-board::after {
     content: '';
     position: absolute;
-    inset: -2px;
-    border-radius: 12px;
+    inset: -10px;
+    border-radius: 14px;
     pointer-events: none;
+    background:
+        repeating-linear-gradient(
+            92deg,
+            rgba(139, 90, 43, 0.06) 0px,
+            transparent 1px,
+            transparent 3px,
+            rgba(110, 70, 30, 0.04) 4px
+        ),
+        repeating-linear-gradient(
+            88deg,
+            rgba(160, 110, 55, 0.05) 0px,
+            transparent 2px,
+            transparent 5px,
+            rgba(120, 80, 35, 0.03) 7px
+        );
     box-shadow:
         inset 0 2px 0 rgba(255, 255, 255, 0.5),
         inset 0 -2px 0 rgba(0, 0, 0, 0.1),
         inset 2px 0 0 rgba(255, 255, 255, 0.2),
         inset -2px 0 0 rgba(0, 0, 0, 0.05);
     z-index: 0;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+    -webkit-mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+    -webkit-mask-composite: destination-out;
+    mask-composite: exclude;
+    padding: 10px;
 }
 
 /* ─── PATH CELLS ─────────────────────────── */
@@ -1217,10 +1237,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255, 255, 255, 0.9);
+    background: #FAF0E0;
     transition: background 0.15s, box-shadow 0.15s;
     contain: layout style paint;
     box-shadow:
+        inset 0 0 1px rgba(139, 69, 19, 0.12),
         inset 0 1px 0 rgba(255, 255, 255, 0.7),
         inset 0 -1px 0 rgba(0, 0, 0, 0.07),
         inset 1px 0 0 rgba(255, 255, 255, 0.4),
@@ -1228,7 +1249,7 @@
 }
 
 .cell:nth-of-type(odd) {
-    background: rgba(255, 255, 255, 0.95);
+    background: rgba(250, 245, 235, 0.98);
 }
 
 /* ─── COLORED BASES ──────────────────────── */
@@ -1329,15 +1350,16 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: clamp(0.65rem, 2.2vw, 1.4rem);
-    color: var(--ludo-gold-bright);
+    font-size: clamp(0.75rem, 2.6vw, 1.6rem);
+    color: #DAA520;
     text-shadow:
-        0 0 6px rgba(255, 215, 0, 0.6),
-        0 0 12px rgba(255, 215, 0, 0.3);
+        0 0 6px rgba(218, 165, 32, 0.7),
+        0 0 14px rgba(255, 215, 0, 0.4),
+        0 1px 1px rgba(139, 90, 0, 0.6);
     z-index: 1;
     line-height: 1;
     animation: safe-spot-sparkle 3s ease-in-out infinite;
-    filter: drop-shadow(0 1px 2px rgba(160, 120, 0, 0.5));
+    filter: drop-shadow(0 1px 3px rgba(160, 120, 0, 0.6));
 }
 
 @keyframes safe-spot-sparkle {
@@ -1390,48 +1412,52 @@
 
 /* ─── HOME PATHS ─────────────────────────── */
 
+/* Green home column: gradient pointing right toward center */
 .path-green {
     background:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.15), transparent 50%),
-        linear-gradient(135deg, var(--ludo-green-light), var(--ludo-green)) !important;
-    border-color: rgba(0, 0, 0, 0.1) !important;
+        linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.25) 60%, rgba(255, 255, 255, 0.4) 100%),
+        linear-gradient(90deg, var(--ludo-green) 0%, var(--ludo-green-light) 100%) !important;
+    border-color: rgba(0, 0, 0, 0.12) !important;
     box-shadow:
-        inset 0 0 8px rgba(0, 0, 0, 0.12),
-        inset 0 2px 3px rgba(255, 255, 255, 0.25),
-        inset 0 -1px 2px rgba(0, 0, 0, 0.1) !important;
+        inset 0 0 10px rgba(0, 0, 0, 0.14),
+        inset 0 2px 3px rgba(255, 255, 255, 0.3),
+        inset 0 -1px 2px rgba(0, 0, 0, 0.12) !important;
 }
 
+/* Yellow home column: gradient pointing down toward center */
 .path-yellow {
     background:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.18), transparent 50%),
-        linear-gradient(135deg, var(--ludo-yellow-light), var(--ludo-yellow)) !important;
-    border-color: rgba(0, 0, 0, 0.1) !important;
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.25) 60%, rgba(255, 255, 255, 0.4) 100%),
+        linear-gradient(180deg, var(--ludo-yellow) 0%, var(--ludo-yellow-light) 100%) !important;
+    border-color: rgba(0, 0, 0, 0.12) !important;
     box-shadow:
-        inset 0 0 8px rgba(0, 0, 0, 0.1),
-        inset 0 2px 3px rgba(255, 255, 255, 0.3),
-        inset 0 -1px 2px rgba(0, 0, 0, 0.08) !important;
+        inset 0 0 10px rgba(0, 0, 0, 0.12),
+        inset 0 2px 3px rgba(255, 255, 255, 0.35),
+        inset 0 -1px 2px rgba(0, 0, 0, 0.1) !important;
 }
 
+/* Red home column: gradient pointing left toward center */
 .path-red {
     background:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.15), transparent 50%),
-        linear-gradient(135deg, var(--ludo-red-light), var(--ludo-red)) !important;
-    border-color: rgba(0, 0, 0, 0.1) !important;
+        linear-gradient(270deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.25) 60%, rgba(255, 255, 255, 0.4) 100%),
+        linear-gradient(270deg, var(--ludo-red) 0%, var(--ludo-red-light) 100%) !important;
+    border-color: rgba(0, 0, 0, 0.12) !important;
     box-shadow:
-        inset 0 0 8px rgba(0, 0, 0, 0.12),
-        inset 0 2px 3px rgba(255, 255, 255, 0.25),
-        inset 0 -1px 2px rgba(0, 0, 0, 0.1) !important;
+        inset 0 0 10px rgba(0, 0, 0, 0.14),
+        inset 0 2px 3px rgba(255, 255, 255, 0.3),
+        inset 0 -1px 2px rgba(0, 0, 0, 0.12) !important;
 }
 
+/* Blue home column: gradient pointing up toward center */
 .path-blue {
     background:
-        linear-gradient(135deg, rgba(255, 255, 255, 0.15), transparent 50%),
-        linear-gradient(135deg, var(--ludo-blue-light), var(--ludo-blue)) !important;
-    border-color: rgba(0, 0, 0, 0.1) !important;
+        linear-gradient(0deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.25) 60%, rgba(255, 255, 255, 0.4) 100%),
+        linear-gradient(0deg, var(--ludo-blue) 0%, var(--ludo-blue-light) 100%) !important;
+    border-color: rgba(0, 0, 0, 0.12) !important;
     box-shadow:
-        inset 0 0 8px rgba(0, 0, 0, 0.12),
-        inset 0 2px 3px rgba(255, 255, 255, 0.25),
-        inset 0 -1px 2px rgba(0, 0, 0, 0.1) !important;
+        inset 0 0 10px rgba(0, 0, 0, 0.14),
+        inset 0 2px 3px rgba(255, 255, 255, 0.3),
+        inset 0 -1px 2px rgba(0, 0, 0, 0.12) !important;
 }
 
 /* ─── HOME CENTER ────────────────────────── */
@@ -1619,7 +1645,7 @@
     padding-bottom: 58%;
     border-radius: 50%;
     background:
-        radial-gradient(circle at 38% 28%, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0) 28%),
+        radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 22%),
         radial-gradient(
             circle at 40% 35%,
             var(--piece-light) 0%,
@@ -1629,7 +1655,8 @@
     z-index: 12;
     pointer-events: none;
     box-shadow:
-        0 2px 5px rgba(0, 0, 0, 0.45),
+        inset -2px -2px 4px rgba(255, 255, 255, 0.15),
+        0 2px 4px rgba(0, 0, 0, 0.3),
         inset 0 3px 4px rgba(255, 255, 255, 0.5),
         inset 0 -3px 4px rgba(0, 0, 0, 0.25);
 }
@@ -1647,7 +1674,7 @@
     top: 38%;
     left: 50%;
     transform: translateX(-50%);
-    width: 80%;
+    width: 85%;
     height: 56%;
     background:
         linear-gradient(90deg, rgba(0,0,0,0.12) 0%, transparent 18%, transparent 82%, rgba(0,0,0,0.12) 100%),
@@ -1661,7 +1688,7 @@
     clip-path: polygon(22% 0%, 78% 0%, 100% 92%, 96% 100%, 4% 100%, 0% 92%);
     z-index: 11;
     pointer-events: none;
-    border-radius: 0 0 4px 4px;
+    border-radius: 50% 50% 55% 55% / 20% 20% 50% 50%;
 }
 
 /* Ground shadow ellipse at the base */
@@ -1676,8 +1703,8 @@
     --piece-dark: #005E26;
     --piece-accent: #2AE86A;
     filter:
-        drop-shadow(0 3px 2px rgba(0, 0, 0, 0.25))
-        drop-shadow(0 6px 4px rgba(0, 0, 0, 0.18));
+        drop-shadow(0 3px 3px rgba(0, 0, 0, 0.35))
+        drop-shadow(0 6px 6px rgba(0, 0, 0, 0.15));
 }
 
 .piece.yellow {
@@ -1686,8 +1713,8 @@
     --piece-dark: #C49000;
     --piece-accent: #FFE04A;
     filter:
-        drop-shadow(0 3px 2px rgba(0, 0, 0, 0.22))
-        drop-shadow(0 6px 4px rgba(0, 0, 0, 0.15));
+        drop-shadow(0 3px 3px rgba(0, 0, 0, 0.35))
+        drop-shadow(0 6px 6px rgba(0, 0, 0, 0.15));
 }
 
 .piece.red {
@@ -1696,8 +1723,8 @@
     --piece-dark: #8B0000;
     --piece-accent: #FF4D55;
     filter:
-        drop-shadow(0 3px 2px rgba(0, 0, 0, 0.25))
-        drop-shadow(0 6px 4px rgba(0, 0, 0, 0.18));
+        drop-shadow(0 3px 3px rgba(0, 0, 0, 0.35))
+        drop-shadow(0 6px 6px rgba(0, 0, 0, 0.15));
 }
 
 .piece.blue {
@@ -1706,8 +1733,8 @@
     --piece-dark: #0D1F5E;
     --piece-accent: #5080E8;
     filter:
-        drop-shadow(0 3px 2px rgba(0, 0, 0, 0.25))
-        drop-shadow(0 6px 4px rgba(0, 0, 0, 0.18));
+        drop-shadow(0 3px 3px rgba(0, 0, 0, 0.35))
+        drop-shadow(0 6px 6px rgba(0, 0, 0, 0.15));
 }
 
 /* Movable piece glow -- overridden below by piece-glow-king */
@@ -1781,39 +1808,46 @@
 
 /* Size variants -- Ludo King dice are large and chunky */
 .hud-dice-wrapper {
-    width: 62px;
-    height: 62px;
+    width: 68px;
+    height: 68px;
 }
 .mobile-dice-wrapper {
-    width: 88px;
-    height: 88px;
+    width: 96px;
+    height: 96px;
 }
 .dock-dice-wrapper {
-    width: clamp(76px, 22vw, 96px);
-    height: clamp(76px, 22vw, 96px);
+    width: clamp(82px, 24vw, 104px);
+    height: clamp(82px, 24vw, 104px);
 }
 
-/* Ready-to-roll golden glow pulse on the wrapper -- Ludo King "TAP ME" urgency */
+/* Ready-to-roll glow pulse on the wrapper -- "TAP ME" urgency */
 .dice-3d-wrapper.can-roll {
     cursor: pointer;
-    animation: dice-wrapper-ready 1.1s ease-in-out infinite;
-    will-change: transform;
-    filter: drop-shadow(0 0 14px rgba(255, 215, 0, 0.35));
+    animation: dice-wrapper-ready 1.1s ease-in-out infinite, dice-can-roll-pulse 1.2s ease-in-out infinite;
+    will-change: transform, filter;
+    filter: drop-shadow(0 0 6px rgba(76, 175, 80, 0.5));
 }
 
 .dice-3d-wrapper.can-roll:active {
     transform: scale(0.88);
-    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.5));
+    filter: drop-shadow(0 0 8px rgba(76, 175, 80, 0.6));
 }
 
 @keyframes dice-wrapper-ready {
     0%, 100% {
         transform: translateY(0) scale(1);
-        filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.3));
     }
     50% {
         transform: translateY(-5px) scale(1.07);
-        filter: drop-shadow(0 0 24px rgba(255, 215, 0, 0.55)) drop-shadow(0 0 48px rgba(255, 215, 0, 0.15));
+    }
+}
+
+@keyframes dice-can-roll-pulse {
+    0%, 100% {
+        filter: drop-shadow(0 0 6px rgba(76, 175, 80, 0.5));
+    }
+    50% {
+        filter: drop-shadow(0 0 14px rgba(76, 175, 80, 0.8)) drop-shadow(0 0 28px rgba(76, 175, 80, 0.3));
     }
 }
 
@@ -1837,7 +1871,7 @@
 
 /* Rolling tumble animation */
 .dice-3d-cube.cube-rolling {
-    animation: dice-cube-tumble 0.75s ease-out;
+    animation: dice-cube-tumble 0.85s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* Show specific face by rotating the cube */
@@ -1862,16 +1896,16 @@
     }
 }
 
-/* Each face of the cube -- Ludo King: clean white with slight ivory tint */
+/* Each face of the cube -- clean white with warm ivory tint, real die feel */
 .dice-3d-face {
     position: absolute;
     width: 100%;
     height: 100%;
     background:
-        radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.95), transparent 50%),
-        linear-gradient(145deg, #ffffff 0%, #f8f8f5 30%, #f0ede5 70%, #e8e4da 100%);
-    border: 2.5px solid #c8c0b4;
-    border-radius: 14%;
+        radial-gradient(circle at 30% 25%, rgba(255, 255, 255, 0.9), transparent 50%),
+        linear-gradient(145deg, #ffffff 0%, #fefefe 40%, #f8f6f2 100%);
+    border: 2px solid #d4cfc6;
+    border-radius: 20%;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     grid-template-rows: repeat(3, 1fr);
@@ -1879,10 +1913,11 @@
     gap: 3px;
     backface-visibility: hidden;
     box-shadow:
-        inset 0 2px 6px rgba(255, 255, 255, 0.8),
-        inset 0 -3px 6px rgba(0, 0, 0, 0.08),
-        inset 2px 0 3px rgba(255, 255, 255, 0.3),
-        inset -2px 0 3px rgba(0, 0, 0, 0.04);
+        inset 0 2px 8px rgba(255, 255, 255, 0.9),
+        inset 0 -3px 8px rgba(0, 0, 0, 0.12),
+        inset 3px 0 5px rgba(255, 255, 255, 0.4),
+        inset -3px 0 5px rgba(0, 0, 0, 0.06),
+        0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 /* Position each face to form a cube -- translateZ = half of width */
@@ -1893,17 +1928,17 @@
 .dice-3d-face.face-top    { transform: rotateX(90deg)  translateZ(calc(50%)); }
 .dice-3d-face.face-bottom { transform: rotateX(-90deg) translateZ(calc(50%)); }
 
-/* Pips (dots) -- larger, more embossed, like real dice indentations */
+/* Pips (dots) -- large, deeply recessed, physically carved look */
 .dice-pip {
-    width: 90%;
+    width: 85%;
     aspect-ratio: 1;
     max-width: 100%;
     border-radius: 50%;
-    background: radial-gradient(circle at 42% 36%, #2a2a2a 0%, #111 60%, #000 100%);
+    background: radial-gradient(circle at 42% 36%, #222 0%, #0a0a0a 55%, #000 100%);
     box-shadow:
-        inset 0 2px 4px rgba(0, 0, 0, 0.8),
-        inset 0 -1px 2px rgba(255, 255, 255, 0.06),
-        0 1px 2px rgba(255, 255, 255, 0.35);
+        inset 0 3px 5px rgba(0, 0, 0, 0.85),
+        inset 0 -1px 2px rgba(255, 255, 255, 0.08),
+        0 1px 1px rgba(255, 255, 255, 0.4);
     align-self: center;
     justify-self: center;
 }
@@ -1925,9 +1960,9 @@
     bottom: -8px;
     left: 50%;
     transform: translateX(-50%);
-    width: 80%;
-    height: 16px;
-    background: radial-gradient(ellipse, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.15) 40%, transparent 70%);
+    width: 85%;
+    height: 18px;
+    background: radial-gradient(ellipse, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.25) 40%, transparent 70%);
     border-radius: 50%;
     filter: blur(3px);
     z-index: -1;
@@ -2491,13 +2526,13 @@
     }
 
     .hud-dice-wrapper {
-        width: 48px;
-        height: 48px;
+        width: 56px;
+        height: 56px;
     }
 
     .dock-dice-wrapper {
-        width: 60px;
-        height: 60px;
+        width: 68px;
+        height: 68px;
     }
 
     .ludo-strip-player {
@@ -2915,7 +2950,7 @@
         width: min(88vw, 440px);
         max-width: min(88vw, 440px);
         max-height: min(88vw, 440px);
-        border-width: 5px;
+        border-width: 6px;
         border-radius: 14px;
         contain: layout style paint;
     }
@@ -2953,10 +2988,10 @@
     }
 
     .mobile-dice-wrapper {
-        width: 88px;
-        height: 88px;
-        min-width: 88px;
-        min-height: 88px;
+        width: 96px;
+        height: 96px;
+        min-width: 96px;
+        min-height: 96px;
     }
 
     .mobile-dice-caption {
@@ -3461,7 +3496,7 @@
     }
 
     .ludo-mobile-dice-zone .dice-3d-wrapper.can-roll {
-        animation: dice-wrapper-ready 1.2s ease-in-out infinite;
+        animation: dice-wrapper-ready 1.2s ease-in-out infinite, dice-can-roll-pulse 1.2s ease-in-out infinite;
     }
 
     .mobile-dice-caption {

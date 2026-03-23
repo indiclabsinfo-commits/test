@@ -20,6 +20,7 @@ import {
     playDiceLandThud,
     playPieceEntryPop,
     playThreeSixesForfeit,
+    playTurnChangeSwoosh,
 } from '../../utils/sound';
 import soundManager from '../../utils/soundManager';
 import { formatIndianNumber } from '../../utils/format';
@@ -876,6 +877,7 @@ export const LudoGame: React.FC = () => {
         setTurnTimeLeft(turnSecs);
         startTurnTimer(turnSecs);
         if (data?.playerId && data.playerId === user?.id) {
+            playTurnChangeSwoosh();
             playTurnStart();
             triggerHaptic('light');
             // Flash "YOUR TURN" banner briefly
@@ -2383,11 +2385,11 @@ export const LudoGame: React.FC = () => {
                                         className={classNames}
                                         style={{ ...finalStyle, cursor: isMovable ? 'pointer' : 'default' }}
                                         animate={isHopping ? {
-                                            // Squash and stretch during hop for cartoon feel
-                                            y: [0, -10, 0],
-                                            scale: [1, 1.1, 1],
-                                            scaleX: [1, 0.92, 1.04, 1],
-                                            scaleY: [1, 1.1, 0.94, 1],
+                                            // Parabolic arc with landing bounce
+                                            y: [0, -12, 1, -1, 0],
+                                            scale: [1, 1.08, 0.98, 1.01, 1],
+                                            scaleX: [1, 0.94, 1.04, 1],
+                                            scaleY: [1, 1.08, 0.96, 1],
                                             rotateZ: -boardRotationDeg,
                                         } : isMovingTrail ? {
                                             y: [0, -14, 0],
@@ -2428,7 +2430,7 @@ export const LudoGame: React.FC = () => {
                                         whileTap={isMovable ? { scale: 0.85, y: 2 } : undefined}
                                         whileHover={isMovable ? { scale: 1.15, y: -4 } : undefined}
                                         transition={isHopping
-                                            ? { duration: 0.1, times: [0, 0.5, 1], ease: 'easeOut' }
+                                            ? { duration: 0.14, times: [0, 0.4, 0.85, 0.93, 1], ease: 'easeOut' }
                                             : isMovingTrail
                                             ? { duration: 0.35, times: [0, 0.4, 1], ease: 'easeOut' }
                                             : isFlyingBack

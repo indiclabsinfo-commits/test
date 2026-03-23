@@ -255,50 +255,45 @@ export const playSpinTick = playWheelTick; // Alias
 
 // --- Ludo Specific Sounds ---
 
-// Per-cell hop sound with pitch variation for satisfying tap-tap-tap cadence
-// Each call produces a slightly different pitch for organic feel
-let hopPitchIndex = 0;
-const HOP_PITCH_OFFSETS = [0, 15, -10, 20, -5, 25, -15, 10, -20, 30];
-
+// Per-cell hop sound -- wooden piece tapping on a board
+// Each call produces a slightly different pitch for natural, organic feel
 export const playHopSound = () => {
     if (!isSoundEnabled()) return;
     const ctx = getCtx();
     const t = ctx.currentTime;
 
-    // Slight pitch variation per hop for organic staccato feel
-    const pitchOffset = HOP_PITCH_OFFSETS[hopPitchIndex % HOP_PITCH_OFFSETS.length];
-    hopPitchIndex++;
+    // Random pitch variation: base 1800-2400Hz with +/- 100Hz jitter
+    const baseFreq = 1800 + Math.random() * 600;
+    const pitchJitter = (Math.random() - 0.5) * 200; // +/- 100Hz
+    const freq = baseFreq + pitchJitter;
 
-    const baseFreq = 520 + pitchOffset;
+    // Duration: 25-35ms for a crisp wooden tap
+    const dur = 0.025 + Math.random() * 0.01;
 
-    // Wooden tap body
+    // Primary tap -- triangle wave for that woody, rounded character
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-
-    osc.frequency.setValueAtTime(baseFreq, t);
-    osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.65, t + 0.04);
+    osc.frequency.setValueAtTime(freq, t);
+    osc.frequency.exponentialRampToValueAtTime(freq * 0.7, t + dur);
     osc.type = 'triangle';
-
-    gain.gain.setValueAtTime(0.05, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
-
+    gain.gain.setValueAtTime(0.07, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
     osc.connect(gain);
     connectToOutput(gain);
     osc.start(t);
-    osc.stop(t + 0.05);
+    osc.stop(t + dur);
 
-    // Tiny click transient for percussive attack
-    const click = ctx.createOscillator();
-    const clickGain = ctx.createGain();
-    click.frequency.setValueAtTime(1800 + pitchOffset * 3, t);
-    click.frequency.exponentialRampToValueAtTime(600, t + 0.015);
-    click.type = 'square';
-    clickGain.gain.setValueAtTime(0.012, t);
-    clickGain.gain.exponentialRampToValueAtTime(0.001, t + 0.015);
-    click.connect(clickGain);
-    connectToOutput(clickGain);
-    click.start(t);
-    click.stop(t + 0.015);
+    // Subtle low-frequency body -- sine at 400-500Hz for board resonance
+    const body = ctx.createOscillator();
+    const bodyGain = ctx.createGain();
+    body.frequency.setValueAtTime(400 + Math.random() * 100, t);
+    body.type = 'sine';
+    bodyGain.gain.setValueAtTime(0.08, t);
+    bodyGain.gain.exponentialRampToValueAtTime(0.001, t + 0.015);
+    body.connect(bodyGain);
+    connectToOutput(bodyGain);
+    body.start(t);
+    body.stop(t + 0.015);
 };
 
 // Heavier impact on landing at final cell -- satisfying thud with resonance
@@ -477,37 +472,38 @@ export const playPieceMove = () => {
     click.stop(t + 0.03);
 };
 
-// Piece entry pop -- when a piece first comes out of base onto the board
+// Piece entry pop -- when a piece leaves home base after rolling a 6
+// Quick ascending sweep + short pop click for bright, satisfying feedback
 export const playPieceEntryPop = () => {
     if (!isSoundEnabled()) return;
     const ctx = getCtx();
     const t = ctx.currentTime;
 
-    // Bright ascending pop
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.frequency.setValueAtTime(350, t);
-    osc.frequency.exponentialRampToValueAtTime(900, t + 0.08);
-    osc.type = 'sine';
-    gain.gain.setValueAtTime(0.07, t);
-    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.12);
-    osc.connect(gain);
-    connectToOutput(gain);
-    osc.start(t);
-    osc.stop(t + 0.12);
+    // Ascending tone sweep: 600Hz to 1200Hz in 60ms -- the "whoosh up" of emergence
+    const sweep = ctx.createOscillator();
+    const sweepGain = ctx.createGain();
+    sweep.frequency.setValueAtTime(600, t);
+    sweep.frequency.exponentialRampToValueAtTime(1200, t + 0.06);
+    sweep.type = 'sine';
+    sweepGain.gain.setValueAtTime(0.1, t);
+    sweepGain.gain.exponentialRampToValueAtTime(0.01, t + 0.08);
+    sweep.connect(sweepGain);
+    connectToOutput(sweepGain);
+    sweep.start(t);
+    sweep.stop(t + 0.08);
 
-    // Sparkle overtone
-    const sparkle = ctx.createOscillator();
-    const sparkleGain = ctx.createGain();
-    sparkle.frequency.setValueAtTime(1800, t + 0.04);
-    sparkle.frequency.exponentialRampToValueAtTime(2400, t + 0.1);
-    sparkle.type = 'sine';
-    sparkleGain.gain.setValueAtTime(0.025, t + 0.04);
-    sparkleGain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
-    sparkle.connect(sparkleGain);
-    connectToOutput(sparkleGain);
-    sparkle.start(t + 0.04);
-    sparkle.stop(t + 0.15);
+    // Pop click at 2000Hz, 15ms, triangle -- the satisfying snap as piece lands on board
+    const pop = ctx.createOscillator();
+    const popGain = ctx.createGain();
+    pop.frequency.setValueAtTime(2000, t);
+    pop.frequency.exponentialRampToValueAtTime(1200, t + 0.015);
+    pop.type = 'triangle';
+    popGain.gain.setValueAtTime(0.09, t);
+    popGain.gain.exponentialRampToValueAtTime(0.001, t + 0.015);
+    pop.connect(popGain);
+    connectToOutput(popGain);
+    pop.start(t);
+    pop.stop(t + 0.02);
 };
 
 export const playCapture = () => {
@@ -705,15 +701,17 @@ export const playPayoutTick = () => {
 
 // --- Enhanced Ludo Sounds ---
 
-// Realistic dice roll -- 800ms of clattering with decelerating bounces
+// Realistic dice roll -- shake phase, land thud, settle rattle
 export const playDiceShakeEnhanced = () => {
     if (!isSoundEnabled()) return;
     const ctx = getCtx();
     const t = ctx.currentTime;
     const buf = ensureNoise();
 
-    // Phase 1: Initial vigorous shaking (0-400ms) -- 12 rapid rattles with crescendo
-    const rattleCount = 14;
+    // Phase 1: Shake (0-400ms) -- 12 rapid bandpass-filtered noise bursts
+    // Simulates dice clattering inside a cupped hand
+    const rattleCount = 12;
+    let cursor = 0;
     for (let i = 0; i < rattleCount; i++) {
         const src = ctx.createBufferSource();
         src.buffer = buf;
@@ -721,74 +719,75 @@ export const playDiceShakeEnhanced = () => {
         const filter = ctx.createBiquadFilter();
 
         filter.type = 'bandpass';
-        // Vary center frequency for each rattle -- higher = more plasticky
-        filter.frequency.value = 500 + Math.random() * 1200;
-        filter.Q.value = 2 + Math.random() * 4;
+        // Each click at a random frequency in 3000-6000Hz range for bright rattling
+        filter.frequency.value = 3000 + Math.random() * 3000;
+        filter.Q.value = 4 + Math.random() * 6;
 
-        // Decelerating spacing: rattles slow down like a real tumbling die
-        const spacing = i < 7 ? (i * 0.04) : (0.28 + (i - 7) * 0.06);
-        const start = t + spacing;
-        // Crescendo then decrescendo
-        const vol = i < 8
-            ? 0.04 + (i / 8) * 0.06
-            : 0.1 - ((i - 8) / 6) * 0.05;
+        // Random timing gaps (15-35ms apart) for organic feel
+        const gap = 0.015 + Math.random() * 0.02;
+        cursor += gap;
+        const start = t + cursor;
+        const dur = 0.018 + Math.random() * 0.004; // ~20ms per click
 
-        gain.gain.setValueAtTime(Math.max(0.02, vol), start);
-        gain.gain.exponentialRampToValueAtTime(0.01, start + 0.035);
+        // Volume builds slightly then decays for natural envelope
+        const vol = 0.06 + Math.random() * 0.06;
+        gain.gain.setValueAtTime(vol, start);
+        gain.gain.exponentialRampToValueAtTime(0.01, start + dur);
 
         src.connect(filter);
         filter.connect(gain);
         connectToOutput(gain);
         src.start(start);
-        src.stop(start + 0.04);
+        src.stop(start + dur);
     }
 
-    // Phase 2: Surface contact taps (like dice bouncing on table) at 500-700ms
-    const bounces = [0.52, 0.6, 0.66, 0.7];
-    bounces.forEach((offset, i) => {
-        const osc = ctx.createOscillator();
-        const bGain = ctx.createGain();
-        // Descending pitch per bounce (losing energy)
-        osc.frequency.setValueAtTime(300 - i * 40, t + offset);
-        osc.frequency.exponentialRampToValueAtTime(120 - i * 20, t + offset + 0.04);
-        osc.type = 'triangle';
-        const bVol = 0.06 - i * 0.012;
-        bGain.gain.setValueAtTime(Math.max(0.015, bVol), t + offset);
-        bGain.gain.exponentialRampToValueAtTime(0.01, t + offset + 0.05);
-        osc.connect(bGain);
-        connectToOutput(bGain);
-        osc.start(t + offset);
-        osc.stop(t + offset + 0.05);
+    // Phase 2: Land thud (at 400ms) -- deep low-frequency thump
+    // Sine wave at 120-180Hz range for the bass body of the landing
+    const thudFreq = 120 + Math.random() * 60;
+    const thud = ctx.createOscillator();
+    const thudGain = ctx.createGain();
+    thud.type = 'sine';
+    thud.frequency.setValueAtTime(thudFreq, t + 0.4);
+    thud.frequency.exponentialRampToValueAtTime(thudFreq * 0.4, t + 0.5);
+    thudGain.gain.setValueAtTime(0.18, t + 0.4);
+    thudGain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+    thud.connect(thudGain);
+    connectToOutput(thudGain);
+    thud.start(t + 0.4);
+    thud.stop(t + 0.5);
+
+    // Mid-frequency impact layer at 400Hz for surface attack character
+    const midImpact = ctx.createOscillator();
+    const midGain = ctx.createGain();
+    midImpact.type = 'triangle';
+    midImpact.frequency.setValueAtTime(400, t + 0.4);
+    midImpact.frequency.exponentialRampToValueAtTime(180, t + 0.45);
+    midGain.gain.setValueAtTime(0.1, t + 0.4);
+    midGain.gain.exponentialRampToValueAtTime(0.01, t + 0.45);
+    midImpact.connect(midGain);
+    connectToOutput(midGain);
+    midImpact.start(t + 0.4);
+    midImpact.stop(t + 0.45);
+
+    // Phase 3: Settle rattle (400-600ms) -- 3 quiet secondary clicks as die settles
+    const settleGains = [0.15, 0.08, 0.04];
+    const settleTimes = [0.46, 0.52, 0.57];
+    settleTimes.forEach((offset, i) => {
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = 3500 + Math.random() * 2000;
+        filter.Q.value = 5;
+        gain.gain.setValueAtTime(settleGains[i], t + offset);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + offset + 0.015);
+        src.connect(filter);
+        filter.connect(gain);
+        connectToOutput(gain);
+        src.start(t + offset);
+        src.stop(t + offset + 0.02);
     });
-
-    // Phase 3: Final settling thud at 750ms
-    const thunk = ctx.createOscillator();
-    const thunkGain = ctx.createGain();
-    thunk.type = 'sine';
-    thunk.frequency.setValueAtTime(200, t + 0.74);
-    thunk.frequency.exponentialRampToValueAtTime(70, t + 0.82);
-    thunkGain.gain.setValueAtTime(0.09, t + 0.74);
-    thunkGain.gain.exponentialRampToValueAtTime(0.01, t + 0.84);
-    thunk.connect(thunkGain);
-    connectToOutput(thunkGain);
-    thunk.start(t + 0.74);
-    thunk.stop(t + 0.84);
-
-    // Surface noise for the final settle
-    const settleSrc = ctx.createBufferSource();
-    settleSrc.buffer = buf;
-    const settleGain = ctx.createGain();
-    const settleFilter = ctx.createBiquadFilter();
-    settleFilter.type = 'bandpass';
-    settleFilter.frequency.value = 900;
-    settleFilter.Q.value = 2;
-    settleGain.gain.setValueAtTime(0.04, t + 0.72);
-    settleGain.gain.exponentialRampToValueAtTime(0.01, t + 0.8);
-    settleSrc.connect(settleFilter);
-    settleFilter.connect(settleGain);
-    connectToOutput(settleGain);
-    settleSrc.start(t + 0.72);
-    settleSrc.stop(t + 0.8);
 };
 
 // Rolling a 6 -- ascending golden chime with emphasis
@@ -843,154 +842,131 @@ export const playSixRolled = () => {
     sp2.stop(t + 0.55);
 };
 
-// DRAMATIC capture sound -- 5-layer impact that screams "YOU GOT HIT"
+// DRAMATIC capture sound -- 4-layer physical impact: thud, shatter, ring, debris
 export const playCaptureEnhanced = () => {
     if (!isSoundEnabled()) return;
     const ctx = getCtx();
     const t = ctx.currentTime;
     const buf = ensureNoise();
 
-    // 1. Dramatic whoosh sweep (incoming attack)
-    const sweep = ctx.createOscillator();
-    const sweepGain = ctx.createGain();
-    sweep.frequency.setValueAtTime(2000, t);
-    sweep.frequency.exponentialRampToValueAtTime(80, t + 0.2);
-    sweep.type = 'sawtooth';
-    sweepGain.gain.setValueAtTime(0.12, t);
-    sweepGain.gain.exponentialRampToValueAtTime(0.01, t + 0.22);
-    sweep.connect(sweepGain);
-    connectToOutput(sweepGain);
-    sweep.start(t);
-    sweep.stop(t + 0.22);
-
-    // 2. Heavy chest-punch impact
+    // 1. Impact (0ms): Deep thud at 100-150Hz -- the collision itself
+    const impactFreq = 100 + Math.random() * 50;
     const impact = ctx.createOscillator();
     const impactGain = ctx.createGain();
-    impact.frequency.setValueAtTime(100, t + 0.18);
-    impact.frequency.exponentialRampToValueAtTime(25, t + 0.5);
+    impact.frequency.setValueAtTime(impactFreq, t);
+    impact.frequency.exponentialRampToValueAtTime(impactFreq * 0.3, t + 0.15);
     impact.type = 'sine';
-    impactGain.gain.setValueAtTime(0.22, t + 0.18);
-    impactGain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+    impactGain.gain.setValueAtTime(0.5, t);
+    impactGain.gain.exponentialRampToValueAtTime(0.01, t + 0.15);
     impact.connect(impactGain);
     connectToOutput(impactGain);
-    impact.start(t + 0.18);
-    impact.stop(t + 0.5);
+    impact.start(t);
+    impact.stop(t + 0.15);
 
-    // 3. Explosion noise burst -- wider and grainier
-    const noiseSrc = ctx.createBufferSource();
-    noiseSrc.buffer = buf;
-    const noiseGain = ctx.createGain();
-    const noiseFilter = ctx.createBiquadFilter();
-    noiseFilter.type = 'lowpass';
-    noiseFilter.frequency.setValueAtTime(3000, t + 0.16);
-    noiseFilter.frequency.exponentialRampToValueAtTime(150, t + 0.65);
-    noiseGain.gain.setValueAtTime(0.15, t + 0.16);
-    noiseGain.gain.exponentialRampToValueAtTime(0.01, t + 0.65);
-    noiseSrc.connect(noiseFilter);
-    noiseFilter.connect(noiseGain);
-    connectToOutput(noiseGain);
-    noiseSrc.start(t + 0.16);
-    noiseSrc.stop(t + 0.65);
+    // 2. Shatter (10ms): Burst of high-frequency noise -- piece breaking apart feel
+    const shatter = ctx.createBufferSource();
+    shatter.buffer = buf;
+    const shatterGain = ctx.createGain();
+    const shatterFilter = ctx.createBiquadFilter();
+    shatterFilter.type = 'bandpass';
+    shatterFilter.frequency.value = 4500; // Center of 3000-6000Hz band
+    shatterFilter.Q.value = 0.8; // Wide Q covers 3000-6000Hz
+    shatterGain.gain.setValueAtTime(0.3, t + 0.01);
+    shatterGain.gain.exponentialRampToValueAtTime(0.01, t + 0.09);
+    shatter.connect(shatterFilter);
+    shatterFilter.connect(shatterGain);
+    connectToOutput(shatterGain);
+    shatter.start(t + 0.01);
+    shatter.stop(t + 0.09);
 
-    // 4. Sub-bass rumble (feel it in your chest)
-    const rumble = ctx.createOscillator();
-    const rumbleGain = ctx.createGain();
-    rumble.frequency.value = 35;
-    rumble.type = 'sine';
-    rumbleGain.gain.setValueAtTime(0.1, t + 0.2);
-    rumbleGain.gain.exponentialRampToValueAtTime(0.01, t + 0.75);
-    rumble.connect(rumbleGain);
-    connectToOutput(rumbleGain);
-    rumble.start(t + 0.2);
-    rumble.stop(t + 0.75);
+    // 3. Ring out (30ms): Mid-frequency resonance -- aftermath ringing
+    const ring = ctx.createOscillator();
+    const ringGain = ctx.createGain();
+    ring.frequency.setValueAtTime(800, t + 0.03);
+    ring.type = 'triangle';
+    ringGain.gain.setValueAtTime(0.15, t + 0.03);
+    ringGain.gain.exponentialRampToValueAtTime(0.01, t + 0.23);
+    ring.connect(ringGain);
+    connectToOutput(ringGain);
+    ring.start(t + 0.03);
+    ring.stop(t + 0.23);
 
-    // 5. Metallic crash scatter (debris)
-    const crash = ctx.createBufferSource();
-    crash.buffer = buf;
-    const crashGain = ctx.createGain();
-    const crashFilter = ctx.createBiquadFilter();
-    crashFilter.type = 'highpass';
-    crashFilter.frequency.setValueAtTime(2500, t + 0.2);
-    crashFilter.frequency.exponentialRampToValueAtTime(800, t + 0.55);
-    crashGain.gain.setValueAtTime(0.06, t + 0.2);
-    crashGain.gain.exponentialRampToValueAtTime(0.01, t + 0.55);
-    crash.connect(crashFilter);
-    crashFilter.connect(crashGain);
-    connectToOutput(crashGain);
-    crash.start(t + 0.2);
-    crash.stop(t + 0.55);
+    // 4. Debris (50-150ms): 5 tiny scattered clicks at random high frequencies
+    const debrisCount = 5;
+    const debrisGains = [0.12, 0.09, 0.06, 0.04, 0.02];
+    for (let i = 0; i < debrisCount; i++) {
+        const debrisOsc = ctx.createOscillator();
+        const dGain = ctx.createGain();
+        const debrisFreq = 4000 + Math.random() * 4000; // 4000-8000Hz
+        const debrisStart = t + 0.05 + Math.random() * 0.1; // Scattered over 50-150ms
+        debrisOsc.frequency.setValueAtTime(debrisFreq, debrisStart);
+        debrisOsc.frequency.exponentialRampToValueAtTime(debrisFreq * 0.5, debrisStart + 0.01);
+        debrisOsc.type = 'square';
+        dGain.gain.setValueAtTime(debrisGains[i], debrisStart);
+        dGain.gain.exponentialRampToValueAtTime(0.001, debrisStart + 0.01);
+        debrisOsc.connect(dGain);
+        connectToOutput(dGain);
+        debrisOsc.start(debrisStart);
+        debrisOsc.stop(debrisStart + 0.012);
+    }
 };
 
-// Triumphant home entry -- piece reaches safety! Ascending golden fanfare
+// Triumphant home entry -- ascending arpeggio C5 E5 G5 C6 with reverb + shimmer
 export const playHomeEntryEnhanced = () => {
     if (!isSoundEnabled()) return;
     const ctx = getCtx();
     const t = ctx.currentTime;
+    const buf = ensureNoise();
 
-    // Triumphant ascending arpeggio: C5 E5 G5 B5 C6 E6
-    const chimes = [523.25, 659.25, 783.99, 987.77, 1046.50, 1318.51];
-    chimes.forEach((freq, i) => {
+    // Notes: C5 (523Hz), E5 (659Hz), G5 (784Hz), C6 (1047Hz)
+    const notes = [523, 659, 784, 1047];
+    const noteDur = 0.06;
+    const stagger = 0.05;
+
+    notes.forEach((freq, i) => {
+        const start = t + i * stagger;
+
+        // Primary tone -- sine wave for clear, bell-like quality
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        const start = t + i * 0.07;
-
         osc.frequency.value = freq;
         osc.type = 'sine';
+        gain.gain.setValueAtTime(0.1, start);
+        gain.gain.exponentialRampToValueAtTime(0.01, start + noteDur + 0.1);
 
-        // Crescendo up the scale
-        const vol = 0.04 + (i / chimes.length) * 0.06;
-        gain.gain.setValueAtTime(vol, start);
-        gain.gain.exponentialRampToValueAtTime(0.01, start + 0.8);
-
-        osc.connect(gain);
-        connectToOutput(gain);
-        osc.start(start);
-        osc.stop(start + 0.8);
-    });
-
-    // Harmonic shimmer layer -- parallel thirds
-    const shimmer = [1046.50, 1318.51, 1567.98, 2093.00];
-    shimmer.forEach((freq, i) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        const start = t + 0.35 + i * 0.06;
-
-        osc.frequency.value = freq;
-        osc.type = 'sine';
-
-        gain.gain.setValueAtTime(0.025, start);
-        gain.gain.exponentialRampToValueAtTime(0.001, start + 1.0);
+        // Slight reverb via delay node at 30ms, feedback gain 0.2
+        const delay = ctx.createDelay();
+        delay.delayTime.value = 0.03;
+        const delayGain = ctx.createGain();
+        delayGain.gain.value = 0.2;
 
         osc.connect(gain);
+        // Dry signal
         connectToOutput(gain);
+        // Wet (reverb) signal
+        gain.connect(delay);
+        delay.connect(delayGain);
+        connectToOutput(delayGain);
+
         osc.start(start);
-        osc.stop(start + 1.0);
+        osc.stop(start + noteDur + 0.15);
     });
 
-    // Bell resonance -- lingers to create sense of achievement
-    const bell = ctx.createOscillator();
-    const bellGain = ctx.createGain();
-    bell.frequency.value = 2093;
-    bell.type = 'sine';
-    bellGain.gain.setValueAtTime(0.025, t + 0.42);
-    bellGain.gain.exponentialRampToValueAtTime(0.001, t + 1.8);
-    bell.connect(bellGain);
-    connectToOutput(bellGain);
-    bell.start(t + 0.42);
-    bell.stop(t + 1.8);
-
-    // Sub-bass swell for gravitas
-    const sub = ctx.createOscillator();
-    const subGain = ctx.createGain();
-    sub.frequency.value = 130.81; // C3
-    sub.type = 'sine';
-    subGain.gain.setValueAtTime(0.01, t);
-    subGain.gain.linearRampToValueAtTime(0.06, t + 0.3);
-    subGain.gain.exponentialRampToValueAtTime(0.01, t + 0.8);
-    sub.connect(subGain);
-    connectToOutput(subGain);
-    sub.start(t);
-    sub.stop(t + 0.8);
+    // Shimmer layer: filtered white noise at 6000-10000Hz for sparkle
+    const shimmerSrc = ctx.createBufferSource();
+    shimmerSrc.buffer = buf;
+    const shimmerGain = ctx.createGain();
+    const shimmerFilter = ctx.createBiquadFilter();
+    shimmerFilter.type = 'bandpass';
+    shimmerFilter.frequency.value = 8000; // Center of 6000-10000Hz
+    shimmerFilter.Q.value = 0.5; // Wide band to cover range
+    shimmerGain.gain.setValueAtTime(0.05, t);
+    shimmerGain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+    shimmerSrc.connect(shimmerFilter);
+    shimmerFilter.connect(shimmerGain);
+    connectToOutput(shimmerGain);
+    shimmerSrc.start(t);
+    shimmerSrc.stop(t + 0.4);
 };
 
 export const playStreakSound = () => {
@@ -1257,4 +1233,36 @@ export const playThreeSixesForfeit = () => {
     connectToOutput(subGain);
     sub.start(t + 0.3);
     sub.stop(t + 0.7);
+};
+
+// Turn change swoosh -- subtle "whoosh" when turns change
+// Bandpass-filtered noise sweeping from 200Hz to 2000Hz over 200ms
+export const playTurnChangeSwoosh = () => {
+    if (!isSoundEnabled()) return;
+    const ctx = getCtx();
+    const t = ctx.currentTime;
+    const buf = ensureNoise();
+
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+
+    // Bandpass filter that sweeps from low to high
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(200, t);
+    filter.frequency.exponentialRampToValueAtTime(2000, t + 0.2);
+    filter.Q.value = 1.5;
+
+    // Gain envelope: fade in to 0.1 over 50ms, sustain, fade out over 100ms
+    gain.gain.setValueAtTime(0.001, t);
+    gain.gain.linearRampToValueAtTime(0.1, t + 0.05);
+    gain.gain.setValueAtTime(0.1, t + 0.1);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+
+    src.connect(filter);
+    filter.connect(gain);
+    connectToOutput(gain);
+    src.start(t);
+    src.stop(t + 0.22);
 };
