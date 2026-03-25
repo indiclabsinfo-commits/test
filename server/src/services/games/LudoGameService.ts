@@ -758,6 +758,7 @@ export class LudoGameService {
               capturedBy: movingPlayer.color,
               capturedPlayer: other.color,
               capturedPieceId: otherPiece.id,
+              attackerPieceId: movingPiece.id,
               position: movingPiece.position,
             },
           });

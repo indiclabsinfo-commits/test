@@ -123,10 +123,10 @@ const LOCAL_COLOR_SLOTS: Record<2 | 3 | 4, PlayerColor[]> = {
 };
 
 const COLOR_MAP: Record<PlayerColor, { main: string; gradient: string; glow: string }> = {
-    GREEN: { main: '#02A04B', gradient: 'linear-gradient(135deg, #02C853, #02A04B)', glow: 'rgba(2, 160, 75, 0.4)' },
-    YELLOW: { main: '#FFE013', gradient: 'linear-gradient(135deg, #FFEE58, #FFD600)', glow: 'rgba(255, 224, 19, 0.4)' },
-    BLUE: { main: '#22409A', gradient: 'linear-gradient(135deg, #3F51B5, #22409A)', glow: 'rgba(34, 64, 154, 0.4)' },
-    RED: { main: '#EB1C24', gradient: 'linear-gradient(135deg, #FF3D3D, #EB1C24)', glow: 'rgba(235, 28, 36, 0.4)' },
+    GREEN: { main: '#00C853', gradient: 'linear-gradient(135deg, #39FF6E, #00C853)', glow: 'rgba(0, 200, 83, 0.45)' },
+    YELLOW: { main: '#FFD600', gradient: 'linear-gradient(135deg, #FFEA40, #FFD600)', glow: 'rgba(255, 214, 0, 0.45)' },
+    BLUE: { main: '#2979FF', gradient: 'linear-gradient(135deg, #5C9AFF, #2979FF)', glow: 'rgba(41, 121, 255, 0.45)' },
+    RED: { main: '#FF1744', gradient: 'linear-gradient(135deg, #FF5C6E, #FF1744)', glow: 'rgba(255, 23, 68, 0.45)' },
 };
 
 const BET_PRESETS = [50, 100, 500, 1000];
@@ -820,7 +820,8 @@ export const LudoGame: React.FC = () => {
         const capturedPieceId = data.capturedPieceId as number;
 
         // Get the current position of the captured piece
-        const capturePos = data.capturePosition ?? -1;
+        // Server sends 'position', not 'capturePosition'
+        const capturePos = data.position ?? data.capturePosition ?? -1;
         let fromCoord = { r: 8, c: 8 }; // fallback center
         if (capturePos >= 0 && capturePos < PATH_COORDS.length) {
             fromCoord = PATH_COORDS[capturePos];
@@ -1137,8 +1138,15 @@ export const LudoGame: React.FC = () => {
                                 otherPiece.position = -1;
                                 otherPiece.travelled = 0;
                                 captured = true;
-                                addToLog(`${player.color} captured ${other.color}!`, 'kill');
-                                playCapture();
+
+                                // Fire FULL capture effects for local games (same as handlePieceCaptured)
+                                handlePieceCaptured({
+                                    capturedBy: player.color,
+                                    capturedPlayer: other.color,
+                                    capturedPieceId: otherPiece.id,
+                                    attackerPieceId: pieceId,
+                                    position: newAbsPos,
+                                });
                             }
                         }
                     }
@@ -2594,7 +2602,7 @@ export const LudoGame: React.FC = () => {
 
                     {matchState === 'PLAYING' && (
                     <div className="ludo-mobile-bottom-bar">
-                        <div className={`ludo-mobile-self-card${isMyTurn ? ' active' : ''}`}>
+                        <div className={`ludo-mobile-self-card${isMyTurn ? ' active' : ''}`} style={{ '--card-player-color': myHudPlayer ? COLOR_MAP[myHudPlayer.color].main : COLOR_MAP.RED.main } as React.CSSProperties}>
                             <div className="mobile-player-token you" style={{ background: myHudPlayer ? COLOR_MAP[myHudPlayer.color].gradient : COLOR_MAP.RED.gradient }} />
                             <div className="mobile-player-copy">
                                 <strong>{truncatePlayerName(myHudPlayer?.username || 'You')}</strong>

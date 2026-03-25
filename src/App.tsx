@@ -64,7 +64,9 @@ const SIDEBAR_CATEGORIES = [
 
 const GameController = () => {
   const { isDemoMode, activeBalance, toggleDemoMode, activeGameId, joinGame, leaveGame, login, register, isAuthenticated, user } = useGame();
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); // Auth disabled for testing
+  // Override: never show auth modal
+  const _setIsAuthModalOpen = (_v: boolean) => {}; // no-op
   const [isWalletOpen, setIsWalletOpen] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [walletInitialTab, setWalletInitialTab] = useState<'deposit' | 'withdraw' | 'history'>('deposit');
@@ -73,10 +75,11 @@ const GameController = () => {
   const [notices, setNotices] = useState<Array<{ id: string; title: string; message: string }>>([]);
 
   const handleJoin = (gameId: string) => {
-    if (!isAuthenticated) {
-      setIsAuthModalOpen(true);
-      return;
-    }
+    // DEV: skip auth check for local testing
+    // if (!isAuthenticated) {
+    //   _setIsAuthModalOpen(true);
+    //   return;
+    // }
     joinGame(gameId);
   };
 
@@ -208,7 +211,7 @@ const GameController = () => {
         {/* Footer */}
         <div className="sidebar-footer">
           {!isAuthenticated ? (
-            <button className="btn-primary" style={{ width: '100%' }} onClick={() => setIsAuthModalOpen(true)}>
+            <button className="btn-primary" style={{ width: '100%' }} onClick={() => _setIsAuthModalOpen(true)}>
               Sign In
             </button>
           ) : (
@@ -280,7 +283,7 @@ const GameController = () => {
                   Recharge
                 </button>
               ) : (
-                <button className="wallet-btn" onClick={() => setIsAuthModalOpen(true)}>
+                <button className="wallet-btn" onClick={() => _setIsAuthModalOpen(true)}>
                   Sign In
                 </button>
               )}
@@ -302,11 +305,12 @@ const GameController = () => {
         {content}
       </main>
 
-      <AuthModal
+      {/* Auth modal disabled for local testing */}
+      {/* <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         onSuccess={handleAuthSuccess}
-      />
+      /> */}
 
       <WalletModal
         isOpen={isWalletOpen}

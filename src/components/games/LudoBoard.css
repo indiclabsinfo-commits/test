@@ -9,19 +9,19 @@
     --ludo-neon-soft: rgba(126, 249, 169, 0.28);
     --ludo-gold: #ffd86b;
     --ludo-panel-bg: rgba(12, 28, 46, 0.82);
-    /* Premium Ludo King palette - richer, more vibrant */
-    --ludo-green: #00B84A;
-    --ludo-green-light: #2AE86A;
-    --ludo-green-dark: #008535;
-    --ludo-yellow: #FFCA00;
-    --ludo-yellow-light: #FFE04A;
-    --ludo-yellow-dark: #E0A800;
-    --ludo-blue: #2855C5;
-    --ludo-blue-light: #5080E8;
-    --ludo-blue-dark: #1A3A8F;
-    --ludo-red: #E8202C;
-    --ludo-red-light: #FF4D55;
-    --ludo-red-dark: #B8141D;
+    /* Premium Ludo King palette - ultra-vibrant, casino-grade */
+    --ludo-green: #00C853;
+    --ludo-green-light: #39FF6E;
+    --ludo-green-dark: #009A3E;
+    --ludo-yellow: #FFD600;
+    --ludo-yellow-light: #FFEA40;
+    --ludo-yellow-dark: #F5B800;
+    --ludo-blue: #2979FF;
+    --ludo-blue-light: #5C9AFF;
+    --ludo-blue-dark: #1A5CE0;
+    --ludo-red: #FF1744;
+    --ludo-red-light: #FF5C6E;
+    --ludo-red-dark: #D50032;
     /* Board wood tones */
     --ludo-wood-light: #F5DEB3;
     --ludo-wood-mid: #E8CFA0;
@@ -677,8 +677,9 @@
     gap: 6px;
     padding: 6px 8px;
     border-radius: 8px;
-    background: var(--bg-input, #0d1b26);
-    border: 1.5px solid transparent;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--strip-color) 8%, #0d1b26), #0d1b26);
+    border: 1.5px solid color-mix(in srgb, var(--strip-color) 20%, transparent);
+    border-left: 3px solid var(--strip-color);
     min-width: 0;
     flex: 1;
     transition: all 0.2s;
@@ -686,10 +687,11 @@
 
 .ludo-strip-player.active {
     border-color: var(--strip-color);
+    border-left: 3px solid var(--strip-color);
     box-shadow:
         0 0 12px var(--strip-glow),
         0 0 24px var(--strip-glow);
-    background: rgba(255, 255, 255, 0.1);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--strip-color) 16%, #0d1b26), color-mix(in srgb, var(--strip-color) 5%, #0d1b26));
     animation: player-glow-pulse 1.4s ease-in-out infinite;
 }
 
@@ -707,7 +709,9 @@
 }
 
 .ludo-strip-player.me {
-    /* subtle highlight for "you" */
+    background: linear-gradient(135deg, color-mix(in srgb, var(--strip-color) 14%, #0d1b26), color-mix(in srgb, var(--strip-color) 4%, #0d1b26));
+    border-left: 3px solid var(--strip-color);
+    box-shadow: inset 0 0 12px color-mix(in srgb, var(--strip-color) 8%, transparent);
 }
 
 .strip-avatar {
@@ -1088,21 +1092,21 @@
     width: 100%;
     aspect-ratio: 1;
     background:
-        radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.45), transparent 35%),
-        radial-gradient(circle at 82% 88%, rgba(255, 255, 255, 0.15), transparent 30%),
-        linear-gradient(145deg, #f8e2be, #edd5a8 35%, #e2c895 65%, #d9bc85);
-    border: 8px solid var(--ludo-wood-dark);
+        radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.5), transparent 35%),
+        radial-gradient(circle at 82% 88%, rgba(255, 255, 255, 0.18), transparent 30%),
+        linear-gradient(145deg, #f5d6a0, #e8c88a 35%, #ddb978 65%, #d4ad6a);
+    border: 7px solid var(--ludo-wood-dark);
     border-radius: 12px;
     max-width: min(92vw, 420px);
     margin: 0 auto;
     box-shadow:
-        0 0 0 2.5px var(--ludo-wood-trim),
-        0 0 0 6px var(--ludo-wood-dark),
-        0 0 0 8px rgba(212, 170, 80, 0.55),
-        0 0 48px rgba(255, 215, 0, 0.1),
-        0 14px 44px rgba(0, 0, 0, 0.6),
-        0 5px 14px rgba(0, 0, 0, 0.38),
-        inset 0 0 36px rgba(139, 69, 19, 0.06);
+        0 0 0 2px var(--ludo-wood-trim),
+        0 0 0 5px var(--ludo-wood-dark),
+        0 0 0 7px rgba(212, 170, 80, 0.6),
+        0 0 40px rgba(255, 215, 0, 0.12),
+        0 12px 40px rgba(0, 0, 0, 0.55),
+        0 4px 12px rgba(0, 0, 0, 0.35),
+        inset 0 0 30px rgba(139, 69, 19, 0.05);
     overflow: visible;
     position: relative;
     contain: layout style paint;
@@ -1331,10 +1335,10 @@
         inset 0 -2px 4px rgba(255, 255, 255, 0.4);
 }
 
-.base.green .piece-spot { background: rgba(0, 184, 74, 0.2); border: 2.5px solid rgba(0, 184, 74, 0.5); }
-.base.yellow .piece-spot { background: rgba(255, 202, 0, 0.2); border: 2.5px solid rgba(255, 202, 0, 0.5); }
-.base.red .piece-spot { background: rgba(232, 32, 44, 0.2); border: 2.5px solid rgba(232, 32, 44, 0.5); }
-.base.blue .piece-spot { background: rgba(40, 85, 197, 0.2); border: 2.5px solid rgba(40, 85, 197, 0.5); }
+.base.green .piece-spot { background: rgba(0, 200, 83, 0.18); border: 2.5px solid rgba(0, 200, 83, 0.55); box-shadow: inset 0 2px 4px rgba(0, 200, 83, 0.1), inset 0 -1px 3px rgba(0, 0, 0, 0.08); }
+.base.yellow .piece-spot { background: rgba(255, 214, 0, 0.18); border: 2.5px solid rgba(255, 214, 0, 0.55); box-shadow: inset 0 2px 4px rgba(255, 214, 0, 0.1), inset 0 -1px 3px rgba(0, 0, 0, 0.08); }
+.base.red .piece-spot { background: rgba(255, 23, 68, 0.18); border: 2.5px solid rgba(255, 23, 68, 0.55); box-shadow: inset 0 2px 4px rgba(255, 23, 68, 0.1), inset 0 -1px 3px rgba(0, 0, 0, 0.08); }
+.base.blue .piece-spot { background: rgba(41, 121, 255, 0.18); border: 2.5px solid rgba(41, 121, 255, 0.55); box-shadow: inset 0 2px 4px rgba(41, 121, 255, 0.1), inset 0 -1px 3px rgba(0, 0, 0, 0.08); }
 
 /* ─── SAFE SPOTS ─────────────────────────── */
 
@@ -1539,9 +1543,15 @@
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.28) 0%, transparent 55%);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.35) 0%, transparent 50%);
     pointer-events: none;
 }
+
+/* Per-triangle glow for depth */
+.home-tri-top { filter: drop-shadow(0 2px 6px rgba(255, 214, 0, 0.35)); }
+.home-tri-bottom { filter: drop-shadow(0 -2px 6px rgba(255, 23, 68, 0.35)); }
+.home-tri-left { filter: drop-shadow(2px 0 6px rgba(0, 200, 83, 0.35)); }
+.home-tri-right { filter: drop-shadow(-2px 0 6px rgba(41, 121, 255, 0.35)); }
 
 /* Center jewel/gem overlay */
 .home-center-jewel {
@@ -1696,45 +1706,45 @@
     display: none;
 }
 
-/* Per-color variables and styling -- richer, more saturated for Ludo King look */
+/* Per-color variables and styling -- ultra-vibrant, casino-grade */
 .piece.green {
-    --piece-color: #00B84A;
-    --piece-light: #5CEB8C;
-    --piece-dark: #005E26;
-    --piece-accent: #2AE86A;
+    --piece-color: #00C853;
+    --piece-light: #69F0AE;
+    --piece-dark: #006E2E;
+    --piece-accent: #39FF6E;
     filter:
-        drop-shadow(0 3px 3px rgba(0, 0, 0, 0.35))
-        drop-shadow(0 6px 6px rgba(0, 0, 0, 0.15));
+        drop-shadow(0 3px 4px rgba(0, 0, 0, 0.38))
+        drop-shadow(0 6px 8px rgba(0, 200, 83, 0.15));
 }
 
 .piece.yellow {
-    --piece-color: #FFCA00;
+    --piece-color: #FFD600;
     --piece-light: #FFF176;
-    --piece-dark: #C49000;
-    --piece-accent: #FFE04A;
+    --piece-dark: #C49800;
+    --piece-accent: #FFEA40;
     filter:
-        drop-shadow(0 3px 3px rgba(0, 0, 0, 0.35))
-        drop-shadow(0 6px 6px rgba(0, 0, 0, 0.15));
+        drop-shadow(0 3px 4px rgba(0, 0, 0, 0.38))
+        drop-shadow(0 6px 8px rgba(255, 214, 0, 0.15));
 }
 
 .piece.red {
-    --piece-color: #E8202C;
-    --piece-light: #FF6B6B;
-    --piece-dark: #8B0000;
-    --piece-accent: #FF4D55;
+    --piece-color: #FF1744;
+    --piece-light: #FF6B82;
+    --piece-dark: #A00020;
+    --piece-accent: #FF5C6E;
     filter:
-        drop-shadow(0 3px 3px rgba(0, 0, 0, 0.35))
-        drop-shadow(0 6px 6px rgba(0, 0, 0, 0.15));
+        drop-shadow(0 3px 4px rgba(0, 0, 0, 0.38))
+        drop-shadow(0 6px 8px rgba(255, 23, 68, 0.15));
 }
 
 .piece.blue {
-    --piece-color: #2855C5;
-    --piece-light: #6B9FFF;
-    --piece-dark: #0D1F5E;
-    --piece-accent: #5080E8;
+    --piece-color: #2979FF;
+    --piece-light: #82B1FF;
+    --piece-dark: #0D3E99;
+    --piece-accent: #5C9AFF;
     filter:
-        drop-shadow(0 3px 3px rgba(0, 0, 0, 0.35))
-        drop-shadow(0 6px 6px rgba(0, 0, 0, 0.15));
+        drop-shadow(0 3px 4px rgba(0, 0, 0, 0.38))
+        drop-shadow(0 6px 8px rgba(41, 121, 255, 0.15));
 }
 
 /* Movable piece glow -- overridden below by piece-glow-king */
@@ -2125,13 +2135,16 @@
     align-items: center;
     gap: 6px;
     z-index: 40;
-    padding: 6px;
+    padding: 6px 8px;
     border-radius: 14px;
-    background: linear-gradient(180deg, rgba(8, 24, 40, 0.85), rgba(6, 18, 32, 0.88));
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: linear-gradient(180deg, rgba(8, 24, 40, 0.88), rgba(4, 14, 26, 0.92));
+    border: 1.5px solid rgba(255, 255, 255, 0.12);
+    box-shadow:
+        0 10px 28px rgba(0, 0, 0, 0.4),
+        0 2px 8px rgba(0, 0, 0, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 
 .ludo-board-hud.top {
@@ -2270,48 +2283,57 @@
 .ludo-log-compact {
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    max-height: 54px;
+    gap: 2px;
+    max-height: 48px;
     overflow: hidden;
-    padding: 6px 8px;
+    padding: 5px 8px;
     border-radius: 10px;
-    background: rgba(7, 19, 31, 0.55);
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    background: rgba(7, 19, 31, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
 }
 
 .log-line {
-    font-size: 0.68rem;
+    font-size: 0.65rem;
     color: var(--text-muted, #557086);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    padding: 2px 0;
+    padding: 1px 0;
+    letter-spacing: 0.01em;
 }
 
 .log-line.kill {
-    color: #ff4d4d;
+    color: #ff5252;
+    font-weight: 700;
+    text-shadow: 0 0 6px rgba(255, 82, 82, 0.3);
 }
 
 .log-line.finish {
     color: #ffd700;
+    font-weight: 700;
+    text-shadow: 0 0 6px rgba(255, 215, 0, 0.3);
 }
 
 /* ─── LEAVE BUTTON ───────────────────────── */
 
 .ludo-leave-btn {
     width: 100%;
-    padding: 10px;
-    font-size: 0.78rem;
+    padding: 8px;
+    font-size: 0.72rem;
     font-weight: 700;
     color: var(--text-muted, #557086);
-    background: var(--bg-input, #0d1b26);
-    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+    background: rgba(13, 27, 38, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.15s;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.04em;
     margin-top: 2px;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
 }
 
 .ludo-leave-btn:active {
@@ -2868,16 +2890,18 @@
         padding: 10px 12px;
         border-radius: 18px;
         background: linear-gradient(180deg, rgba(15, 33, 54, 0.92), rgba(12, 28, 46, 0.92));
-        border: 1.5px solid rgba(255, 255, 255, 0.08);
-        transition: border-color 0.25s, box-shadow 0.25s;
+        border: 1.5px solid color-mix(in srgb, var(--card-player-color, #557086) 25%, transparent);
+        border-left: 3px solid var(--card-player-color, #557086);
+        transition: border-color 0.25s, box-shadow 0.25s, background 0.25s;
     }
 
     .ludo-mobile-player-card.active,
     .ludo-mobile-self-card.active {
-        border-color: rgba(126, 249, 169, 0.5);
+        border-color: var(--card-player-color, rgba(126, 249, 169, 0.5));
+        background: linear-gradient(135deg, color-mix(in srgb, var(--card-player-color, #557086) 10%, rgba(15, 33, 54, 0.92)), rgba(12, 28, 46, 0.92));
         box-shadow:
-            0 0 0 2px rgba(126, 249, 169, 0.12),
-            0 0 16px rgba(126, 249, 169, 0.06);
+            0 0 0 2px color-mix(in srgb, var(--card-player-color, #7ef9a9) 15%, transparent),
+            0 0 20px color-mix(in srgb, var(--card-player-color, #7ef9a9) 10%, transparent);
     }
 
     .mobile-player-token {
@@ -4012,15 +4036,17 @@
 
 .ludo-prediction-bar {
     display: flex;
-    height: 28px;
-    border-radius: 14px;
+    height: 24px;
+    border-radius: 12px;
     overflow: hidden;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    margin: 8px 0;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    margin: 6px 0;
     width: 100%;
     max-width: min(92vw, 420px);
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.4),
+        0 1px 3px rgba(0, 0, 0, 0.2);
     align-self: center;
 }
 
@@ -4031,20 +4057,30 @@
     transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
     min-width: 0;
     overflow: hidden;
+    position: relative;
+}
+
+.prediction-segment::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, transparent 50%);
+    pointer-events: none;
 }
 
 .prediction-label {
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     font-weight: 800;
     color: rgba(255, 255, 255, 0.95);
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
     white-space: nowrap;
+    z-index: 1;
 }
 
-.prediction-green { background: linear-gradient(90deg, #00B84A, #2AE86A); }
-.prediction-yellow { background: linear-gradient(90deg, #E0A800, #FFCA00); }
-.prediction-red { background: linear-gradient(90deg, #B8141D, #E8202C); }
-.prediction-blue { background: linear-gradient(90deg, #1A3A8F, #2855C5); }
+.prediction-green { background: linear-gradient(90deg, #009A3E, #00C853); }
+.prediction-yellow { background: linear-gradient(90deg, #F5B800, #FFD600); }
+.prediction-red { background: linear-gradient(90deg, #D50032, #FF1744); }
+.prediction-blue { background: linear-gradient(90deg, #1A5CE0, #2979FF); }
 
 /* ============================================
    CAPTURE CALLOUT OVERLAY
@@ -4052,7 +4088,7 @@
 
 .capture-callout-overlay {
     position: fixed;
-    top: 35%;
+    top: 32%;
     left: 50%;
     transform: translateX(-50%);
     z-index: 1000;
@@ -4064,32 +4100,45 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
-    padding: 16px 32px;
-    background: rgba(0, 0, 0, 0.85);
-    border-radius: 16px;
-    border: 2px solid rgba(255, 215, 0, 0.4);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 60px rgba(255, 215, 0, 0.15);
-    backdrop-filter: blur(8px);
+    gap: 6px;
+    padding: 18px 36px;
+    background: linear-gradient(180deg, rgba(10, 10, 18, 0.92), rgba(0, 0, 0, 0.88));
+    border-radius: 18px;
+    border: 2px solid rgba(255, 215, 0, 0.5);
+    box-shadow:
+        0 8px 40px rgba(0, 0, 0, 0.7),
+        0 0 80px rgba(255, 215, 0, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    animation: callout-glow 1s ease-in-out infinite alternate;
+}
+
+@keyframes callout-glow {
+    0% { box-shadow: 0 8px 40px rgba(0, 0, 0, 0.7), 0 0 60px rgba(255, 215, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1); }
+    100% { box-shadow: 0 8px 40px rgba(0, 0, 0, 0.7), 0 0 100px rgba(255, 215, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15); }
 }
 
 .callout-name {
-    font-size: 1.3rem;
+    font-size: 1.4rem;
     font-weight: 900;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
 }
 
 .callout-action {
-    font-size: 0.7rem;
-    font-weight: 700;
+    font-size: 0.8rem;
+    font-weight: 800;
     color: #FFD700;
-    letter-spacing: 0.2em;
-    text-shadow: 0 0 12px rgba(255, 215, 0, 0.5);
+    letter-spacing: 0.25em;
+    text-shadow:
+        0 0 12px rgba(255, 215, 0, 0.6),
+        0 0 24px rgba(255, 215, 0, 0.3);
+    padding: 2px 0;
 }
 
-.callout-green { color: #2AE86A; text-shadow: 0 0 12px rgba(42, 232, 106, 0.5); }
-.callout-yellow { color: #FFCA00; text-shadow: 0 0 12px rgba(255, 202, 0, 0.5); }
-.callout-red { color: #FF4D55; text-shadow: 0 0 12px rgba(255, 77, 85, 0.5); }
-.callout-blue { color: #5080E8; text-shadow: 0 0 12px rgba(80, 128, 232, 0.5); }
-.callout-victim { color: #ff6b6b; text-shadow: 0 0 8px rgba(255, 107, 107, 0.4); }
+.callout-green { color: #39FF6E; text-shadow: 0 0 14px rgba(57, 255, 110, 0.55), 0 0 28px rgba(57, 255, 110, 0.2); }
+.callout-yellow { color: #FFD600; text-shadow: 0 0 14px rgba(255, 214, 0, 0.55), 0 0 28px rgba(255, 214, 0, 0.2); }
+.callout-red { color: #FF5C6E; text-shadow: 0 0 14px rgba(255, 92, 110, 0.55), 0 0 28px rgba(255, 92, 110, 0.2); }
+.callout-blue { color: #5C9AFF; text-shadow: 0 0 14px rgba(92, 154, 255, 0.55), 0 0 28px rgba(92, 154, 255, 0.2); }
+.callout-victim { color: #ff6b6b; text-shadow: 0 0 10px rgba(255, 107, 107, 0.5); font-size: 1.2rem; }
