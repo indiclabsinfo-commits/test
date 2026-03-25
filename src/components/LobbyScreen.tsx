@@ -6,92 +6,202 @@ interface LobbyScreenProps {
     onJoin: (gameId: string) => void;
 }
 
+/* ─── Per-game crazy emoji art compositions ────────────────── */
+const GameCardArt: React.FC<{ gameId: string }> = ({ gameId }) => {
+    const arts: Record<string, React.ReactNode> = {
+        ludo: (
+            <div className="card-art">
+                <span className="art-main">🎲</span>
+                <span className="art-float art-1">🏆</span>
+                <span className="art-float art-2">⭐</span>
+                <span className="art-float art-3">💰</span>
+                <span className="art-float art-4">🔥</span>
+            </div>
+        ),
+        crash: (
+            <div className="card-art">
+                <span className="art-main">🚀</span>
+                <span className="art-float art-1">💥</span>
+                <span className="art-float art-2">📈</span>
+                <span className="art-float art-3">⚡</span>
+                <span className="art-float art-4">🌟</span>
+            </div>
+        ),
+        mines: (
+            <div className="card-art">
+                <span className="art-main">💎</span>
+                <span className="art-float art-1">💣</span>
+                <span className="art-float art-2">💰</span>
+                <span className="art-float art-3">✨</span>
+                <span className="art-float art-4">🔥</span>
+            </div>
+        ),
+        dice: (
+            <div className="card-art">
+                <span className="art-main">🎯</span>
+                <span className="art-float art-1">🎲</span>
+                <span className="art-float art-2">🎲</span>
+                <span className="art-float art-3">💫</span>
+                <span className="art-float art-4">⚡</span>
+            </div>
+        ),
+        plinko: (
+            <div className="card-art">
+                <span className="art-main">🔮</span>
+                <span className="art-float art-1">⭕</span>
+                <span className="art-float art-2">🟡</span>
+                <span className="art-float art-3">💜</span>
+                <span className="art-float art-4">🌈</span>
+            </div>
+        ),
+        limbo: (
+            <div className="card-art">
+                <span className="art-main">🌙</span>
+                <span className="art-float art-1">⚡</span>
+                <span className="art-float art-2">🔥</span>
+                <span className="art-float art-3">💫</span>
+                <span className="art-float art-4">✨</span>
+            </div>
+        ),
+        keno: (
+            <div className="card-art">
+                <span className="art-main">🎰</span>
+                <span className="art-float art-1">7️⃣</span>
+                <span className="art-float art-2">🍀</span>
+                <span className="art-float art-3">💰</span>
+                <span className="art-float art-4">⭐</span>
+            </div>
+        ),
+        blackjack: (
+            <div className="card-art">
+                <span className="art-main">🃏</span>
+                <span className="art-float art-1">♠️</span>
+                <span className="art-float art-2">♥️</span>
+                <span className="art-float art-3">👑</span>
+                <span className="art-float art-4">💰</span>
+            </div>
+        ),
+        roulette: (
+            <div className="card-art">
+                <span className="art-main">🎡</span>
+                <span className="art-float art-1">🔴</span>
+                <span className="art-float art-2">⚫</span>
+                <span className="art-float art-3">💰</span>
+                <span className="art-float art-4">✨</span>
+            </div>
+        ),
+        wheel: (
+            <div className="card-art">
+                <span className="art-main">🎡</span>
+                <span className="art-float art-1">💎</span>
+                <span className="art-float art-2">🌟</span>
+                <span className="art-float art-3">🎪</span>
+                <span className="art-float art-4">💰</span>
+            </div>
+        ),
+        diamonds: (
+            <div className="card-art">
+                <span className="art-main">💎</span>
+                <span className="art-float art-1">💎</span>
+                <span className="art-float art-2">💎</span>
+                <span className="art-float art-3">✨</span>
+                <span className="art-float art-4">🔥</span>
+            </div>
+        ),
+        dragon_tower: (
+            <div className="card-art">
+                <span className="art-main">🐉</span>
+                <span className="art-float art-1">🏰</span>
+                <span className="art-float art-2">🔥</span>
+                <span className="art-float art-3">⚔️</span>
+                <span className="art-float art-4">👑</span>
+            </div>
+        ),
+        hilo: (
+            <div className="card-art">
+                <span className="art-main">🃏</span>
+                <span className="art-float art-1">⬆️</span>
+                <span className="art-float art-2">⬇️</span>
+                <span className="art-float art-3">💰</span>
+                <span className="art-float art-4">🔥</span>
+            </div>
+        ),
+    };
+    return <>{arts[gameId] || <div className="card-art"><span className="art-main">🎮</span></div>}</>;
+};
+
 /* ─── Game card gradient backgrounds ───────────────────────── */
 type GameVisual = {
     gradient: string;
     glow: string;
     accentColor: string;
-    emoji: string;
 };
 
 const GAME_VISUALS: Record<string, GameVisual> = {
     ludo: {
-        gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 40%, #b45309 100%)',
+        gradient: 'radial-gradient(circle at 30% 20%, #ffd700 0%, transparent 50%), radial-gradient(circle at 70% 80%, #ff6b00 0%, transparent 50%), linear-gradient(135deg, #f59e0b 0%, #d97706 30%, #b45309 60%, #92400e 100%)',
         glow: 'radial-gradient(ellipse at 30% 20%, rgba(251,191,36,0.5) 0%, transparent 60%)',
         accentColor: '#fbbf24',
-        emoji: '',
     },
     crash: {
-        gradient: 'linear-gradient(135deg, #ef4444 0%, #dc2626 40%, #991b1b 100%)',
+        gradient: 'radial-gradient(circle at 20% 30%, #ff4444 0%, transparent 40%), radial-gradient(circle at 80% 70%, #ff8800 0%, transparent 40%), linear-gradient(135deg, #ef4444 0%, #dc2626 30%, #b91c1c 60%, #7f1d1d 100%)',
         glow: 'radial-gradient(ellipse at 70% 25%, rgba(248,113,113,0.5) 0%, transparent 60%)',
         accentColor: '#f87171',
-        emoji: '',
     },
     mines: {
-        gradient: 'linear-gradient(135deg, #10b981 0%, #059669 40%, #065f46 100%)',
+        gradient: 'radial-gradient(circle at 40% 20%, #34d399 0%, transparent 45%), radial-gradient(circle at 70% 80%, #059669 0%, transparent 45%), linear-gradient(135deg, #10b981 0%, #059669 30%, #047857 60%, #065f46 100%)',
         glow: 'radial-gradient(ellipse at 30% 30%, rgba(52,211,153,0.5) 0%, transparent 60%)',
         accentColor: '#34d399',
-        emoji: '',
     },
     dice: {
-        gradient: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 40%, #3730a3 100%)',
+        gradient: 'radial-gradient(circle at 30% 30%, #818cf8 0%, transparent 45%), radial-gradient(circle at 75% 75%, #4f46e5 0%, transparent 45%), linear-gradient(135deg, #6366f1 0%, #4f46e5 30%, #4338ca 60%, #3730a3 100%)',
         glow: 'radial-gradient(ellipse at 70% 20%, rgba(129,140,248,0.5) 0%, transparent 60%)',
         accentColor: '#818cf8',
-        emoji: '',
     },
     plinko: {
-        gradient: 'linear-gradient(135deg, #ec4899 0%, #db2777 30%, #be185d 60%, #9333ea 100%)',
+        gradient: 'radial-gradient(circle at 25% 25%, #f472b6 0%, transparent 40%), radial-gradient(circle at 75% 75%, #a855f7 0%, transparent 40%), linear-gradient(135deg, #ec4899 0%, #d946ef 30%, #a855f7 60%, #7c3aed 100%)',
         glow: 'radial-gradient(ellipse at 30% 25%, rgba(244,114,182,0.5) 0%, transparent 60%)',
         accentColor: '#f472b6',
-        emoji: '',
     },
     limbo: {
-        gradient: 'linear-gradient(135deg, #f97316 0%, #ea580c 40%, #c2410c 100%)',
+        gradient: 'radial-gradient(circle at 30% 20%, #fbbf24 0%, transparent 40%), radial-gradient(circle at 70% 80%, #f59e0b 0%, transparent 40%), linear-gradient(135deg, #f59e0b 0%, #d97706 40%, #92400e 100%)',
         glow: 'radial-gradient(ellipse at 60% 20%, rgba(251,146,60,0.5) 0%, transparent 60%)',
         accentColor: '#fb923c',
-        emoji: '',
     },
     blackjack: {
-        gradient: 'linear-gradient(135deg, #1a472a 0%, #15803d 40%, #166534 100%)',
+        gradient: 'radial-gradient(circle at 30% 25%, #22c55e 0%, transparent 40%), radial-gradient(circle at 70% 75%, #15803d 0%, transparent 40%), linear-gradient(135deg, #166534 0%, #15803d 30%, #14532d 60%, #052e16 100%)',
         glow: 'radial-gradient(ellipse at 50% 20%, rgba(74,222,128,0.3) 0%, transparent 60%)',
         accentColor: '#4ade80',
-        emoji: '',
     },
     keno: {
-        gradient: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 40%, #0e7490 100%)',
+        gradient: 'radial-gradient(circle at 25% 30%, #38bdf8 0%, transparent 45%), radial-gradient(circle at 75% 70%, #0284c7 0%, transparent 45%), linear-gradient(135deg, #0ea5e9 0%, #0284c7 30%, #0369a1 60%, #075985 100%)',
         glow: 'radial-gradient(ellipse at 40% 20%, rgba(103,232,249,0.45) 0%, transparent 60%)',
         accentColor: '#67e8f9',
-        emoji: '',
     },
     wheel: {
-        gradient: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 40%, #1d4ed8 100%)',
+        gradient: 'radial-gradient(circle at 30% 20%, #c084fc 0%, transparent 40%), radial-gradient(circle at 70% 80%, #7c3aed 0%, transparent 40%), linear-gradient(135deg, #a78bfa 0%, #7c3aed 30%, #6d28d9 60%, #4c1d95 100%)',
         glow: 'radial-gradient(ellipse at 60% 25%, rgba(96,165,250,0.45) 0%, transparent 60%)',
         accentColor: '#60a5fa',
-        emoji: '',
     },
     roulette: {
-        gradient: 'linear-gradient(135deg, #dc2626 0%, #1a1a1a 50%, #b91c1c 100%)',
+        gradient: 'radial-gradient(circle at 30% 30%, #ef4444 0%, transparent 40%), radial-gradient(circle at 70% 70%, #1a1a1a 0%, transparent 40%), linear-gradient(135deg, #dc2626 0%, #991b1b 30%, #450a0a 60%, #1a1a1a 100%)',
         glow: 'radial-gradient(ellipse at 30% 30%, rgba(248,113,113,0.4) 0%, transparent 55%)',
         accentColor: '#f87171',
-        emoji: '',
     },
     diamonds: {
-        gradient: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 40%, #6d28d9 100%)',
+        gradient: 'radial-gradient(circle at 35% 25%, #67e8f9 0%, transparent 40%), radial-gradient(circle at 70% 75%, #06b6d4 0%, transparent 40%), linear-gradient(135deg, #22d3ee 0%, #06b6d4 30%, #0891b2 60%, #155e75 100%)',
         glow: 'radial-gradient(ellipse at 50% 20%, rgba(167,139,250,0.5) 0%, transparent 60%)',
         accentColor: '#a78bfa',
-        emoji: '',
     },
     dragon_tower: {
-        gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 30%, #92400e 70%, #78350f 100%)',
+        gradient: 'radial-gradient(circle at 25% 30%, #fb923c 0%, transparent 40%), radial-gradient(circle at 75% 70%, #ea580c 0%, transparent 40%), linear-gradient(135deg, #f97316 0%, #ea580c 30%, #c2410c 60%, #7c2d12 100%)',
         glow: 'radial-gradient(ellipse at 40% 20%, rgba(251,191,36,0.45) 0%, transparent 60%)',
         accentColor: '#fbbf24',
-        emoji: '',
     },
     hilo: {
-        gradient: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 50%, #7f1d1d 100%)',
+        gradient: 'radial-gradient(circle at 30% 25%, #a78bfa 0%, transparent 40%), radial-gradient(circle at 70% 75%, #6d28d9 0%, transparent 40%), linear-gradient(135deg, #8b5cf6 0%, #7c3aed 30%, #6d28d9 60%, #4c1d95 100%)',
         glow: 'radial-gradient(ellipse at 60% 25%, rgba(252,165,165,0.4) 0%, transparent 55%)',
         accentColor: '#fca5a5',
-        emoji: '',
     },
 };
 
@@ -194,6 +304,11 @@ const HeroBanner: React.FC<{ onJoin: (id: string) => void }> = ({ onJoin }) => {
         <div className="lobby-hero-v2" onClick={() => onJoin(hero.id)}>
             <div className="lobby-hero-bg" style={{ background: heroVisual?.gradient }} />
             <div className="lobby-hero-glow" style={{ background: heroVisual?.glow }} />
+            <div className="hero-particles">
+                {[...Array(8)].map((_, i) => (
+                    <span key={i} className={`hero-particle p-${i}`} />
+                ))}
+            </div>
             <div className="lobby-hero-content">
                 <div className="lobby-hero-icon-wrap">
                     <GameGlyph gameId={hero.id} className="lobby-hero-icon" style={{ color: '#fff' }} />
@@ -342,9 +457,9 @@ const GameCard: React.FC<{ game: Game; index: number; onClick: () => void }> = (
                 {/* Decorative pattern overlay */}
                 <div className="game-card-v2-pattern" />
 
-                {/* Centered game icon */}
+                {/* Centered game art */}
                 <div className="game-card-v2-icon-wrap">
-                    <GameGlyph gameId={game.id} className="game-card-v2-icon" style={{ color: 'rgba(255,255,255,0.95)' }} />
+                    <GameCardArt gameId={game.id} />
                 </div>
 
                 {/* Badge */}
