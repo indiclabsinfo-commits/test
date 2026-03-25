@@ -293,8 +293,19 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const collectWinnings = (amount: number) => {
     if (amount <= 0) return;
 
-    // Backend-controlled game sessions should settle from server events only.
-    if (!isAuthenticated || activeGameId) return;
+    // Guest/demo mode: credit winnings locally
+    if (!isAuthenticated) {
+      setDemoBalance(prev => prev + amount);
+      return;
+    }
+
+    // Authenticated demo mode: credit demo balance locally
+    if (isDemoMode) {
+      setDemoBalance(prev => prev + amount);
+      return;
+    }
+
+    // Backend-controlled real-money sessions should settle from server events only.
   };
 
   const cashout = async (gameData?: any) => {

@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { GameProvider, useGame } from './contexts/GameContext';
-// AuthModal disabled for testing - import removed
+import { AuthModal } from './components/auth/AuthModal';
 import { WalletModal } from './components/wallet/WalletModal';
 import { formatIndianNumber } from './utils/format';
 import { LobbyScreen } from './components/LobbyScreen';
@@ -64,7 +64,7 @@ const SIDEBAR_CATEGORIES = [
 
 const GameController = () => {
   const { isDemoMode, activeBalance, toggleDemoMode, activeGameId, joinGame, leaveGame, login, register, isAuthenticated, user } = useGame();
-  // Auth disabled for testing
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isWalletOpen, setIsWalletOpen] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [walletInitialTab, setWalletInitialTab] = useState<'deposit' | 'withdraw' | 'history'>('deposit');
@@ -73,16 +73,11 @@ const GameController = () => {
   const [notices, setNotices] = useState<Array<{ id: string; title: string; message: string }>>([]);
 
   const handleJoin = (gameId: string) => {
-    // DEV: skip auth check for local testing
-    // if (!isAuthenticated) {
-    //   {};
-    //   return;
-    // }
+    // Allow all users (guest + authenticated) to browse and play demo games
     joinGame(gameId);
   };
 
-  // handleAuthSuccess disabled for testing
-  const _handleAuthSuccess = async (payload: { mode: 'login' | 'register'; username: string; password: string }) => {
+  const handleAuthSuccess = async (payload: { mode: 'login' | 'register'; username: string; password: string }) => {
     if (payload.mode === 'register') {
       await register(payload.username, payload.password);
       setWalletInitialTab('deposit');
@@ -93,7 +88,8 @@ const GameController = () => {
       await login(payload.username, payload.password);
     }
   };
-  void _handleAuthSuccess; // suppress unused warning
+
+  const openAuthModal = () => setIsAuthModalOpen(true);
 
   const handleBackToLobby = () => {
     leaveGame();
@@ -223,7 +219,7 @@ const GameController = () => {
         {/* Footer */}
         <div className="sidebar-footer">
           {!isAuthenticated ? (
-            <button className="btn-primary" style={{ width: '100%' }} onClick={() => {}}>
+            <button className="btn-primary" style={{ width: '100%' }} onClick={openAuthModal}>
               Sign In
             </button>
           ) : (
@@ -281,23 +277,34 @@ const GameController = () => {
                 <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
                 <line x1="1" y1="10" x2="23" y2="10" />
               </svg>
-              <span className="wallet-balance">${formatIndianNumber(activeBalance, true)}</span>
-              {isAuthenticated ? (
-                <button
-                  className="wallet-btn"
-                  onClick={() => {
-                    setWalletInitialTab('deposit');
-                    setWalletInitialDepositMethod('qr');
-                    setWalletAutoQRAmountInr(undefined);
-                    setIsWalletOpen(true);
-                  }}
-                >
-                  Recharge
-                </button>
+              {!isAuthenticated ? (
+                <>
+                  <span className="wallet-balance" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span style={{ fontSize: '0.6rem', background: 'rgba(0,231,1,0.15)', color: 'var(--accent-green)', padding: '1px 5px', borderRadius: '4px', fontWeight: 700, letterSpacing: '0.5px' }}>DEMO</span>
+                    ${formatIndianNumber(activeBalance, true)}
+                  </span>
+                  <button className="wallet-btn" onClick={openAuthModal}>
+                    Sign In
+                  </button>
+                </>
               ) : (
-                <button className="wallet-btn" onClick={() => {}}>
-                  Sign In
-                </button>
+                <>
+                  <span className="wallet-balance">
+                    {isDemoMode && <span style={{ fontSize: '0.6rem', background: 'rgba(0,231,1,0.15)', color: 'var(--accent-green)', padding: '1px 5px', borderRadius: '4px', fontWeight: 700, letterSpacing: '0.5px', marginRight: '4px' }}>DEMO</span>}
+                    ${formatIndianNumber(activeBalance, true)}
+                  </span>
+                  <button
+                    className="wallet-btn"
+                    onClick={() => {
+                      setWalletInitialTab('deposit');
+                      setWalletInitialDepositMethod('qr');
+                      setWalletAutoQRAmountInr(undefined);
+                      setIsWalletOpen(true);
+                    }}
+                  >
+                    Recharge
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -317,12 +324,11 @@ const GameController = () => {
         {content}
       </main>
 
-      {/* Auth modal disabled for local testing */}
-      {/* <AuthModal
+      <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         onSuccess={handleAuthSuccess}
-      /> */}
+      />
 
       <WalletModal
         isOpen={isWalletOpen}
