@@ -147,34 +147,200 @@ export const CrashGame: React.FC = () => {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
 
-        const w = canvas.width;
-        const h = canvas.height;
+        // Handle high-DPI displays
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        const targetW = Math.round(rect.width * dpr);
+        const targetH = Math.round(rect.height * dpr);
+        if (canvas.width !== targetW || canvas.height !== targetH) {
+            canvas.width = targetW;
+            canvas.height = targetH;
+        }
+
+        const w = rect.width;
+        const h = rect.height;
+
+        // Reset transform then apply DPR scaling each frame
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, w, h);
 
-        // Grid
-        ctx.strokeStyle = '#2f4553';
-        ctx.lineWidth = 1;
+        // Padding for axes labels
+        const padLeft = 45;
+        const padBottom = 30;
+        const padTop = 20;
+        const padRight = 20;
+        const chartW = w - padLeft - padRight;
+        const chartH = h - padTop - padBottom;
+
+        // Dynamic Y-axis scale
+        const maxMult = Math.max(2, crashed ? mult * 1.15 : mult * 1.3);
+
+        // --- Grid background ---
+        ctx.save();
+
+        // Subtle grid lines
+        ctx.strokeStyle = 'rgba(47, 69, 83, 0.4)';
+        ctx.lineWidth = 0.5;
+        ctx.setLineDash([4, 4]);
+
+        // Horizontal grid lines (multiplier values)
+        const ySteps = maxMult <= 3 ? 0.5 : maxMult <= 10 ? 1 : maxMult <= 50 ? 5 : 10;
+        for (let v = 1; v <= maxMult; v += ySteps) {
+            const y = padTop + chartH - ((v - 1) / (maxMult - 1)) * chartH;
+            ctx.beginPath();
+            ctx.moveTo(padLeft, y);
+            ctx.lineTo(padLeft + chartW, y);
+            ctx.stroke();
+
+            // Y-axis labels
+            ctx.fillStyle = 'rgba(177, 186, 211, 0.6)';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(v.toFixed(v < 10 ? 1 : 0) + 'x', padLeft - 6, y + 4);
+        }
+
+        // Vertical grid lines (time markers)
+        const xSteps = Math.max(1, Math.floor(chartW / 80));
+        for (let i = 0; i <= xSteps; i++) {
+            const x = padLeft + (i / xSteps) * chartW;
+            ctx.beginPath();
+            ctx.moveTo(x, padTop);
+            ctx.lineTo(x, padTop + chartH);
+            ctx.stroke();
+        }
+
+        ctx.setLineDash([]);
+
+        // --- Axes ---
+        ctx.strokeStyle = 'rgba(47, 69, 83, 0.8)';
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(0, h); ctx.lineTo(w, h);
-        ctx.moveTo(0, 0); ctx.lineTo(0, h);
+        ctx.moveTo(padLeft, padTop);
+        ctx.lineTo(padLeft, padTop + chartH);
+        ctx.lineTo(padLeft + chartW, padTop + chartH);
         ctx.stroke();
 
-        ctx.beginPath();
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = crashed ? '#ea3e3e' : '#fff';
-
-        // Simple animated exponential line
-        ctx.moveTo(0, h);
-        for (let i = 0; i < w; i += 5) {
-            const t = i / w; // 0 to 1
-            const val = Math.pow(Math.E, t * 2); // 1 to 7
-            // If val > mult, stop
+        // --- Draw the curve ---
+        // Build points array for smooth curve
+        const points: { x: number; y: number }[] = [];
+        const stepSize = 2;
+        for (let px = 0; px <= chartW; px += stepSize) {
+            const t = px / chartW;
+            // Map t to multiplier value using log scale that matches the exponential growth
+            const val = 1 + (mult - 1) * Math.pow(t, 1.8);
             if (val > mult && !crashed) break;
 
-            const y = h - ((val - 1) / (Math.max(2, mult) - 1)) * (h * 0.8);
-            ctx.lineTo(i, y);
+            const x = padLeft + px;
+            const y = padTop + chartH - ((val - 1) / (maxMult - 1)) * chartH;
+            points.push({ x, y });
         }
+
+        if (points.length < 2) {
+            ctx.restore();
+            return;
+        }
+
+        // Gradient fill under the curve
+        const lastPt = points[points.length - 1];
+        const fillGrad = ctx.createLinearGradient(0, padTop, 0, padTop + chartH);
+        if (crashed) {
+            fillGrad.addColorStop(0, 'rgba(234, 62, 62, 0.25)');
+            fillGrad.addColorStop(1, 'rgba(234, 62, 62, 0.02)');
+        } else {
+            fillGrad.addColorStop(0, 'rgba(0, 231, 1, 0.2)');
+            fillGrad.addColorStop(0.5, 'rgba(0, 231, 1, 0.08)');
+            fillGrad.addColorStop(1, 'rgba(0, 231, 1, 0.01)');
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, padTop + chartH);
+        for (const pt of points) {
+            ctx.lineTo(pt.x, pt.y);
+        }
+        ctx.lineTo(lastPt.x, padTop + chartH);
+        ctx.closePath();
+        ctx.fillStyle = fillGrad;
+        ctx.fill();
+
+        // The line itself
+        const lineGrad = ctx.createLinearGradient(padLeft, 0, lastPt.x, 0);
+        if (crashed) {
+            lineGrad.addColorStop(0, '#ea3e3e');
+            lineGrad.addColorStop(1, '#ff6b6b');
+        } else {
+            lineGrad.addColorStop(0, '#00e701');
+            lineGrad.addColorStop(0.7, '#00ff88');
+            lineGrad.addColorStop(1, '#ffffff');
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+            ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.strokeStyle = lineGrad;
+        ctx.lineWidth = 3;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
         ctx.stroke();
+
+        // --- Glowing tip at the current point ---
+        if (!crashed && points.length > 0) {
+            const tip = points[points.length - 1];
+
+            // Outer glow
+            const glowRadius = 18 + Math.sin(Date.now() / 200) * 4;
+            const glow = ctx.createRadialGradient(tip.x, tip.y, 0, tip.x, tip.y, glowRadius);
+            glow.addColorStop(0, 'rgba(0, 255, 136, 0.5)');
+            glow.addColorStop(0.4, 'rgba(0, 231, 1, 0.2)');
+            glow.addColorStop(1, 'rgba(0, 231, 1, 0)');
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(tip.x, tip.y, glowRadius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Inner dot
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(tip.x, tip.y, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Bright ring
+            ctx.strokeStyle = 'rgba(0, 255, 136, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(tip.x, tip.y, 7, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // --- Crash marker ---
+        if (crashed && points.length > 0) {
+            const tip = points[points.length - 1];
+
+            // Red explosion glow
+            const crashGlow = ctx.createRadialGradient(tip.x, tip.y, 0, tip.x, tip.y, 30);
+            crashGlow.addColorStop(0, 'rgba(234, 62, 62, 0.6)');
+            crashGlow.addColorStop(0.5, 'rgba(234, 62, 62, 0.2)');
+            crashGlow.addColorStop(1, 'rgba(234, 62, 62, 0)');
+            ctx.fillStyle = crashGlow;
+            ctx.beginPath();
+            ctx.arc(tip.x, tip.y, 30, 0, Math.PI * 2);
+            ctx.fill();
+
+            // X mark
+            ctx.strokeStyle = '#ff4444';
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            const sz = 8;
+            ctx.beginPath();
+            ctx.moveTo(tip.x - sz, tip.y - sz);
+            ctx.lineTo(tip.x + sz, tip.y + sz);
+            ctx.moveTo(tip.x + sz, tip.y - sz);
+            ctx.lineTo(tip.x - sz, tip.y + sz);
+            ctx.stroke();
+        }
+
+        ctx.restore();
     };
 
     const handlePlaceBet = () => {
@@ -267,26 +433,114 @@ export const CrashGame: React.FC = () => {
             </div>
 
             {/* Middle: Graph */}
-            <div className="game-container game-stage" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                <canvas ref={canvasRef} width={600} height={400} style={{ width: '100%', height: '100%' }} />
+            <div className="game-container game-stage" style={{
+                position: 'relative',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+                animation: gameState === 'CRASHED' ? 'crash-shake 0.5s ease-out' : undefined,
+            }}>
+                {/* Red flash overlay on crash */}
+                {gameState === 'CRASHED' && (
+                    <div style={{
+                        position: 'absolute',
+                        inset: 0,
+                        background: 'radial-gradient(circle, rgba(234, 62, 62, 0.3) 0%, rgba(234, 62, 62, 0.1) 50%, transparent 80%)',
+                        animation: 'crash-flash 0.6s ease-out forwards',
+                        pointerEvents: 'none',
+                        zIndex: 2,
+                    }} />
+                )}
 
-                <div style={{ position: 'absolute', textAlign: 'center' }}>
+                <canvas
+                    ref={canvasRef}
+                    style={{
+                        width: '100%',
+                        height: '100%',
+                        display: 'block',
+                    }}
+                />
+
+                <div style={{ position: 'absolute', textAlign: 'center', zIndex: 3, pointerEvents: 'none' }}>
                     {gameState === 'BETTING' && (
-                        <div style={{ fontSize: '1.5rem', color: '#fff' }}>Starting...</div>
-                    )}
-                    {(gameState === 'FLYING' || gameState === 'CRASHED') && (
                         <div style={{
-                            fontSize: 'clamp(2.2rem, 8vw, 5rem)',
-                            fontWeight: 'bold',
-                            color: gameState === 'CRASHED' ? '#ea3e3e' : '#fff'
+                            fontSize: '1.5rem',
+                            color: 'rgba(255,255,255,0.6)',
+                            animation: 'pulse-text 1.5s ease-in-out infinite',
+                        }}>
+                            Starting...
+                        </div>
+                    )}
+                    {gameState === 'FLYING' && (
+                        <div style={{
+                            fontSize: 'clamp(2.5rem, 8vw, 5rem)',
+                            fontWeight: 900,
+                            color: '#fff',
+                            textShadow: '0 0 30px rgba(0, 231, 1, 0.4), 0 2px 10px rgba(0, 0, 0, 0.5)',
+                            fontVariantNumeric: 'tabular-nums',
+                            letterSpacing: '-0.02em',
+                            transition: 'color 0.1s',
                         }}>
                             {currentMultiplier.toFixed(2)}x
                         </div>
                     )}
                     {gameState === 'CRASHED' && (
-                        <div style={{ color: '#ea3e3e', fontSize: '1.5rem', fontWeight: 'bold' }}>CRASHED</div>
+                        <>
+                            <div style={{
+                                fontSize: 'clamp(2.5rem, 8vw, 5rem)',
+                                fontWeight: 900,
+                                color: '#ea3e3e',
+                                textShadow: '0 0 30px rgba(234, 62, 62, 0.5), 0 2px 10px rgba(0, 0, 0, 0.5)',
+                                fontVariantNumeric: 'tabular-nums',
+                                letterSpacing: '-0.02em',
+                            }}>
+                                {currentMultiplier.toFixed(2)}x
+                            </div>
+                            <div style={{
+                                color: '#ea3e3e',
+                                fontSize: 'clamp(1.2rem, 4vw, 1.8rem)',
+                                fontWeight: 900,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.15em',
+                                marginTop: '4px',
+                                textShadow: '0 0 20px rgba(234, 62, 62, 0.6)',
+                                animation: 'crash-text-shake 0.4s ease-out',
+                            }}>
+                                CRASHED!
+                            </div>
+                        </>
                     )}
                 </div>
+
+                {/* Inline keyframes for crash effects */}
+                <style>{`
+                    @keyframes crash-shake {
+                        0%, 100% { transform: translate(0, 0); }
+                        10% { transform: translate(-6px, -3px); }
+                        20% { transform: translate(5px, 2px); }
+                        30% { transform: translate(-4px, 4px); }
+                        40% { transform: translate(3px, -2px); }
+                        50% { transform: translate(-2px, 3px); }
+                        60% { transform: translate(2px, -1px); }
+                        70% { transform: translate(-1px, 1px); }
+                        80% { transform: translate(1px, -1px); }
+                    }
+                    @keyframes crash-flash {
+                        0% { opacity: 1; }
+                        100% { opacity: 0; }
+                    }
+                    @keyframes crash-text-shake {
+                        0% { transform: scale(1.3) rotate(-2deg); opacity: 0; }
+                        30% { transform: scale(1.1) rotate(1deg); opacity: 1; }
+                        60% { transform: scale(1.05) rotate(-0.5deg); }
+                        100% { transform: scale(1) rotate(0deg); }
+                    }
+                    @keyframes pulse-text {
+                        0%, 100% { opacity: 0.5; }
+                        50% { opacity: 1; }
+                    }
+                `}</style>
             </div>
 
             {/* Right: Leaderboard (Group Aspect) */}

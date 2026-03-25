@@ -9,24 +9,24 @@
     --ludo-neon-soft: rgba(126, 249, 169, 0.28);
     --ludo-gold: #ffd86b;
     --ludo-panel-bg: rgba(12, 28, 46, 0.82);
-    /* Premium Ludo King palette - ultra-vibrant, casino-grade */
-    --ludo-green: #00C853;
-    --ludo-green-light: #39FF6E;
-    --ludo-green-dark: #009A3E;
-    --ludo-yellow: #FFD600;
-    --ludo-yellow-light: #FFEA40;
-    --ludo-yellow-dark: #F5B800;
-    --ludo-blue: #2979FF;
-    --ludo-blue-light: #5C9AFF;
-    --ludo-blue-dark: #1A5CE0;
-    --ludo-red: #FF1744;
-    --ludo-red-light: #FF5C6E;
-    --ludo-red-dark: #D50032;
-    /* Board wood tones */
-    --ludo-wood-light: #F5DEB3;
-    --ludo-wood-mid: #E8CFA0;
-    --ludo-wood-dark: #6D3A1A;
-    --ludo-wood-trim: #8B5E3C;
+    /* Premium Ludo King palette - rich, saturated, classic board game colors */
+    --ludo-green: #1B8A2E;
+    --ludo-green-light: #3CB552;
+    --ludo-green-dark: #126B20;
+    --ludo-yellow: #F7C621;
+    --ludo-yellow-light: #FFDB4F;
+    --ludo-yellow-dark: #D4A813;
+    --ludo-blue: #1E5CB3;
+    --ludo-blue-light: #4A8AD4;
+    --ludo-blue-dark: #143E7A;
+    --ludo-red: #D42B2B;
+    --ludo-red-light: #E85555;
+    --ludo-red-dark: #A01E1E;
+    /* Board wood tones - dark mahogany frame */
+    --ludo-wood-light: #FAF3E0;
+    --ludo-wood-mid: #F5EDD5;
+    --ludo-wood-dark: #5C3310;
+    --ludo-wood-trim: #7A4B2A;
     /* Gold accent for premium feel */
     --ludo-gold-bright: #FFD700;
     --ludo-gold-dim: #C5A028;
@@ -1092,9 +1092,9 @@
     width: 100%;
     aspect-ratio: 1;
     background:
-        radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.5), transparent 35%),
-        radial-gradient(circle at 82% 88%, rgba(255, 255, 255, 0.18), transparent 30%),
-        linear-gradient(145deg, #f5d6a0, #e8c88a 35%, #ddb978 65%, #d4ad6a);
+        radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.35), transparent 35%),
+        radial-gradient(circle at 82% 88%, rgba(255, 255, 255, 0.12), transparent 30%),
+        linear-gradient(145deg, #FAF3E0, #F5EDD5 35%, #F0E8CC 65%, #EBE2C3);
     border: 7px solid var(--ludo-wood-dark);
     border-radius: 12px;
     max-width: min(92vw, 420px);
@@ -1241,7 +1241,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #FAF0E0;
+    background: #F8F4EA;
     transition: background 0.15s, box-shadow 0.15s;
     contain: layout style paint;
     box-shadow:
@@ -1253,7 +1253,7 @@
 }
 
 .cell:nth-of-type(odd) {
-    background: rgba(250, 245, 235, 0.98);
+    background: #FAF7F0;
 }
 
 /* ─── COLORED BASES ──────────────────────── */
@@ -1335,10 +1335,10 @@
         inset 0 -2px 4px rgba(255, 255, 255, 0.4);
 }
 
-.base.green .piece-spot { background: rgba(0, 200, 83, 0.18); border: 2.5px solid rgba(0, 200, 83, 0.55); box-shadow: inset 0 2px 4px rgba(0, 200, 83, 0.1), inset 0 -1px 3px rgba(0, 0, 0, 0.08); }
-.base.yellow .piece-spot { background: rgba(255, 214, 0, 0.18); border: 2.5px solid rgba(255, 214, 0, 0.55); box-shadow: inset 0 2px 4px rgba(255, 214, 0, 0.1), inset 0 -1px 3px rgba(0, 0, 0, 0.08); }
-.base.red .piece-spot { background: rgba(255, 23, 68, 0.18); border: 2.5px solid rgba(255, 23, 68, 0.55); box-shadow: inset 0 2px 4px rgba(255, 23, 68, 0.1), inset 0 -1px 3px rgba(0, 0, 0, 0.08); }
-.base.blue .piece-spot { background: rgba(41, 121, 255, 0.18); border: 2.5px solid rgba(41, 121, 255, 0.55); box-shadow: inset 0 2px 4px rgba(41, 121, 255, 0.1), inset 0 -1px 3px rgba(0, 0, 0, 0.08); }
+.base.green .piece-spot { background: rgba(27, 138, 46, 0.18); border: 2.5px solid rgba(27, 138, 46, 0.55); box-shadow: inset 0 2px 4px rgba(27, 138, 46, 0.1), inset 0 -1px 3px rgba(0, 0, 0, 0.08); }
+.base.yellow .piece-spot { background: rgba(247, 198, 33, 0.18); border: 2.5px solid rgba(247, 198, 33, 0.55); box-shadow: inset 0 2px 4px rgba(247, 198, 33, 0.1), inset 0 -1px 3px rgba(0, 0, 0, 0.08); }
+.base.red .piece-spot { background: rgba(212, 43, 43, 0.18); border: 2.5px solid rgba(212, 43, 43, 0.55); box-shadow: inset 0 2px 4px rgba(212, 43, 43, 0.1), inset 0 -1px 3px rgba(0, 0, 0, 0.08); }
+.base.blue .piece-spot { background: rgba(30, 92, 179, 0.18); border: 2.5px solid rgba(30, 92, 179, 0.55); box-shadow: inset 0 2px 4px rgba(30, 92, 179, 0.1), inset 0 -1px 3px rgba(0, 0, 0, 0.08); }
 
 /* ─── SAFE SPOTS ─────────────────────────── */
 
@@ -1419,8 +1419,8 @@
 /* Green home column: gradient pointing right toward center */
 .path-green {
     background:
-        linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.25) 60%, rgba(255, 255, 255, 0.4) 100%),
-        linear-gradient(90deg, var(--ludo-green) 0%, var(--ludo-green-light) 100%) !important;
+        linear-gradient(90deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.3) 60%, rgba(255, 255, 255, 0.45) 100%),
+        linear-gradient(90deg, #2ECC50 0%, #5AD87A 100%) !important;
     border-color: rgba(0, 0, 0, 0.12) !important;
     box-shadow:
         inset 0 0 10px rgba(0, 0, 0, 0.14),
@@ -1431,8 +1431,8 @@
 /* Yellow home column: gradient pointing down toward center */
 .path-yellow {
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.25) 60%, rgba(255, 255, 255, 0.4) 100%),
-        linear-gradient(180deg, var(--ludo-yellow) 0%, var(--ludo-yellow-light) 100%) !important;
+        linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.3) 60%, rgba(255, 255, 255, 0.45) 100%),
+        linear-gradient(180deg, #F7C621 0%, #FFDB4F 100%) !important;
     border-color: rgba(0, 0, 0, 0.12) !important;
     box-shadow:
         inset 0 0 10px rgba(0, 0, 0, 0.12),
@@ -1443,8 +1443,8 @@
 /* Red home column: gradient pointing left toward center */
 .path-red {
     background:
-        linear-gradient(270deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.25) 60%, rgba(255, 255, 255, 0.4) 100%),
-        linear-gradient(270deg, var(--ludo-red) 0%, var(--ludo-red-light) 100%) !important;
+        linear-gradient(270deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.3) 60%, rgba(255, 255, 255, 0.45) 100%),
+        linear-gradient(270deg, #E53935 0%, #EF6B68 100%) !important;
     border-color: rgba(0, 0, 0, 0.12) !important;
     box-shadow:
         inset 0 0 10px rgba(0, 0, 0, 0.14),
@@ -1455,8 +1455,8 @@
 /* Blue home column: gradient pointing up toward center */
 .path-blue {
     background:
-        linear-gradient(0deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.25) 60%, rgba(255, 255, 255, 0.4) 100%),
-        linear-gradient(0deg, var(--ludo-blue) 0%, var(--ludo-blue-light) 100%) !important;
+        linear-gradient(0deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.3) 60%, rgba(255, 255, 255, 0.45) 100%),
+        linear-gradient(0deg, #2979FF 0%, #5C9AFF 100%) !important;
     border-color: rgba(0, 0, 0, 0.12) !important;
     box-shadow:
         inset 0 0 10px rgba(0, 0, 0, 0.14),
