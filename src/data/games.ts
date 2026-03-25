@@ -7,7 +7,7 @@ export interface Game {
     status: 'ACTIVE' | 'MAINTENANCE' | 'COMING_SOON';
     playing: number;
     category: 'originals' | 'casino' | 'board';
-    badge?: 'hot' | 'new' | 'live';
+    badge?: 'hot' | 'new' | 'live' | 'featured';
 }
 
 export const GAMES: Game[] = [
@@ -62,7 +62,8 @@ export const GAMES: Game[] = [
         icon: '📍',
         status: 'ACTIVE',
         playing: 1325,
-        category: 'originals'
+        category: 'originals',
+        badge: 'hot'
     },
     {
         id: 'limbo',
@@ -82,7 +83,8 @@ export const GAMES: Game[] = [
         icon: '♠️',
         status: 'ACTIVE',
         playing: 837,
-        category: 'casino'
+        category: 'casino',
+        badge: 'live'
     },
     {
         id: 'keno',
@@ -133,7 +135,8 @@ export const GAMES: Game[] = [
         icon: '🐲',
         status: 'ACTIVE',
         playing: 468,
-        category: 'originals'
+        category: 'originals',
+        badge: 'new'
     },
     {
         id: 'hilo',
