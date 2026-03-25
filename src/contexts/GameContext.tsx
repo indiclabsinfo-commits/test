@@ -231,9 +231,9 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const joinGame = useCallback((gameId: string) => {
-    if (!isAuthenticated) return;
+    // Allow game access without auth (local/bot modes work without login)
     setActiveGameId(gameId);
-  }, [isAuthenticated]);
+  }, []);
 
   const leaveGame = useCallback(() => {
     if (activeGameId) {

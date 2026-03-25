@@ -1810,14 +1810,17 @@
 .hud-dice-wrapper {
     width: 68px;
     height: 68px;
+    --dice-half: 34px;
 }
 .mobile-dice-wrapper {
     width: 96px;
     height: 96px;
+    --dice-half: 48px;
 }
 .dock-dice-wrapper {
     width: clamp(82px, 24vw, 104px);
     height: clamp(82px, 24vw, 104px);
+    --dice-half: clamp(41px, 12vw, 52px);
 }
 
 /* Ready-to-roll glow pulse on the wrapper -- "TAP ME" urgency */
@@ -1931,13 +1934,13 @@
         inset 0 0 2px rgba(0, 0, 0, 0.05);
 }
 
-/* Position each face to form a cube -- translateZ = half of width */
-.dice-3d-face.face-front  { transform: rotateY(0deg)   translateZ(calc(50%)); }
-.dice-3d-face.face-back   { transform: rotateY(180deg) translateZ(calc(50%)); }
-.dice-3d-face.face-right  { transform: rotateY(90deg)  translateZ(calc(50%)); }
-.dice-3d-face.face-left   { transform: rotateY(-90deg) translateZ(calc(50%)); }
-.dice-3d-face.face-top    { transform: rotateX(90deg)  translateZ(calc(50%)); }
-.dice-3d-face.face-bottom { transform: rotateX(-90deg) translateZ(calc(50%)); }
+/* Position each face to form a cube -- translateZ = half of wrapper width (--dice-half) */
+.dice-3d-face.face-front  { transform: rotateY(0deg)   translateZ(var(--dice-half, 48px)); }
+.dice-3d-face.face-back   { transform: rotateY(180deg) translateZ(var(--dice-half, 48px)); }
+.dice-3d-face.face-right  { transform: rotateY(90deg)  translateZ(var(--dice-half, 48px)); }
+.dice-3d-face.face-left   { transform: rotateY(-90deg) translateZ(var(--dice-half, 48px)); }
+.dice-3d-face.face-top    { transform: rotateX(90deg)  translateZ(var(--dice-half, 48px)); }
+.dice-3d-face.face-bottom { transform: rotateX(-90deg) translateZ(var(--dice-half, 48px)); }
 
 /* Pips (dots) -- deeply indented, physically carved look */
 .dice-pip {
@@ -4002,3 +4005,91 @@
     0%, 100% { transform: translateX(-50%) translateY(0); }
     50% { transform: translateX(-50%) translateY(-3px); }
 }
+
+/* ============================================
+   WINNING PREDICTION BAR
+   ============================================ */
+
+.ludo-prediction-bar {
+    display: flex;
+    height: 28px;
+    border-radius: 14px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin: 8px 0;
+    width: 100%;
+    max-width: min(92vw, 420px);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    align-self: center;
+}
+
+.prediction-segment {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    min-width: 0;
+    overflow: hidden;
+}
+
+.prediction-label {
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.95);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+    white-space: nowrap;
+}
+
+.prediction-green { background: linear-gradient(90deg, #00B84A, #2AE86A); }
+.prediction-yellow { background: linear-gradient(90deg, #E0A800, #FFCA00); }
+.prediction-red { background: linear-gradient(90deg, #B8141D, #E8202C); }
+.prediction-blue { background: linear-gradient(90deg, #1A3A8F, #2855C5); }
+
+/* ============================================
+   CAPTURE CALLOUT OVERLAY
+   ============================================ */
+
+.capture-callout-overlay {
+    position: fixed;
+    top: 35%;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    pointer-events: none;
+    text-align: center;
+}
+
+.capture-callout-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 16px 32px;
+    background: rgba(0, 0, 0, 0.85);
+    border-radius: 16px;
+    border: 2px solid rgba(255, 215, 0, 0.4);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 60px rgba(255, 215, 0, 0.15);
+    backdrop-filter: blur(8px);
+}
+
+.callout-name {
+    font-size: 1.3rem;
+    font-weight: 900;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.callout-action {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #FFD700;
+    letter-spacing: 0.2em;
+    text-shadow: 0 0 12px rgba(255, 215, 0, 0.5);
+}
+
+.callout-green { color: #2AE86A; text-shadow: 0 0 12px rgba(42, 232, 106, 0.5); }
+.callout-yellow { color: #FFCA00; text-shadow: 0 0 12px rgba(255, 202, 0, 0.5); }
+.callout-red { color: #FF4D55; text-shadow: 0 0 12px rgba(255, 77, 85, 0.5); }
+.callout-blue { color: #5080E8; text-shadow: 0 0 12px rgba(80, 128, 232, 0.5); }
+.callout-victim { color: #ff6b6b; text-shadow: 0 0 8px rgba(255, 107, 107, 0.4); }

@@ -1,3 +1,4 @@
+// LudoGame v2 - Casino-grade Ludo King experience
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useGame } from '../../contexts/GameContext';
 import { wsService } from '../../services/websocket';
@@ -275,6 +276,7 @@ export const LudoGame: React.FC = () => {
     const [showStreakOverlay, setShowStreakOverlay] = useState(false);
     const [streakType, setStreakType] = useState<'capture' | 'six' | 'home'>('capture');
     const [captureExplosionPos, setCaptureExplosionPos] = useState<{x: number, y: number, color: string} | null>(null);
+    const [captureCallout, setCaptureCallout] = useState<{attacker: string, victim: string, attackerColor: string} | null>(null);
     const [coinShowerPos, setCoinShowerPos] = useState<{x: number, y: number} | null>(null);
     const [homeCelebrationPos, setHomeCelebrationPos] = useState<{x: number, y: number} | null>(null);
     const [showNearMiss, setShowNearMiss] = useState(false);
@@ -798,6 +800,19 @@ export const LudoGame: React.FC = () => {
         // Board flash in attacker's color
         const attackerColor = COLOR_MAP[data.capturedBy as PlayerColor]?.main || '#fff';
         triggerBoardFlash(attackerColor);
+
+        // Capture callout with player names
+        const currentState = serverStateRef.current;
+        if (currentState) {
+            const attackerPlayer = currentState.players.find((p: ServerPlayer) => p.color === data.capturedBy);
+            const victimPlayer = currentState.players.find((p: ServerPlayer) => p.color === data.capturedPlayer);
+            setCaptureCallout({
+                attacker: attackerPlayer?.username || data.capturedBy,
+                victim: victimPlayer?.username || data.capturedPlayer,
+                attackerColor: data.capturedBy,
+            });
+            setTimeout(() => setCaptureCallout(null), 2500);
+        }
 
         // Fly-back animation: captured piece flies back to base with delay
         // Delayed 300ms to let the explosion play out -- brief "slow motion" moment
@@ -1333,52 +1348,6 @@ export const LudoGame: React.FC = () => {
         }
     };
 
-    // Dice drag/swipe handlers for Ludo King-style gesture rolling
-    const handleDicePointerDown = useCallback((e: React.PointerEvent) => {
-        if (!canRollDice) return;
-        diceDragStartY.current = e.clientY;
-        diceDragTriggered.current = false;
-        setIsDiceDragging(true);
-        setDicePressed(true);
-        setDiceDragDelta(0);
-    }, [canRollDice]);
-
-    const handleDicePointerMove = useCallback((e: React.PointerEvent) => {
-        if (!isDiceDragging || diceDragStartY.current === null || diceDragTriggered.current) return;
-        const delta = diceDragStartY.current - e.clientY; // positive = upward
-        setDiceDragDelta(Math.max(0, delta));
-        if (delta > 30) {
-            diceDragTriggered.current = true;
-            setIsDiceDragging(false);
-            setDicePressed(false);
-            setDiceDragDelta(0);
-            diceDragStartY.current = null;
-            rollDice();
-        }
-    }, [isDiceDragging, rollDice]);
-
-    const handleDicePointerUp = useCallback(() => {
-        if (isDiceDragging && !diceDragTriggered.current && canRollDice) {
-            // Tap fallback - if no significant drag, treat as tap
-            rollDice();
-        }
-        setIsDiceDragging(false);
-        setDicePressed(false);
-        setDiceDragDelta(0);
-        diceDragStartY.current = null;
-    }, [isDiceDragging, canRollDice, rollDice]);
-
-    const handleDicePointerLeave = useCallback(() => {
-        setIsDiceDragging(false);
-        setDicePressed(false);
-        setDiceDragDelta(0);
-        diceDragStartY.current = null;
-    }, []);
-
-    const diceSwipeStyle = isDiceDragging && diceDragDelta > 0 ? {
-        transform: `translateY(${-Math.min(diceDragDelta * 0.5, 20)}px) rotate(${Math.min(diceDragDelta * 0.3, 15)}deg)`,
-    } : undefined;
-
     const movePiece = (pieceId: number) => {
         if (isLocalMatch) {
             executeLocalMove(pieceId);
@@ -1398,6 +1367,7 @@ export const LudoGame: React.FC = () => {
         setCaptureStreak(0);
         setShowStreakOverlay(false);
         setCaptureExplosionPos(null);
+        setCaptureCallout(null);
         setCoinShowerPos(null);
         setHomeCelebrationPos(null);
         setShowNearMiss(false);
@@ -1500,6 +1470,51 @@ export const LudoGame: React.FC = () => {
     ));
     const canRollDice = !!(isMyTurn && !serverState?.waitingForMove && !isRolling);
     const currentPlayer = serverState?.players[serverState.currentPlayerIndex];
+
+    // Dice drag/swipe handlers for Ludo King-style gesture rolling
+    const handleDicePointerDown = useCallback((e: React.PointerEvent) => {
+        if (!canRollDice) return;
+        diceDragStartY.current = e.clientY;
+        diceDragTriggered.current = false;
+        setIsDiceDragging(true);
+        setDicePressed(true);
+        setDiceDragDelta(0);
+    }, [canRollDice]);
+
+    const handleDicePointerMove = useCallback((e: React.PointerEvent) => {
+        if (!isDiceDragging || diceDragStartY.current === null || diceDragTriggered.current) return;
+        const delta = diceDragStartY.current - e.clientY;
+        setDiceDragDelta(Math.max(0, delta));
+        if (delta > 30) {
+            diceDragTriggered.current = true;
+            setIsDiceDragging(false);
+            setDicePressed(false);
+            setDiceDragDelta(0);
+            diceDragStartY.current = null;
+            rollDice();
+        }
+    }, [isDiceDragging, rollDice]);
+
+    const handleDicePointerUp = useCallback(() => {
+        if (isDiceDragging && !diceDragTriggered.current && canRollDice) {
+            rollDice();
+        }
+        setIsDiceDragging(false);
+        setDicePressed(false);
+        setDiceDragDelta(0);
+        diceDragStartY.current = null;
+    }, [isDiceDragging, canRollDice, rollDice]);
+
+    const handleDicePointerLeave = useCallback(() => {
+        setIsDiceDragging(false);
+        setDicePressed(false);
+        setDiceDragDelta(0);
+        diceDragStartY.current = null;
+    }, []);
+
+    const diceSwipeStyle = isDiceDragging && diceDragDelta > 0 ? {
+        transform: `translateY(${-Math.min(diceDragDelta * 0.5, 20)}px) rotate(${Math.min(diceDragDelta * 0.3, 15)}deg)`,
+    } : undefined;
 
     // Urgency tick with escalating pitch
     useEffect(() => {
@@ -2019,6 +2034,29 @@ export const LudoGame: React.FC = () => {
                 {isMyTurn && matchState === 'PLAYING' && (
                     <UrgencyVignette timeLeft={turnTimeLeft} threshold={5} />
                 )}
+
+                {/* Capture callout overlay */}
+                <AnimatePresence>
+                    {captureCallout && (
+                        <motion.div
+                            className="capture-callout-overlay"
+                            initial={{ opacity: 0, scale: 0.5, y: 30 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.8, y: -20 }}
+                            transition={{ type: 'spring', damping: 12, stiffness: 200 }}
+                        >
+                            <div className="capture-callout-text">
+                                <span className={`callout-name callout-${captureCallout.attackerColor.toLowerCase()}`}>
+                                    {captureCallout.attacker}
+                                </span>
+                                <span className="callout-action">CAPTURED</span>
+                                <span className="callout-name callout-victim">
+                                    {captureCallout.victim}
+                                </span>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 <div className="ludo-rotate-warning">
                     <div className="rotate-phone-glyph">
@@ -2605,6 +2643,32 @@ export const LudoGame: React.FC = () => {
                         </div>
                     </div>
                     )}
+
+                    {/* Winning Prediction Bar */}
+                    {matchState === 'PLAYING' && serverState && (() => {
+                        const playerProgress = serverState.players.map((p: ServerPlayer) => {
+                            const score = p.pieces.reduce((sum: number, piece: ServerPiece) => {
+                                if (piece.finished) return sum + 56;
+                                if (piece.position === -1) return sum;
+                                return sum + Math.max(0, piece.travelled);
+                            }, 0);
+                            return { color: p.color, progress: (score / 224) * 100, name: p.username || `Player ${p.color}` };
+                        });
+                        const totalProgress = playerProgress.reduce((s: number, p: { progress: number }) => s + p.progress, 0);
+                        return (
+                            <div className="ludo-prediction-bar">
+                                {playerProgress.map((p: { color: string; progress: number; name: string }) => (
+                                    <div
+                                        key={p.color}
+                                        className={`prediction-segment prediction-${p.color.toLowerCase()}`}
+                                        style={{ width: `${totalProgress > 0 ? Math.max((p.progress / totalProgress) * 100, 2) : 100 / playerProgress.length}%` }}
+                                    >
+                                        <span className="prediction-label">{Math.round(p.progress)}%</span>
+                                    </div>
+                                ))}
+                            </div>
+                        );
+                    })()}
 
                     {/* Bottom Controls */}
                     <div className="ludo-bottom-panel">
