@@ -77,7 +77,7 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return saved || generateClientSeed();
   });
 
-  const activeBalance = isAuthenticated ? (isDemoMode ? demoBalance : balance) : 0;
+  const activeBalance = isAuthenticated ? (isDemoMode ? demoBalance : balance) : demoBalance;
 
   const applyUserData = (userData: any) => {
     const realBal = (userData.balance || 0) / 100000;
@@ -245,7 +245,16 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const placeBet = (amount: number, gameData?: any) => {
     if (amount <= 0) return false;
-    if (!isAuthenticated) return false;
+
+    // Guest mode: allow local demo play without auth
+    if (!isAuthenticated) {
+      if (demoBalance < amount) {
+        alert('Insufficient balance');
+        return { success: false, error: 'Insufficient balance' };
+      }
+      setDemoBalance(prev => prev - amount);
+      return { success: true, balance: (demoBalance - amount) * 100000, payout: 0 };
+    }
 
     // Strict path: authenticated active game bets are backend-confirmed only.
     if (activeGameId) {
