@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { GameProvider, useGame } from './contexts/GameContext';
-import { AuthModal } from './components/auth/AuthModal';
+// AuthModal disabled for testing - import removed
 import { WalletModal } from './components/wallet/WalletModal';
 import { formatIndianNumber } from './utils/format';
 import { LobbyScreen } from './components/LobbyScreen';
@@ -64,9 +64,7 @@ const SIDEBAR_CATEGORIES = [
 
 const GameController = () => {
   const { isDemoMode, activeBalance, toggleDemoMode, activeGameId, joinGame, leaveGame, login, register, isAuthenticated, user } = useGame();
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false); // Auth disabled for testing
-  // Override: never show auth modal
-  const _setIsAuthModalOpen = (_v: boolean) => {}; // no-op
+  // Auth disabled for testing
   const [isWalletOpen, setIsWalletOpen] = useState(false);
   const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [walletInitialTab, setWalletInitialTab] = useState<'deposit' | 'withdraw' | 'history'>('deposit');
@@ -77,16 +75,16 @@ const GameController = () => {
   const handleJoin = (gameId: string) => {
     // DEV: skip auth check for local testing
     // if (!isAuthenticated) {
-    //   _setIsAuthModalOpen(true);
+    //   {};
     //   return;
     // }
     joinGame(gameId);
   };
 
-  const handleAuthSuccess = async (payload: { mode: 'login' | 'register'; username: string; password: string }) => {
+  // handleAuthSuccess disabled for testing
+  const _handleAuthSuccess = async (payload: { mode: 'login' | 'register'; username: string; password: string }) => {
     if (payload.mode === 'register') {
       await register(payload.username, payload.password);
-      // Prompt immediate recharge after successful registration.
       setWalletInitialTab('deposit');
       setWalletInitialDepositMethod('qr');
       setWalletAutoQRAmountInr(100);
@@ -94,8 +92,8 @@ const GameController = () => {
     } else {
       await login(payload.username, payload.password);
     }
-    setIsAuthModalOpen(false);
   };
+  void _handleAuthSuccess; // suppress unused warning
 
   const handleBackToLobby = () => {
     leaveGame();
@@ -225,7 +223,7 @@ const GameController = () => {
         {/* Footer */}
         <div className="sidebar-footer">
           {!isAuthenticated ? (
-            <button className="btn-primary" style={{ width: '100%' }} onClick={() => _setIsAuthModalOpen(true)}>
+            <button className="btn-primary" style={{ width: '100%' }} onClick={() => {}}>
               Sign In
             </button>
           ) : (
@@ -297,7 +295,7 @@ const GameController = () => {
                   Recharge
                 </button>
               ) : (
-                <button className="wallet-btn" onClick={() => _setIsAuthModalOpen(true)}>
+                <button className="wallet-btn" onClick={() => {}}>
                   Sign In
                 </button>
               )}

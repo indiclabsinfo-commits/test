@@ -42,7 +42,7 @@ interface GameContextType {
   joinGame: (gameId: string) => void;
   leaveGame: () => void;
 
-  placeBet: (amount: number, gameData?: any) => Promise<any> | boolean;
+  placeBet: (amount: number, gameData?: any) => Promise<any> | boolean | { success: boolean; error?: string; balance?: number; payout?: number };
   collectWinnings: (amount: number) => void;
   cashout: (gameData?: any) => Promise<any>;
   sendGameAction: (action: string, data?: any) => Promise<any>;

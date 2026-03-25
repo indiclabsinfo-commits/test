@@ -670,7 +670,7 @@ export const TurnBanner: React.FC<{
     isMyTurn: boolean;
     playerName: string;
     color: string;
-}> = ({ isMyTurn, playerName, color }) => {
+}> = ({ isMyTurn, playerName: _playerName, color }) => {
     return (
         <AnimatePresence>
             {isMyTurn && (

@@ -5,7 +5,6 @@ import { wsService } from '../../services/websocket';
 import {
     playDiceShakeEnhanced,
     playPieceMove,
-    playCapture,
     playCaptureEnhanced,
     playHomeEntry,
     playHomeEntryEnhanced,
@@ -252,7 +251,7 @@ export const LudoGame: React.FC = () => {
 
     // Animation states
     const [showConfetti, setShowConfetti] = useState(false);
-    const [capturingPiece, setCapturingPiece] = useState<{color: PlayerColor, pieceId: number} | null>(null);
+    const [_capturingPiece, setCapturingPiece] = useState<{color: PlayerColor, pieceId: number} | null>(null);
     const [captureFlyback, setCaptureFlyback] = useState<{color: PlayerColor, pieceId: number, fromPos: {r: number, c: number}, toPos: {r: number, c: number}} | null>(null);
     const [attackerPiece, setAttackerPiece] = useState<{color: PlayerColor, pieceId: number} | null>(null);
     const [sparklingPiece, setSparklingPiece] = useState<{color: PlayerColor, pieceId: number} | null>(null);
@@ -283,7 +282,7 @@ export const LudoGame: React.FC = () => {
     const [diceAnnouncement, setDiceAnnouncement] = useState<string | null>(null);
     const [showTurnBanner, setShowTurnBanner] = useState(false);
     const [emojiReactions, setEmojiReactions] = useState<Array<{id: string, emoji: string, fromTop: boolean}>>([]);
-    const [diceRevealed, setDiceRevealed] = useState(false);
+    const [_diceRevealed, setDiceRevealed] = useState(false);
     const [consecutiveSixes, setConsecutiveSixes] = useState(0);
     // Trail cells for hop path highlight
     const [trailCells, setTrailCells] = useState<{ r: number; c: number; color: PlayerColor }[]>([]);
@@ -294,7 +293,7 @@ export const LudoGame: React.FC = () => {
     const [diceSixBurstPos, setDiceSixBurstPos] = useState<{x: number, y: number} | null>(null);
     const [boardFlashColor, setBoardFlashColor] = useState<string | null>(null);
     const [showBoardFlash, setShowBoardFlash] = useState(false);
-    const [movePreview, setMovePreview] = useState<{row: number, col: number, color: string} | null>(null);
+    const [_movePreview, setMovePreview] = useState<{row: number, col: number, color: string} | null>(null);
     const [dicePressed, setDicePressed] = useState(false);
     const [diceDragDelta, setDiceDragDelta] = useState(0);
     const [isDiceDragging, setIsDiceDragging] = useState(false);
