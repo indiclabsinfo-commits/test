@@ -342,8 +342,10 @@ export const LudoGame: React.FC = () => {
         const nav = navigator as Navigator & { deviceMemory?: number };
         const cores = nav.hardwareConcurrency || 8;
         const memory = nav.deviceMemory || 4;
+        const isMobile = window.innerWidth <= 768 || ('ontouchstart' in window);
         return {
             isLowEnd: cores <= 4 || memory <= 2,
+            isMobile,
             diceAnimDurationMs: cores <= 4 || memory <= 2 ? 400 : 780,
         };
     }, []);
@@ -828,17 +830,20 @@ export const LudoGame: React.FC = () => {
 
         const toCoord = getBasePosition(capturedColor, capturedPieceId);
 
-        // Delay the flyback slightly for dramatic impact -- 300ms "slow motion" pause
-        setTimeout(() => {
-            playCaptureReturn();
-            setCaptureFlyback({
-                color: capturedColor,
-                pieceId: capturedPieceId,
-                fromPos: fromCoord,
-                toPos: toCoord,
-            });
-            setTimeout(() => setCaptureFlyback(null), 800);
-        }, 300);
+        // Anchor the captured piece at capture point immediately so it doesn't
+        // snap to base before the flyback animation begins
+        setCaptureFlyback({
+            color: capturedColor,
+            pieceId: capturedPieceId,
+            fromPos: fromCoord,
+            toPos: toCoord,
+        });
+
+        // Play return sound after a brief dramatic pause
+        setTimeout(() => playCaptureReturn(), 300);
+
+        // Clear flyback after animation completes (300ms pause + 800ms arc)
+        setTimeout(() => setCaptureFlyback(null), 1100);
 
         // Attacker power pulse
         if (data.attackerPieceId !== undefined) {
@@ -862,12 +867,14 @@ export const LudoGame: React.FC = () => {
             });
             setTimeout(() => setCaptureExplosionPos(null), 900);
 
-            // COIN SHOWER -- gold coins burst from the capture point
-            setCoinShowerPos({ x: explosionX, y: explosionY });
-            setTimeout(() => setCoinShowerPos(null), 1500);
+            // COIN SHOWER -- gold coins burst from the capture point (skip on low-end)
+            if (!deviceProfile.isLowEnd) {
+                setCoinShowerPos({ x: explosionX, y: explosionY });
+                setTimeout(() => setCoinShowerPos(null), 1500);
 
-            // Play coin shower sound slightly delayed for layered audio
-            setTimeout(() => playCoinShower(), 100);
+                // Play coin shower sound slightly delayed for layered audio
+                setTimeout(() => playCoinShower(), 100);
+            }
         }
 
         // Track capture streak
@@ -1111,6 +1118,28 @@ export const LudoGame: React.FC = () => {
             if (roll !== 6) return;
             piece.position = startOffset;
             piece.travelled = 0;
+
+            // Check for capture at start position (matches server logic)
+            if (!SAFE_SPOTS.includes(startOffset)) {
+                for (const other of state.players) {
+                    if (other.color === player.color) continue;
+                    for (const otherPiece of other.pieces) {
+                        if (otherPiece.position === startOffset && otherPiece.position >= 0) {
+                            otherPiece.position = -1;
+                            otherPiece.travelled = 0;
+                            captured = true;
+
+                            handlePieceCaptured({
+                                capturedBy: player.color,
+                                capturedPlayer: other.color,
+                                capturedPieceId: otherPiece.id,
+                                attackerPieceId: pieceId,
+                                position: startOffset,
+                            });
+                        }
+                    }
+                }
+            }
         } else {
             const newTravelled = piece.travelled + roll;
             if (newTravelled > 56) return;
@@ -2205,10 +2234,12 @@ export const LudoGame: React.FC = () => {
                             </AnimatePresence>
 
                             {/* COIN SHOWER -- gold coins cascade from capture point */}
-                            {coinShowerPos && (
+                            {coinShowerPos && !deviceProfile.isLowEnd && (
                                 <CoinShower
                                     position={coinShowerPos}
-                                    coinCount={captureStreakRef.current > 1 ? 40 : 25}
+                                    coinCount={deviceProfile.isMobile
+                                        ? (captureStreakRef.current > 1 ? 15 : 10)
+                                        : (captureStreakRef.current > 1 ? 40 : 25)}
                                 />
                             )}
 
@@ -2423,13 +2454,22 @@ export const LudoGame: React.FC = () => {
                                 const isSparkling = sparklingPiece?.color === p.color && sparklingPiece?.pieceId === piece.id;
                                 const isMovingTrail = movingPieceTrail?.color === p.color && movingPieceTrail?.pieceId === piece.id;
 
-                                // Override position if hopping
+                                // Override position if hopping or flying back
                                 let finalStyle = { ...style };
                                 if (isHopping && hoppingPiece.currentStep) {
                                     finalStyle = {
                                         ...finalStyle,
                                         gridRow: hoppingPiece.currentStep.r,
                                         gridColumn: hoppingPiece.currentStep.c,
+                                    };
+                                } else if (isFlyingBack && captureFlyback) {
+                                    // BUG FIX: During flyback, anchor piece at the capture point
+                                    // (fromPos), NOT at its already-updated base position.
+                                    // The Framer Motion x/y arc animation moves it from fromPos to toPos.
+                                    finalStyle = {
+                                        ...finalStyle,
+                                        gridRow: captureFlyback.fromPos.r,
+                                        gridColumn: captureFlyback.fromPos.c,
                                     };
                                 }
 
@@ -2482,15 +2522,16 @@ export const LudoGame: React.FC = () => {
                                             scale: [1, 1.1, 1],
                                             rotateZ: -boardRotationDeg,
                                         } : (isFlyingBack && flybackArc) ? {
-                                            x: [0, flybackArc.dx * 0.5, flybackArc.dx],
-                                            y: [0, flybackArc.arcY, flybackArc.dy],
-                                            scale: [1, 1.3, 0.6],
-                                            opacity: [1, 0.9, 0.3],
-                                            rotate: [-boardRotationDeg, -boardRotationDeg + 180, -boardRotationDeg + 360],
+                                            // Hold at capture point briefly, then arc to base
+                                            x: [0, 0, flybackArc.dx * 0.5, flybackArc.dx],
+                                            y: [0, 0, flybackArc.arcY, flybackArc.dy],
+                                            scale: [1, 1.1, 1.3, 0.6],
+                                            opacity: [1, 1, 0.9, 0.3],
+                                            rotate: [-boardRotationDeg, -boardRotationDeg, -boardRotationDeg + 180, -boardRotationDeg + 360],
                                         } : isFlyingBack ? {
-                                            scale: [1, 1.4, 0.3],
-                                            opacity: [1, 1, 0.2],
-                                            y: [0, -25, 0],
+                                            scale: [1, 1.1, 1.4, 0.3],
+                                            opacity: [1, 1, 1, 0.2],
+                                            y: [0, 0, -25, 0],
                                             rotateZ: -boardRotationDeg,
                                         } : isAttacker ? {
                                             scale: [1, 1.35, 1.15, 1],
@@ -2520,7 +2561,7 @@ export const LudoGame: React.FC = () => {
                                             : isMovingTrail
                                             ? { duration: 0.35, times: [0, 0.4, 1], ease: 'easeOut' }
                                             : isFlyingBack
-                                            ? { duration: 0.75, times: [0, 0.4, 1], ease: [0.25, 0.1, 0.25, 1] }
+                                            ? { duration: 1.0, times: [0, 0.27, 0.6, 1], ease: [0.25, 0.1, 0.25, 1] }
                                             : isAttacker
                                             ? { duration: 0.6, times: [0, 0.25, 0.5, 1], ease: 'easeOut' }
                                             : isMovable

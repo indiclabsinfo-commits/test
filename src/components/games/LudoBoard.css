@@ -2565,11 +2565,11 @@
 
     .ludo-board {
         border-width: 4px;
-        max-width: min(94vw, 320px);
+        max-width: min(88vw, 310px);
     }
 
     .ludo-board-wrapper {
-        max-width: min(94vw, 320px);
+        max-width: min(88vw, 310px);
     }
 
     .base-inner {
@@ -2959,21 +2959,22 @@
         display: none !important;
     }
 
-    /* Board wrapper sizing for mobile */
+    /* Board wrapper sizing for mobile -- prevent edge cutoff */
     .ludo-board-wrapper {
-        max-width: min(92vw, 420px);
+        max-width: min(88vw, 380px);
         margin: 0 auto;
+        padding: 4px;
     }
 
     .ludo-board-wrapper.duel-wrapper {
-        max-width: min(95vw, 500px);
+        max-width: min(90vw, 420px);
     }
 
-    /* Avatars on mobile -- Ludo King sized */
+    /* Avatars on mobile -- slightly smaller to avoid overflow */
     .player-avatar-circle {
-        width: 46px;
-        height: 46px;
-        font-size: 17px;
+        width: 40px;
+        height: 40px;
+        font-size: 15px;
     }
 
     .player-avatar-label {
@@ -3736,11 +3737,11 @@
     will-change: transform;
 }
 
-/* Flyback: captured piece flies back to base */
+/* Flyback: captured piece flies back to base via Framer Motion x/y arc */
 .piece.flyback {
     z-index: 50;
-    transition: grid-row 0.6s cubic-bezier(0.4, 0, 0.2, 1),
-                grid-column 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    /* No grid transition -- grid is anchored at capture point, Framer Motion handles the arc */
+    transition: none;
     filter: brightness(1.4) saturate(0.6);
     opacity: 0.7;
 }
@@ -4142,3 +4143,113 @@
 .callout-red { color: #FF5C6E; text-shadow: 0 0 14px rgba(255, 92, 110, 0.55), 0 0 28px rgba(255, 92, 110, 0.2); }
 .callout-blue { color: #5C9AFF; text-shadow: 0 0 14px rgba(92, 154, 255, 0.55), 0 0 28px rgba(92, 154, 255, 0.2); }
 .callout-victim { color: #ff6b6b; text-shadow: 0 0 10px rgba(255, 107, 107, 0.5); font-size: 1.2rem; }
+
+/* ============================================
+   MOBILE PERFORMANCE OPTIMIZATIONS
+   Remove expensive GPU effects on phones
+   ============================================ */
+
+@media (max-width: 768px) {
+    /* Kill floating board animation on mobile -- saves constant compositing */
+    .ludo-board {
+        animation: none !important;
+        max-width: min(88vw, 380px);
+    }
+
+    .ludo-board.board-rotated {
+        animation: none !important;
+    }
+
+    .ludo-board.duel-board {
+        max-width: min(90vw, 420px);
+    }
+
+    /* Remove expensive drop-shadow filters from pieces on mobile */
+    .piece.green,
+    .piece.yellow,
+    .piece.red,
+    .piece.blue {
+        filter: none;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+    }
+
+    /* Promote pieces for smooth transform animations */
+    .piece {
+        will-change: transform;
+    }
+
+    /* Don't promote piece sub-elements */
+    .piece::before,
+    .piece::after {
+        will-change: auto;
+    }
+
+    /* Remove drop-shadow from safe spot stars */
+    .safe::before {
+        filter: none;
+    }
+
+    /* Remove home triangle drop-shadows */
+    .home-tri-top,
+    .home-tri-bottom,
+    .home-tri-left,
+    .home-tri-right {
+        filter: none;
+    }
+
+    /* Simplify avatar arrow filter */
+    .hud-turn-arrow {
+        filter: none;
+    }
+
+    /* Remove backdrop-filter from turn pill */
+    .ludo-turn-pill {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+
+    /* Remove backdrop-filter from capture callout */
+    .capture-callout-overlay .capture-callout-text {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+
+    /* Remove infinite crown bounce animation */
+    .crown-wrapper {
+        animation: none;
+        filter: none;
+    }
+
+    /* Simplify glow animation on mobile -- fewer drop-shadows */
+    .piece.glow {
+        animation: piece-glow-mobile 0.8s infinite alternate ease-in-out;
+    }
+
+    @keyframes piece-glow-mobile {
+        from {
+            transform: scale(1.06);
+            box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+            filter: brightness(1.2);
+        }
+        to {
+            transform: scale(1.14) translateY(-2px);
+            box-shadow: 0 0 16px rgba(255, 215, 0, 0.8);
+            filter: brightness(1.35);
+        }
+    }
+
+    /* Simplify dice invite pulse on mobile */
+    .dice-3d-wrapper.can-roll {
+        animation: dice-invite-mobile 1.5s ease-in-out infinite;
+    }
+
+    @keyframes dice-invite-mobile {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.06); }
+    }
+
+    /* Simplify floating emoji filter */
+    .floating-emoji {
+        filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4)) !important;
+    }
+}
