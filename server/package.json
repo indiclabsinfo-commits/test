@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "tsc && cp -r database dist/database 2>/dev/null || true",
     "start": "node dist/index.js",
     "migrate": "node dist/scripts/migrate.js"
   },

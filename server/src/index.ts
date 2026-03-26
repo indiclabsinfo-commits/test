@@ -199,6 +199,99 @@ const startServer = async () => {
     await pool.query('SELECT NOW()');
     console.log('✓ Database connected');
 
+    // Auto-create tables if they don't exist (first deploy)
+    const tableCheck = await pool.query(`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'users')`);
+    if (!tableCheck.rows[0].exists) {
+      console.log('⚡ First deploy detected — creating database tables...');
+      const fs = await import('fs');
+      const path = await import('path');
+      const schemaPath = path.join(import.meta.dirname || '.', '..', 'database', 'schema.sql');
+      try {
+        const schema = fs.readFileSync(schemaPath, 'utf-8');
+        await pool.query(schema);
+        console.log('✓ Database tables created successfully');
+      } catch (schemaErr) {
+        console.error('⚠ Schema file not found or failed, trying inline migration...');
+        // Minimal inline migration for core tables
+        await pool.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS users (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            username VARCHAR(32) UNIQUE NOT NULL,
+            password_hash VARCHAR(255) NOT NULL,
+            balance BIGINT DEFAULT 0,
+            demo_balance BIGINT DEFAULT 100000000,
+            is_demo_mode BOOLEAN DEFAULT TRUE,
+            phone VARCHAR(15),
+            email VARCHAR(100),
+            role VARCHAR(20) DEFAULT 'user',
+            last_nonce INTEGER DEFAULT 0,
+            total_wagered BIGINT DEFAULT 0,
+            total_won BIGINT DEFAULT 0,
+            total_lost BIGINT DEFAULT 0,
+            is_banned BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_seen TIMESTAMP,
+            is_active BOOLEAN DEFAULT TRUE
+          )
+        `);
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS auth_sessions (
+            id UUID PRIMARY KEY,
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            refresh_token_hash VARCHAR(128) NOT NULL,
+            ip_address VARCHAR(64),
+            user_agent TEXT,
+            replaced_by_session_id UUID,
+            revoked_at TIMESTAMP,
+            expires_at TIMESTAMP NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+        `);
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS game_sessions (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            game_type VARCHAR(30) NOT NULL,
+            bet_amount BIGINT NOT NULL,
+            multiplier NUMERIC(10, 4),
+            payout BIGINT,
+            profit BIGINT,
+            result VARCHAR(10),
+            client_seed VARCHAR(64),
+            server_seed_hash VARCHAR(64),
+            server_seed_revealed VARCHAR(64),
+            nonce INTEGER,
+            provably_fair_seed_id UUID,
+            game_data JSONB,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          )
+        `);
+        await pool.query(`CREATE TABLE IF NOT EXISTS transactions (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          type VARCHAR(30) NOT NULL,
+          status VARCHAR(20) NOT NULL DEFAULT 'pending',
+          amount BIGINT NOT NULL,
+          fee BIGINT DEFAULT 0,
+          net_amount BIGINT NOT NULL,
+          currency VARCHAR(10) DEFAULT 'INR',
+          balance_before BIGINT,
+          balance_after BIGINT,
+          reference_id UUID,
+          reference_type VARCHAR(30),
+          description TEXT,
+          metadata JSONB,
+          is_demo BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`);
+        console.log('✓ Core tables created via inline migration');
+      }
+    } else {
+      console.log('✓ Database tables already exist');
+    }
+
     // Connect to Redis
     await connectRedis();
 
