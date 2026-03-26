@@ -268,6 +268,32 @@ const startServer = async () => {
       console.log('✓ Database tables already exist');
     }
 
+    // Ensure wallets table exists (may be missing if first deploy used inline fallback)
+    const walletsCheck = await pool.query(`SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'wallets')`);
+    if (!walletsCheck.rows[0].exists) {
+      console.log('⚡ Creating missing wallets table...');
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS wallets (
+          id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+          user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          currency VARCHAR(10) NOT NULL,
+          address VARCHAR(128) NOT NULL,
+          encrypted_key TEXT,
+          derivation_path VARCHAR(50),
+          hd_index INTEGER,
+          balance BIGINT DEFAULT 0,
+          confirmed_balance BIGINT DEFAULT 0,
+          pending_balance BIGINT DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, currency)
+        )
+      `);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_wallets_user ON wallets(user_id)`);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_wallets_address ON wallets(address)`);
+      console.log('✓ Wallets table created');
+    }
+
     // Connect to Redis
     await connectRedis();
 
