@@ -420,6 +420,26 @@ const startServer = async () => {
 
     console.log('✓ All database tables ensured');
 
+    // Seed essential data if missing
+    const bankCheck = await pool.query(`SELECT COUNT(*) FROM bank_accounts`);
+    if (parseInt(bankCheck.rows[0].count) === 0) {
+      console.log('⚡ Seeding default bank account for QR deposits...');
+      await pool.query(`
+        INSERT INTO bank_accounts (label, upi_id, bank_name, account_holder, daily_limit, is_active, priority)
+        VALUES ('Primary UPI', 'payment@upi', 'Default Bank', 'Tacticash', 50000000000, TRUE, 10)
+        ON CONFLICT DO NOTHING
+      `);
+    }
+    const houseCheck = await pool.query(`SELECT COUNT(*) FROM house_wallets`);
+    if (parseInt(houseCheck.rows[0].count) === 0) {
+      console.log('⚡ Seeding house wallets...');
+      await pool.query(`
+        INSERT INTO house_wallets (currency, wallet_type) VALUES
+          ('BTC', 'hot'), ('XMR', 'hot'), ('USDT', 'hot'), ('INR', 'hot')
+        ON CONFLICT (currency) DO NOTHING
+      `);
+    }
+
     // Connect to Redis
     await connectRedis();
 

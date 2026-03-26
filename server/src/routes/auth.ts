@@ -93,12 +93,17 @@ router.post('/register', [
     // Hash password
     const passwordHash = await bcrypt.hash(password, 12);
 
+    // First user ever registered becomes superadmin
+    const userCount = await query('SELECT COUNT(*) FROM users');
+    const isFirstUser = parseInt(userCount.rows[0].count) === 0;
+    const role = isFirstUser ? 'superadmin' : 'user';
+
     // Create user: balance=0 (real), demo_balance=100000000 (1000.00 demo credits)
     const result = await query(
-      `INSERT INTO users (username, password_hash, balance, demo_balance, is_demo_mode)
-       VALUES ($1, $2, 0, 100000000, TRUE)
+      `INSERT INTO users (username, password_hash, balance, demo_balance, is_demo_mode, role)
+       VALUES ($1, $2, 0, 100000000, TRUE, $3)
        RETURNING id, username, balance, demo_balance, is_demo_mode, role`,
-      [username, passwordHash]
+      [username, passwordHash, role]
     );
 
     const user = result.rows[0];
