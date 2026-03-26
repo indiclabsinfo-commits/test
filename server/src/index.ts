@@ -9,20 +9,8 @@ import rateLimit from 'express-rate-limit';
 
 import { pool } from './config/database.js';
 import { connectRedis } from './config/redis.js';
-import { WebSocketGameServer } from './services/WebSocketGameServer.js';
-import { withdrawalService } from './services/WithdrawalService.js';
-import { balanceSyncService } from './services/BalanceSyncService.js';
 
-// Import routes
-import authRoutes from './routes/auth.js';
-import gameRoutes from './routes/game.js';
-import leaderboardRoutes from './routes/leaderboard.js';
-import agentRoutes from './routes/agent.js';
-import depositRoutes, { webhookRouter } from './routes/deposit.js';
-import withdrawalRoutes from './routes/withdrawal.js';
-import adminRoutes from './routes/admin.js';
-import userRoutes from './routes/user.js';
-import noticesRoutes from './routes/notices.js';
+// Routes and services loaded AFTER migration (dynamic imports in startServer)
 
 dotenv.config();
 
@@ -64,7 +52,7 @@ const isOriginLockedRequestAllowed = (path: string, ip: string, originHeader: st
 
 // WebSocket Server
 const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
-const wsGameServer = new WebSocketGameServer(wss);
+let wsGameServer: any = null;
 
 // Middleware
 app.use(helmet({
@@ -122,17 +110,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/game', gameRoutes);
-app.use('/api/leaderboard', leaderboardRoutes);
-app.use('/api/agent', agentRoutes);
-app.use('/api/deposit', depositRoutes);
-app.use('/api/webhook', webhookRouter);
-app.use('/api/withdrawal', withdrawalRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/user', userRoutes);
-app.use('/api/notices', noticesRoutes);
+// API Routes registered dynamically after DB migration (see startServer)
 
 // 404 handler
 app.use((req, res) => {
@@ -153,10 +131,8 @@ const shutdown = async () => {
   console.log('\nShutting down gracefully...');
 
   // Close WebSocket server
-  wsGameServer.shutdown();
+  if (wsGameServer) wsGameServer.shutdown();
   wss.close();
-
-  withdrawalService.stop();
 
   // Close database connections
   await pool.end();
@@ -294,6 +270,36 @@ const startServer = async () => {
 
     // Connect to Redis
     await connectRedis();
+
+    // NOW load services and routes (after DB tables exist)
+    const { WebSocketGameServer } = await import('./services/WebSocketGameServer.js');
+    const { balanceSyncService } = await import('./services/BalanceSyncService.js');
+    const { withdrawalService } = await import('./services/WithdrawalService.js');
+
+    wsGameServer = new WebSocketGameServer(wss);
+
+    const authRoutes = (await import('./routes/auth.js')).default;
+    const gameRoutes = (await import('./routes/game.js')).default;
+    const leaderboardRoutes = (await import('./routes/leaderboard.js')).default;
+    const agentRoutes = (await import('./routes/agent.js')).default;
+    const depositMod = await import('./routes/deposit.js');
+    const depositRoutes = depositMod.default;
+    const webhookRouter = depositMod.webhookRouter;
+    const withdrawalRoutes = (await import('./routes/withdrawal.js')).default;
+    const adminRoutes = (await import('./routes/admin.js')).default;
+    const userRoutes = (await import('./routes/user.js')).default;
+    const noticesRoutes = (await import('./routes/notices.js')).default;
+
+    app.use('/api/auth', authRoutes);
+    app.use('/api/game', gameRoutes);
+    app.use('/api/leaderboard', leaderboardRoutes);
+    app.use('/api/agent', agentRoutes);
+    app.use('/api/deposit', depositRoutes);
+    app.use('/api/webhook', webhookRouter);
+    app.use('/api/withdrawal', withdrawalRoutes);
+    app.use('/api/admin', adminRoutes);
+    app.use('/api/user', userRoutes);
+    app.use('/api/notices', noticesRoutes);
 
     // Keep users.balance and INR wallet balance aligned for all game/payment flows.
     await balanceSyncService.ensureInitialized();
