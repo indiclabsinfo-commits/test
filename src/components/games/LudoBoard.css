@@ -9,19 +9,19 @@
     --ludo-neon-soft: rgba(126, 249, 169, 0.28);
     --ludo-gold: #ffd86b;
     --ludo-panel-bg: rgba(12, 28, 46, 0.82);
-    /* Premium Ludo King palette - rich, saturated, classic board game colors */
-    --ludo-green: #1B8A2E;
-    --ludo-green-light: #3CB552;
-    --ludo-green-dark: #126B20;
-    --ludo-yellow: #F7C621;
-    --ludo-yellow-light: #FFDB4F;
-    --ludo-yellow-dark: #D4A813;
-    --ludo-blue: #1E5CB3;
-    --ludo-blue-light: #4A8AD4;
-    --ludo-blue-dark: #143E7A;
-    --ludo-red: #D42B2B;
-    --ludo-red-light: #E85555;
-    --ludo-red-dark: #A01E1E;
+    /* Ludo King vibrant palette - bold, saturated, high-contrast */
+    --ludo-green: #2ECC40;
+    --ludo-green-light: #5EFC82;
+    --ludo-green-dark: #1A9E2C;
+    --ludo-yellow: #FFD700;
+    --ludo-yellow-light: #FFE44D;
+    --ludo-yellow-dark: #E5B800;
+    --ludo-blue: #2196F3;
+    --ludo-blue-light: #64B5F6;
+    --ludo-blue-dark: #1565C0;
+    --ludo-red: #F44336;
+    --ludo-red-light: #FF7961;
+    --ludo-red-dark: #C62828;
     /* Board wood tones - dark mahogany frame */
     --ludo-wood-light: #FAF3E0;
     --ludo-wood-mid: #F5EDD5;
@@ -1092,20 +1092,20 @@
     width: 100%;
     aspect-ratio: 1;
     background:
-        radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.35), transparent 35%),
-        radial-gradient(circle at 82% 88%, rgba(255, 255, 255, 0.12), transparent 30%),
-        linear-gradient(145deg, #FAF3E0, #F5EDD5 35%, #F0E8CC 65%, #EBE2C3);
-    border: 7px solid var(--ludo-wood-dark);
+        radial-gradient(circle at 18% 12%, rgba(255, 255, 255, 0.5), transparent 35%),
+        radial-gradient(circle at 82% 88%, rgba(255, 255, 255, 0.2), transparent 30%),
+        linear-gradient(145deg, #FFFDF7, #FFF9ED 35%, #FFF5E1 65%, #FFF0D8);
+    border: 8px solid var(--ludo-wood-dark);
     border-radius: 12px;
-    max-width: min(92vw, 420px);
+    max-width: min(98vw, 500px);
     margin: 0 auto;
     box-shadow:
-        0 0 0 2px var(--ludo-wood-trim),
-        0 0 0 5px var(--ludo-wood-dark),
-        0 0 0 7px rgba(212, 170, 80, 0.6),
-        0 0 40px rgba(255, 215, 0, 0.12),
-        0 12px 40px rgba(0, 0, 0, 0.55),
-        0 4px 12px rgba(0, 0, 0, 0.35),
+        0 0 0 3px var(--ludo-wood-trim),
+        0 0 0 6px var(--ludo-wood-dark),
+        0 0 0 8px rgba(212, 170, 80, 0.7),
+        0 0 50px rgba(255, 215, 0, 0.18),
+        0 14px 50px rgba(0, 0, 0, 0.6),
+        0 6px 16px rgba(0, 0, 0, 0.4),
         inset 0 0 30px rgba(139, 69, 19, 0.05);
     overflow: visible;
     position: relative;
@@ -1419,49 +1419,49 @@
 /* Green home column: gradient pointing right toward center */
 .path-green {
     background:
-        linear-gradient(90deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.3) 60%, rgba(255, 255, 255, 0.45) 100%),
-        linear-gradient(90deg, #2ECC50 0%, #5AD87A 100%) !important;
-    border-color: rgba(0, 0, 0, 0.12) !important;
+        linear-gradient(90deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.35) 60%, rgba(255, 255, 255, 0.5) 100%),
+        linear-gradient(90deg, #2ECC40 0%, #69F0AE 100%) !important;
+    border-color: rgba(0, 100, 0, 0.15) !important;
     box-shadow:
-        inset 0 0 10px rgba(0, 0, 0, 0.14),
-        inset 0 2px 3px rgba(255, 255, 255, 0.3),
-        inset 0 -1px 2px rgba(0, 0, 0, 0.12) !important;
+        inset 0 0 12px rgba(0, 0, 0, 0.1),
+        inset 0 2px 4px rgba(255, 255, 255, 0.4),
+        inset 0 -1px 2px rgba(0, 0, 0, 0.1) !important;
 }
 
 /* Yellow home column: gradient pointing down toward center */
 .path-yellow {
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.3) 60%, rgba(255, 255, 255, 0.45) 100%),
-        linear-gradient(180deg, #F7C621 0%, #FFDB4F 100%) !important;
-    border-color: rgba(0, 0, 0, 0.12) !important;
+        linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.35) 60%, rgba(255, 255, 255, 0.5) 100%),
+        linear-gradient(180deg, #FFD700 0%, #FFEB3B 100%) !important;
+    border-color: rgba(180, 150, 0, 0.15) !important;
     box-shadow:
-        inset 0 0 10px rgba(0, 0, 0, 0.12),
-        inset 0 2px 3px rgba(255, 255, 255, 0.35),
-        inset 0 -1px 2px rgba(0, 0, 0, 0.1) !important;
+        inset 0 0 12px rgba(0, 0, 0, 0.08),
+        inset 0 2px 4px rgba(255, 255, 255, 0.45),
+        inset 0 -1px 2px rgba(0, 0, 0, 0.08) !important;
 }
 
 /* Red home column: gradient pointing left toward center */
 .path-red {
     background:
-        linear-gradient(270deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.3) 60%, rgba(255, 255, 255, 0.45) 100%),
-        linear-gradient(270deg, #E53935 0%, #EF6B68 100%) !important;
-    border-color: rgba(0, 0, 0, 0.12) !important;
+        linear-gradient(270deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.35) 60%, rgba(255, 255, 255, 0.5) 100%),
+        linear-gradient(270deg, #F44336 0%, #FF7961 100%) !important;
+    border-color: rgba(150, 0, 0, 0.15) !important;
     box-shadow:
-        inset 0 0 10px rgba(0, 0, 0, 0.14),
-        inset 0 2px 3px rgba(255, 255, 255, 0.3),
-        inset 0 -1px 2px rgba(0, 0, 0, 0.12) !important;
+        inset 0 0 12px rgba(0, 0, 0, 0.1),
+        inset 0 2px 4px rgba(255, 255, 255, 0.35),
+        inset 0 -1px 2px rgba(0, 0, 0, 0.1) !important;
 }
 
 /* Blue home column: gradient pointing up toward center */
 .path-blue {
     background:
-        linear-gradient(0deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.3) 60%, rgba(255, 255, 255, 0.45) 100%),
-        linear-gradient(0deg, #2979FF 0%, #5C9AFF 100%) !important;
-    border-color: rgba(0, 0, 0, 0.12) !important;
+        linear-gradient(0deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.35) 60%, rgba(255, 255, 255, 0.5) 100%),
+        linear-gradient(0deg, #2196F3 0%, #64B5F6 100%) !important;
+    border-color: rgba(0, 0, 150, 0.15) !important;
     box-shadow:
-        inset 0 0 10px rgba(0, 0, 0, 0.14),
-        inset 0 2px 3px rgba(255, 255, 255, 0.3),
-        inset 0 -1px 2px rgba(0, 0, 0, 0.12) !important;
+        inset 0 0 12px rgba(0, 0, 0, 0.1),
+        inset 0 2px 4px rgba(255, 255, 255, 0.35),
+        inset 0 -1px 2px rgba(0, 0, 0, 0.1) !important;
 }
 
 /* ─── HOME CENTER ────────────────────────── */

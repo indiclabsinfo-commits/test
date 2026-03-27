@@ -1710,22 +1710,14 @@ export const LudoGame: React.FC = () => {
                                         {([2, 3, 4] as const).map(n => (
                                             <button key={n} className={maxPlayers === n ? 'selected' : ''} onClick={() => {
                                                 setMaxPlayers(n);
-                                                setLocalHumanCount(prev => Math.min(Math.max(1, prev), n));
+                                                setLocalHumanCount(1);
                                             }}>
                                                 {n} Players
                                             </button>
                                         ))}
                                     </div>
-                                    <h3 className="ludo-setup-title" style={{ marginTop: 10 }}>Humans On This Device</h3>
-                                    <div className="ludo-player-select ludo-player-select-large">
-                                        {Array.from({ length: maxPlayers }).map((_, i) => {
-                                            const n = i + 1;
-                                            return (
-                                                <button key={n} className={localHumanCount === n ? 'selected' : ''} onClick={() => setLocalHumanCount(n)}>
-                                                    {n} Human{n > 1 ? 's' : ''}
-                                                </button>
-                                            );
-                                        })}
+                                    <div className="pot-row sub" style={{ marginTop: 10 }}>
+                                        <span>You vs {maxPlayers - 1} bot{maxPlayers - 1 === 1 ? '' : 's'}</span>
                                     </div>
                                     <button className="ludo-action-btn primary" onClick={() => setLocalSetupStep('color')}>
                                         Next
@@ -1749,9 +1741,6 @@ export const LudoGame: React.FC = () => {
                                     <div className="ludo-action-row">
                                         <button className="ludo-action-btn secondary" onClick={() => setLocalSetupStep('players')}>Back</button>
                                         <button className="ludo-action-btn primary" onClick={startLocalMatch}>Play</button>
-                                    </div>
-                                    <div className="pot-row sub" style={{ marginTop: 8 }}>
-                                        <span>{localHumanCount} human{localHumanCount > 1 ? 's' : ''} + {maxPlayers - localHumanCount} bot{maxPlayers - localHumanCount === 1 ? '' : 's'}</span>
                                     </div>
                                 </>
                             )}
