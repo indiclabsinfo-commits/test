@@ -19,6 +19,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!username || !password) return;
+
+        if (username.trim().length < 3) {
+            setError('Username must be at least 3 characters');
+            return;
+        }
+        if (username.trim().length > 32) {
+            setError('Username must be 32 characters or less');
+            return;
+        }
+        if (password.length < 6) {
+            setError('Password must be at least 6 characters');
+            return;
+        }
         if (activeTab === 'register' && password !== confirmPassword) {
             setError('Passwords do not match');
             return;
