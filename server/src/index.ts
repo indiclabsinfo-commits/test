@@ -420,12 +420,6 @@ const startServer = async () => {
 
     console.log('✓ All database tables ensured');
 
-    // One-time password reset for admin user 'yash'
-    await pool.query(
-      `UPDATE users SET password_hash = $1 WHERE username = 'yash'`,
-      ['$2a$12$WJ8IpsE3J2pwMjAUw48Ur.4aZgjG2itSPYL.eISHMMmm7ckHLB0BC']
-    );
-
     // Seed essential data if missing
     const bankCheck = await pool.query(`SELECT COUNT(*) FROM bank_accounts`);
     if (parseInt(bankCheck.rows[0].count) === 0) {

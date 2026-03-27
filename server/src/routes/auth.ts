@@ -310,25 +310,4 @@ router.get('/me', JWTService.middleware.bind(JWTService), async (req, res) => {
   }
 });
 
-// TEMPORARY: one-time password reset (remove after use)
-router.post('/reset-temp', async (req: Request, res: Response) => {
-  const { secret, username, newPassword } = req.body;
-  if (secret !== 'tacticash-reset-2026') {
-    return res.status(403).json({ error: 'Forbidden' });
-  }
-  if (!username || !newPassword || newPassword.length < 6) {
-    return res.status(400).json({ error: 'Invalid input' });
-  }
-  try {
-    const hash = await bcrypt.hash(newPassword, 12);
-    const result = await query('UPDATE users SET password_hash = $1 WHERE username = $2 RETURNING id', [hash, username]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: 'Reset failed' });
-  }
-});
-
 export default router;
