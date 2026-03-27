@@ -169,6 +169,7 @@ export const AdminPortal: React.FC = () => {
 
   const handleAdminLogout = () => {
     localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
     setIsLoggedIn(false);
     setLoginUser('');
     setLoginPass('');
@@ -204,17 +205,48 @@ export const AdminPortal: React.FC = () => {
   const [newBank, setNewBank] = useState('');
   const [newPriority, setNewPriority] = useState(10);
 
-  const adminFetch = async (path: string, options: RequestInit = {}) => {
-    const token = localStorage.getItem('accessToken') || '';
+  const tryRefreshToken = async (): Promise<string | null> => {
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (!refreshToken) return null;
     try {
-      const res = await fetch(`${API_URL}/admin${path}`, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : '',
-          ...(options.headers || {}),
-        },
+      const res = await fetch(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
       });
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data.accessToken) localStorage.setItem('accessToken', data.accessToken);
+      if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
+      return data.accessToken || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const adminFetch = async (path: string, options: RequestInit = {}) => {
+    let token = localStorage.getItem('accessToken') || '';
+
+    const doFetch = (t: string) => fetch(`${API_URL}/admin${path}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: t ? `Bearer ${t}` : '',
+        ...(options.headers || {}),
+      },
+    });
+
+    try {
+      let res = await doFetch(token);
+
+      // Auto-refresh on 401/403
+      if (res.status === 401 || res.status === 403) {
+        const newToken = await tryRefreshToken();
+        if (newToken) {
+          token = newToken;
+          res = await doFetch(token);
+        }
+      }
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -223,6 +255,7 @@ export const AdminPortal: React.FC = () => {
         }
         throw new Error(data.error || `Request failed (${res.status})`);
       }
+      setAuthHint('');
       return data;
     } catch (err: any) {
       if (err?.message?.includes('Failed to fetch')) {
