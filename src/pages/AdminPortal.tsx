@@ -158,6 +158,7 @@ export const AdminPortal: React.FC = () => {
         throw new Error('This account does not have admin access');
       }
       localStorage.setItem('accessToken', data.accessToken);
+      if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
       setIsLoggedIn(true);
     } catch (err: any) {
       setLoginError(err.message || 'Login failed');

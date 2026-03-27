@@ -120,6 +120,7 @@ router.post('/register', [
         isDemoMode: user.is_demo_mode, role: user.role,
       },
       accessToken,
+      refreshToken,
     });
   } catch (err) {
     console.error('Registration error:', err);
@@ -172,6 +173,7 @@ router.post('/login', [
         isDemoMode: user.is_demo_mode, role: user.role,
       },
       accessToken,
+      refreshToken,
     });
   } catch (err) {
     console.error('Login error:', err);
@@ -258,6 +260,7 @@ router.post('/refresh', async (req, res) => {
 
     res.json({
       accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
     });
   } catch (err) {
     res.clearCookie(REFRESH_COOKIE, { path: REFRESH_COOKIE_PATH });

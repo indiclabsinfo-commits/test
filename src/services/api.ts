@@ -34,15 +34,20 @@ class APIService {
           originalRequest._retry = true;
 
           try {
-            const response = await axios.post(`${BASE_URL}/auth/refresh`, {}, { withCredentials: true });
-            const { accessToken } = response.data;
+            const storedRefresh = localStorage.getItem('refreshToken');
+            const response = await axios.post(`${BASE_URL}/auth/refresh`, {
+              refreshToken: storedRefresh || undefined,
+            }, { withCredentials: true });
+            const { accessToken, refreshToken: newRefresh } = response.data;
 
             localStorage.setItem('accessToken', accessToken);
+            if (newRefresh) localStorage.setItem('refreshToken', newRefresh);
 
             originalRequest.headers.Authorization = `Bearer ${accessToken}`;
             return this.api(originalRequest);
           } catch {
             localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
             // Don't hard-reload — let components handle auth errors gracefully
             return Promise.reject(error);
           }
@@ -59,6 +64,9 @@ class APIService {
     if (response.data.accessToken) {
       localStorage.setItem('accessToken', response.data.accessToken);
     }
+    if (response.data.refreshToken) {
+      localStorage.setItem('refreshToken', response.data.refreshToken);
+    }
     return response.data;
   }
 
@@ -67,12 +75,17 @@ class APIService {
     if (response.data.accessToken) {
       localStorage.setItem('accessToken', response.data.accessToken);
     }
+    if (response.data.refreshToken) {
+      localStorage.setItem('refreshToken', response.data.refreshToken);
+    }
     return response.data;
   }
 
   async logout() {
-    await this.api.post('/auth/logout', {});
+    const refreshToken = localStorage.getItem('refreshToken');
+    await this.api.post('/auth/logout', { refreshToken: refreshToken || undefined });
     localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
   }
 
   async getMe() {
