@@ -81,8 +81,8 @@ const GameController = () => {
     if (payload.mode === 'register') {
       await register(payload.username, payload.password);
       setWalletInitialTab('deposit');
-      setWalletInitialDepositMethod('qr');
-      setWalletAutoQRAmountInr(100);
+      setWalletInitialDepositMethod('select');
+      setWalletAutoQRAmountInr(undefined);
       setIsWalletOpen(true);
     } else {
       await login(payload.username, payload.password);

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AgentDepositFlow } from './AgentDepositFlow';
 import { QRDepositFlow } from './QRDepositFlow';
 import { CryptoDepositFlow } from './CryptoDepositFlow';
@@ -12,6 +12,10 @@ interface DepositTabProps {
 
 export const DepositTab: React.FC<DepositTabProps> = ({ initialMethod = 'select', autoQRAmountInr }) => {
   const [method, setMethod] = useState<DepositMethod>(initialMethod);
+
+  useEffect(() => {
+    setMethod(initialMethod);
+  }, [initialMethod]);
 
   if (method === 'agent') return <AgentDepositFlow onBack={() => setMethod('select')} />;
   if (method === 'qr') return <QRDepositFlow onBack={() => setMethod('select')} autoCreateAmountInr={autoQRAmountInr} />;

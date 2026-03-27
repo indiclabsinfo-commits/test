@@ -43,7 +43,7 @@ class APIService {
             return this.api(originalRequest);
           } catch {
             localStorage.removeItem('accessToken');
-            window.location.href = '/';
+            // Don't hard-reload — let components handle auth errors gracefully
             return Promise.reject(error);
           }
         }
