@@ -136,6 +136,43 @@ interface LudoPreviewPayload {
 }
 
 export const AdminPortal: React.FC = () => {
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('accessToken'));
+  const [loginUser, setLoginUser] = useState('');
+  const [loginPass, setLoginPass] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginLoading(true);
+    setLoginError('');
+    try {
+      const res = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: loginUser, password: loginPass }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Login failed');
+      if (!['admin', 'superadmin'].includes(data.user?.role)) {
+        throw new Error('This account does not have admin access');
+      }
+      localStorage.setItem('accessToken', data.accessToken);
+      setIsLoggedIn(true);
+    } catch (err: any) {
+      setLoginError(err.message || 'Login failed');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
+
+  const handleAdminLogout = () => {
+    localStorage.removeItem('accessToken');
+    setIsLoggedIn(false);
+    setLoginUser('');
+    setLoginPass('');
+  };
+
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -498,15 +535,45 @@ export const AdminPortal: React.FC = () => {
     loadLudoPreview();
   }, [ludoPlayerCount]);
 
+  if (!isLoggedIn) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <form onSubmit={handleAdminLogin} style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: 16, padding: 32, width: '100%', maxWidth: 400 }}>
+          <h2 style={{ marginBottom: 4, textAlign: 'center' }}>Admin Login</h2>
+          <p style={{ color: 'var(--text-muted)', textAlign: 'center', marginBottom: 20, fontSize: '0.9rem' }}>Sign in with admin credentials</p>
+          <input
+            type="text" placeholder="Username" value={loginUser}
+            onChange={e => setLoginUser(e.target.value)}
+            style={{ ...inputStyle, width: '100%', marginBottom: 12, padding: '10px 14px', fontSize: '1rem' }}
+            autoFocus required
+          />
+          <input
+            type="password" placeholder="Password" value={loginPass}
+            onChange={e => setLoginPass(e.target.value)}
+            style={{ ...inputStyle, width: '100%', marginBottom: 16, padding: '10px 14px', fontSize: '1rem' }}
+            required
+          />
+          {loginError && <p style={{ color: '#ff5555', marginBottom: 12, fontSize: '0.85rem' }}>{loginError}</p>}
+          <button type="submit" disabled={loginLoading} style={{ ...btnPrimary, width: '100%', padding: '10px 0', fontSize: '1rem', opacity: loginLoading ? 0.7 : 1 }}>
+            {loginLoading ? 'Logging in...' : 'Login'}
+          </button>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', padding: '24px' }}>
       <div style={{ maxWidth: 980, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 16 }}>
-          <h2 style={{ marginBottom: 8 }}>Master Admin - Payment Routing</h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: 0 }}>
-            Manage UPI IDs / QR source accounts, switch primary instantly, and keep backup accounts active.
-          </p>
-          {authHint && <p style={{ color: '#ffae57', marginTop: 8, marginBottom: 0 }}>{authHint}</p>}
+        <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h2 style={{ marginBottom: 8 }}>Master Admin - Payment Routing</h2>
+            <p style={{ color: 'var(--text-muted)', marginBottom: 0 }}>
+              Manage UPI IDs / QR source accounts, switch primary instantly, and keep backup accounts active.
+            </p>
+            {authHint && <p style={{ color: '#ffae57', marginTop: 8, marginBottom: 0 }}>{authHint}</p>}
+          </div>
+          <button onClick={handleAdminLogout} style={{ ...btnPrimary, background: '#444', flexShrink: 0 }}>Logout</button>
         </div>
 
         <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', borderRadius: 12, padding: 16 }}>
